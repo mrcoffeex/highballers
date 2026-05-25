@@ -17,7 +17,7 @@ export function PlayerCard({ player, compact, showRating = true }: PlayerCardPro
   return (
     <Card style={compact ? styles.compactCard : undefined}>
       <View style={styles.row}>
-        <Avatar name={player.name} color={player.avatarColor} size={compact ? 40 : 52} />
+        <Avatar name={player.name} color={player.avatarColor} size={compact ? 40 : 52} imageUrl={player.avatarUrl} />
         <View style={styles.info}>
           <Text style={styles.name}>{player.nickname ?? player.name}</Text>
           {!compact && player.nickname ? (
@@ -25,11 +25,17 @@ export function PlayerCard({ player, compact, showRating = true }: PlayerCardPro
           ) : null}
           <View style={styles.meta}>
             <Badge label={player.position} color={colors.primary} />
-            {showRating ? (
+            {!compact && showRating ? (
               <Text style={styles.rating}>OVR {rating}</Text>
             ) : null}
           </View>
         </View>
+        {compact && showRating ? (
+          <View style={styles.compactRating}>
+            <Text style={styles.compactRatingLabel}>OVR</Text>
+            <Text style={styles.compactRatingValue}>{rating}</Text>
+          </View>
+        ) : null}
       </View>
       {!compact ? (
         <Text style={styles.position}>{POSITION_LABELS[player.position]}</Text>
@@ -69,6 +75,28 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.secondary,
     fontWeight: '700',
+  },
+  compactRating: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 44,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: `${colors.secondary}18`,
+    borderWidth: 1,
+    borderColor: `${colors.secondary}40`,
+  },
+  compactRatingLabel: {
+    ...typography.label,
+    color: colors.textMuted,
+    fontSize: 9,
+  },
+  compactRatingValue: {
+    ...typography.heading,
+    color: colors.secondary,
+    fontSize: 16,
+    lineHeight: 18,
   },
   position: {
     ...typography.caption,

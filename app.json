@@ -27,7 +27,29 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-image",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#FF6B2C"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow HighBallers to access your photos for profile and club images."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow HighBallers to pin your current location for game courts."
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
     ]
   }
 }

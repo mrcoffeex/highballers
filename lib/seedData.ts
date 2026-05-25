@@ -1,4 +1,69 @@
-import { Club, GameEvent, UserProfile } from './types';
+import { Club, GameEvent, Position, UserProfile } from './types';
+
+export const AVATAR_COLORS = [
+  '#FF6B2C',
+  '#3B82F6',
+  '#22C55E',
+  '#A855F7',
+  '#FFD166',
+  '#EC4899',
+  '#14B8A6',
+  '#F97316',
+];
+
+const DAVSUR_PLAYER_NAMES = [
+  'Jomari Santos',
+  'Kenji Reyes',
+  'Paolo Mendoza',
+  'Rico Villanueva',
+  'Dylan Fernandez',
+  'Miguel Torre',
+  'Andrei Cruz',
+  'Luis Aguilar',
+  'Nathan Ocampo',
+  'Ethan Bautista',
+  'Carlo Dimaculangan',
+  'Jerome Pacquiao',
+  'Ivan Sarmiento',
+  'Marco Del Rosario',
+  'Tristan Go',
+  'Felix Ramirez',
+  'Owen Castillo',
+  'Sean Villafuerte',
+  'Ryan Monteverde',
+  'Leo Manigos',
+] as const;
+
+const POSITION_CYCLE: Position[] = ['PG', 'SG', 'SF', 'PF', 'C'];
+
+function buildDavSurPlayers(): UserProfile[] {
+  return DAVSUR_PLAYER_NAMES.map((name, index) => {
+    const slot = index + 1;
+    const position = POSITION_CYCLE[index % POSITION_CYCLE.length];
+
+    return {
+      id: `davsur-${String(slot).padStart(2, '0')}`,
+      name,
+      nickname: name.split(' ')[0],
+      position,
+      avatarColor: AVATAR_COLORS[index % AVATAR_COLORS.length],
+      stats: {
+        height: 175 + (index % 5) * 4 + (position === 'C' ? 10 : 0),
+        weight: 70 + (index % 6) * 3 + (position === 'C' || position === 'PF' ? 8 : 0),
+        speed: 4 + ((index * 2) % 6),
+        strength: 4 + ((index * 3) % 6),
+        shooting: 4 + ((index * 5) % 6),
+        defense: 4 + ((index * 7) % 6),
+        stamina: 5 + (index % 5),
+      },
+      bio: `Dav Sur pickup regular · ${position}`,
+      joinedAt: new Date(Date.UTC(2025, 4, 1 + index)).toISOString(),
+    };
+  });
+}
+
+export const DAVSUR_PLAYERS = buildDavSurPlayers();
+export const DAVSUR_CLUB_ID = 'club-davsur';
 
 export const SEED_PLAYERS: UserProfile[] = [
   {
@@ -73,6 +138,7 @@ export const SEED_PLAYERS: UserProfile[] = [
     stats: { height: 178, weight: 74, speed: 9, strength: 4, shooting: 6, defense: 5, stamina: 9 },
     joinedAt: '2025-05-01T00:00:00.000Z',
   },
+  ...DAVSUR_PLAYERS,
 ];
 
 export const SEED_CLUBS: Club[] = [
@@ -84,6 +150,7 @@ export const SEED_CLUBS: Club[] = [
     memberIds: ['player-1', 'player-2', 'player-3', 'player-4', 'player-5'],
     adminId: 'player-1',
     iconColor: '#FF6B2C',
+    visibility: 'open',
     createdAt: '2025-01-20T00:00:00.000Z',
   },
   {
@@ -94,6 +161,7 @@ export const SEED_CLUBS: Club[] = [
     memberIds: ['player-2', 'player-4', 'player-6', 'player-7', 'player-8'],
     adminId: 'player-2',
     iconColor: '#3B82F6',
+    visibility: 'private',
     createdAt: '2025-02-15T00:00:00.000Z',
   },
   {
@@ -104,7 +172,19 @@ export const SEED_CLUBS: Club[] = [
     memberIds: ['player-1', 'player-3', 'player-6', 'player-8'],
     adminId: 'player-3',
     iconColor: '#22C55E',
+    visibility: 'open',
     createdAt: '2025-03-01T00:00:00.000Z',
+  },
+  {
+    id: DAVSUR_CLUB_ID,
+    name: 'Dav Sur Ballers',
+    description: 'Pickup runs and club games around Davao del Sur.',
+    location: 'Digos City, Davao del Sur',
+    memberIds: DAVSUR_PLAYERS.map((player) => player.id),
+    adminId: 'davsur-01',
+    iconColor: '#FF6B2C',
+    visibility: 'open',
+    createdAt: '2025-05-01T00:00:00.000Z',
   },
 ];
 
@@ -115,6 +195,8 @@ export const SEED_EVENTS: GameEvent[] = [
     title: 'Tuesday Night Run',
     description: 'Full court 5v5. Bring your A-game!',
     location: 'Central Park Courts - Court 2',
+    latitude: 40.769,
+    longitude: -73.973,
     dateTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
     maxPlayers: 10,
     participantIds: ['player-1', 'player-2', 'player-3', 'player-4', 'player-5', 'player-6'],
@@ -127,6 +209,8 @@ export const SEED_EVENTS: GameEvent[] = [
     title: 'Sunset Showdown',
     description: 'Competitive scrimmage with balanced teams.',
     location: 'Sunset Recreation Center',
+    latitude: 40.748,
+    longitude: -73.987,
     dateTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     maxPlayers: 10,
     participantIds: ['player-2', 'player-4', 'player-6', 'player-7', 'player-8'],
@@ -139,21 +223,36 @@ export const SEED_EVENTS: GameEvent[] = [
     title: 'Saturday Morning Pickup',
     description: 'Relaxed run to start the weekend right.',
     location: 'Riverside Gymnasium',
+    latitude: 40.802,
+    longitude: -73.971,
     dateTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-    maxPlayers: 12,
+    maxPlayers: 10,
     participantIds: ['player-1', 'player-3', 'player-6', 'player-8'],
     shuffled: false,
     createdBy: 'player-3',
   },
-];
-
-export const AVATAR_COLORS = [
-  '#FF6B2C',
-  '#3B82F6',
-  '#22C55E',
-  '#A855F7',
-  '#FFD166',
-  '#EC4899',
-  '#14B8A6',
-  '#F97316',
+  {
+    id: 'event-davsur-1',
+    clubId: DAVSUR_CLUB_ID,
+    title: 'G Mga Par',
+    description: 'Full court pickup at Digos. All Dav Sur Ballers welcome.',
+    location: 'Digos City Gymnasium',
+    latitude: 6.7495,
+    longitude: 125.3557,
+    dateTime: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+    maxPlayers: 20,
+    participantIds: DAVSUR_PLAYERS.map((player) => player.id),
+    shuffled: true,
+    courtGames: [
+      {
+        teamA: DAVSUR_PLAYERS.slice(0, 5).map((player) => player.id),
+        teamB: DAVSUR_PLAYERS.slice(5, 10).map((player) => player.id),
+      },
+      {
+        teamA: DAVSUR_PLAYERS.slice(10, 15).map((player) => player.id),
+        teamB: DAVSUR_PLAYERS.slice(15, 20).map((player) => player.id),
+      },
+    ],
+    createdBy: 'davsur-01',
+  },
 ];

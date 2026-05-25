@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '../lib/theme';
 import { Club } from '../lib/types';
+import { ClubIcon } from './ClubIcon';
 import { Badge, Card } from './ui';
 
 interface ClubCardProps {
@@ -16,9 +17,7 @@ export function ClubCard({ club, memberCount, isMember, onPress }: ClubCardProps
   return (
     <Card onPress={onPress} style={styles.card}>
       <View style={styles.header}>
-        <View style={[styles.icon, { backgroundColor: `${club.iconColor}22` }]}>
-          <Ionicons name="basketball" size={24} color={club.iconColor} />
-        </View>
+        <ClubIcon name={club.name} iconColor={club.iconColor} iconUrl={club.iconUrl} size={48} />
         <View style={styles.headerText}>
           <Text style={styles.name}>{club.name}</Text>
           <View style={styles.locationRow}>
@@ -27,6 +26,12 @@ export function ClubCard({ club, memberCount, isMember, onPress }: ClubCardProps
           </View>
         </View>
         {isMember ? <Badge label="Member" color={colors.success} /> : null}
+        {!isMember && club.visibility === 'private' ? (
+          <Badge label="Private" color={colors.warning} />
+        ) : null}
+        {!isMember && club.visibility === 'open' ? (
+          <Badge label="Open" color={colors.accent} />
+        ) : null}
       </View>
       <Text style={styles.description} numberOfLines={2}>
         {club.description}

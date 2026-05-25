@@ -3,11 +3,11 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ClubCard } from '../../components/ClubCard';
-import { Screen } from '../../components/Screen';
-import { Button, EmptyState } from '../../components/ui';
-import { colors, radius, spacing, typography } from '../../lib/theme';
-import { useAppStore } from '../../store/useAppStore';
+import { ClubCard } from '../../../components/ClubCard';
+import { Screen } from '../../../components/Screen';
+import { Button, EmptyState } from '../../../components/ui';
+import { colors, radius, spacing, typography } from '../../../lib/theme';
+import { useAppStore } from '../../../store/useAppStore';
 
 type Filter = 'all' | 'joined' | 'discover';
 
@@ -37,7 +37,7 @@ export default function ClubsScreen() {
         <Button
           title="Create"
           size="sm"
-          onPress={() => router.push('/club/create')}
+          onPress={() => router.push('/clubs/create')}
           icon={<Ionicons name="add" size={18} color={colors.text} />}
         />
       </View>
@@ -72,7 +72,7 @@ export default function ClubsScreen() {
             key={club.id}
             club={club}
             isMember={club.memberIds.includes(currentUserId ?? '')}
-            onPress={() => router.push(`/club/${club.id}`)}
+            onPress={() => router.push(`/clubs/${club.id}`)}
           />
         ))
       )}

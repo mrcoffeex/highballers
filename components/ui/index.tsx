@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -108,15 +109,26 @@ interface AvatarProps {
   name: string;
   color: string;
   size?: number;
+  imageUrl?: string;
 }
 
-export function Avatar({ name, color, size = 48 }: AvatarProps) {
+export function Avatar({ name, color, size = 48, imageUrl }: AvatarProps) {
   const initials = name
     .split(' ')
     .map((part) => part[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();
+
+  if (imageUrl) {
+    return (
+      <Image
+        source={{ uri: imageUrl }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        contentFit="cover"
+      />
+    );
+  }
 
   return (
     <View style={[styles.avatar, { backgroundColor: color, width: size, height: size, borderRadius: size / 2 }]}>

@@ -1,26 +1,38 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { format } from 'date-fns';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '../../components/Screen';
 import { StatSlider } from '../../components/StatSlider';
 import { Avatar, Badge, Button, Card } from '../../components/ui';
+import { isSupabaseEnabled } from '../../lib/config';
 import { calculatePlayerRating } from '../../lib/teamBalancer';
 import { colors, radius, spacing, typography } from '../../lib/theme';
-import { POSITION_LABELS } from '../../lib/types';
+import { BOX_SCORE_LABELS, BOX_SCORE_FIELDS, POSITION_LABELS } from '../../lib/types';
+import { useCurrentUser, useMyClubs, usePlayerGameHistory } from '../../store/hooks';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const user = useAppStore((state) => state.getCurrentUser());
-  const myClubs = useAppStore((state) => state.getMyClubs());
+  const user = useCurrentUser();
+  const myClubs = useMyClubs();
+  const gameHistory = usePlayerGameHistory(user?.id ?? '');
   const updateStats = useAppStore((state) => state.updateStats);
+  const signOut = useAppStore((state) => state.signOut);
 
   if (!user) {
     return null;
   }
 
   const rating = calculatePlayerRating(user.stats);
+  const careerTotals = BOX_SCORE_FIELDS.reduce(
+    (acc, field) => {
+      acc[field] = gameHistory.reduce((sum, game) => sum + game.stats[field], 0);
+      return acc;
+    },
+    { points: 0, rebounds: 0, assists: 0, blocks: 0, steals: 0 },
+  );
   const statItems = [
     { label: 'Speed', value: user.stats.speed },
     { label: 'Strength', value: user.stats.strength },
@@ -33,7 +45,7 @@ export default function ProfileScreen() {
     <Screen>
       <Card style={styles.profileCard}>
         <View style={styles.profileHeader}>
-          <Avatar name={user.name} color={user.avatarColor} size={72} />
+          <Avatar name={user.name} color={user.avatarColor} size={72} imageUrl={user.avatarUrl} />
           <View style={styles.profileInfo}>
             <Text style={styles.name}>{user.name}</Text>
             {user.nickname ? <Text style={styles.nickname}>&quot;{user.nickname}&quot;</Text> : null}
@@ -87,7 +99,58 @@ export default function ProfileScreen() {
       <View style={styles.activityRow}>
         <ActivityItem icon="people" label="Clubs" value={String(myClubs.length)} />
         <ActivityItem icon="basketball" label="Position" value={user.position} />
+        <ActivityItem icon="stats-chart" label="Games" value={String(gameHistory.length)} />
       </View>
+
+      <Text style={styles.sectionTitle}>Game History</Text>
+      {gameHistory.length > 0 ? (
+        <>
+          <Card style={styles.careerCard}>
+            <Text style={styles.careerTitle}>Career totals</Text>
+            <View style={styles.careerRow}>
+              {BOX_SCORE_FIELDS.map((field) => (
+                <View key={field} style={styles.careerItem}>
+                  <Text style={styles.careerLabel}>{BOX_SCORE_LABELS[field]}</Text>
+                  <Text style={styles.careerValue}>{careerTotals[field]}</Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+          {gameHistory.map((game) => (
+            <Card key={game.id} style={styles.historyCard}>
+              <View style={styles.historyHeader}>
+                <Text style={styles.historyTitle}>{game.event?.title ?? 'Pickup game'}</Text>
+                <Text style={styles.historyDate}>
+                  {format(new Date(game.event?.dateTime ?? game.recordedAt), 'MMM d, yyyy')}
+                </Text>
+              </View>
+              <View style={styles.historyStats}>
+                {BOX_SCORE_FIELDS.map((field) => (
+                  <Text key={field} style={styles.historyStat}>
+                    {BOX_SCORE_LABELS[field]} {game.stats[field]}
+                  </Text>
+                ))}
+              </View>
+            </Card>
+          ))}
+        </>
+      ) : (
+        <Card>
+          <Text style={styles.emptyHistory}>No recorded games yet. Stats appear here after a game is tabulated.</Text>
+        </Card>
+      )}
+
+      {isSupabaseEnabled ? (
+        <Button
+          title="Sign Out"
+          variant="ghost"
+          onPress={async () => {
+            await signOut();
+            router.replace('/auth');
+          }}
+          style={styles.signOut}
+        />
+      ) : null}
     </Screen>
   );
 }
@@ -236,5 +299,69 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  signOut: {
+    marginBottom: spacing.lg,
+  },
+  careerCard: {
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  careerTitle: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
+  careerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  careerItem: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  careerLabel: {
+    ...typography.label,
+    color: colors.textDim,
+    fontSize: 10,
+  },
+  careerValue: {
+    ...typography.body,
+    color: colors.secondary,
+    fontWeight: '700',
+  },
+  historyCard: {
+    marginBottom: spacing.sm,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  historyTitle: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+    flex: 1,
+  },
+  historyDate: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  historyStats: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  historyStat: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  emptyHistory: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 });

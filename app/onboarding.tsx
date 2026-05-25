@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StatSlider } from '../components/StatSlider';
+import { ImagePickerField } from '../components/ImagePickerField';
 import { Avatar, Button, Input } from '../components/ui';
+import { getGoogleProfileHints } from '../lib/googleAuth';
 import { colors, radius, spacing, typography } from '../lib/theme';
 import { POSITIONS, Position } from '../lib/types';
 import { createDefaultProfile, useAppStore } from '../store/useAppStore';
@@ -15,22 +17,39 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
+  const session = useAppStore((state) => state.session);
+  const googleHints = useMemo(() => getGoogleProfileHints(session), [session]);
 
   const [step, setStep] = useState(0);
-  const [name, setName] = useState('');
+  const [name, setName] = useState(googleHints.name);
   const [nickname, setNickname] = useState('');
   const [position, setPosition] = useState<Position>('SG');
   const [stats, setStats] = useState(createDefaultProfile('', 'SG').stats);
+  const [avatarUri, setAvatarUri] = useState<string | undefined>(googleHints.avatarUrl);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const canContinue = name.trim().length >= 2;
 
-  const handleFinish = () => {
-    completeOnboarding({
-      ...createDefaultProfile(name.trim(), position),
-      nickname: nickname.trim() || undefined,
-      stats,
-    });
-    router.replace('/(tabs)');
+  const handleFinish = async () => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      await completeOnboarding(
+        {
+          ...createDefaultProfile(name.trim(), position),
+          nickname: nickname.trim() || undefined,
+          stats,
+        },
+        avatarUri,
+      );
+      router.replace('/(tabs)');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save your profile. Try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -119,6 +138,13 @@ export default function OnboardingScreen() {
             <Text style={styles.stepDesc}>
               These help balance teams when shuffling players for games.
             </Text>
+            <ImagePickerField
+              label="Profile Photo"
+              imageUri={avatarUri}
+              fallbackName={name || 'Player'}
+              fallbackColor={colors.primary}
+              onPick={setAvatarUri}
+            />
             <StatSlider
               label="Height"
               value={stats.height}
@@ -143,15 +169,16 @@ export default function OnboardingScreen() {
             <StatSlider label="Defense" value={stats.defense} onChange={(defense) => setStats({ ...stats, defense })} />
             <StatSlider label="Stamina" value={stats.stamina} onChange={(stamina) => setStats({ ...stats, stamina })} />
             <View style={styles.preview}>
-              <Avatar name={name || 'Player'} color={colors.primary} size={56} />
+              <Avatar name={name || 'Player'} color={colors.primary} size={56} imageUrl={avatarUri} />
               <View>
                 <Text style={styles.previewName}>{name || 'Your Name'}</Text>
                 <Text style={styles.previewMeta}>{position} · Ready to hoop</Text>
               </View>
             </View>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
             <View style={styles.navRow}>
               <Button title="Back" variant="ghost" onPress={() => setStep(1)} />
-              <Button title="Start Playing" onPress={handleFinish} size="lg" style={styles.flexBtn} />
+              <Button title="Start Playing" onPress={handleFinish} loading={loading} size="lg" style={styles.flexBtn} />
             </View>
           </View>
         )}
@@ -262,6 +289,12 @@ const styles = StyleSheet.create({
   },
   flexBtn: {
     flex: 1,
+  },
+  error: {
+    ...typography.caption,
+    color: colors.error,
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
   preview: {
     flexDirection: 'row',

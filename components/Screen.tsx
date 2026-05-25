@@ -4,6 +4,7 @@ import { ScrollView, ScrollViewProps, StyleSheet, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '../lib/theme';
+import { useTabBarPadding } from '../lib/tabBar';
 
 interface ScreenProps extends ScrollViewProps {
   children: ReactNode;
@@ -26,6 +27,7 @@ export function Screen({
   ...props
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
+  const bottomPadding = useTabBarPadding(spacing.lg);
 
   const content = (
     <>
@@ -46,7 +48,7 @@ export function Screen({
     styles.container,
     {
       paddingTop: insets.top + spacing.sm,
-      paddingBottom: insets.bottom + spacing.md,
+      paddingBottom: bottomPadding,
       paddingHorizontal: padded ? spacing.lg : 0,
     },
     style,
@@ -67,7 +69,7 @@ export function Screen({
         contentContainerStyle={[
           {
             paddingTop: insets.top + spacing.sm,
-            paddingBottom: insets.bottom + spacing.xxl,
+            paddingBottom: bottomPadding,
             paddingHorizontal: padded ? spacing.lg : 0,
           },
           contentContainerStyle,

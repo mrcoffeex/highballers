@@ -1,17 +1,20 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ImagePickerField } from '../../components/ImagePickerField';
 import { StatSlider } from '../../components/StatSlider';
 import { Button, Input } from '../../components/ui';
 import { AVATAR_COLORS } from '../../lib/seedData';
 import { colors, radius, spacing, typography } from '../../lib/theme';
 import { POSITIONS, Position } from '../../lib/types';
+import { useCurrentUser } from '../../store/hooks';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const user = useAppStore((state) => state.getCurrentUser());
+  const user = useCurrentUser();
   const updateProfile = useAppStore((state) => state.updateProfile);
   const updateStats = useAppStore((state) => state.updateStats);
 
@@ -21,25 +24,40 @@ export default function EditProfileScreen() {
   const [bio, setBio] = useState(user?.bio ?? '');
   const [avatarColor, setAvatarColor] = useState(user?.avatarColor ?? AVATAR_COLORS[0]);
   const [stats, setStats] = useState(user?.stats);
+  const [avatarUri, setAvatarUri] = useState<string | undefined>(user?.avatarUrl);
+  const [loading, setLoading] = useState(false);
 
   if (!user || !stats) {
     return null;
   }
 
-  const handleSave = () => {
-    updateProfile({
-      name: name.trim(),
-      nickname: nickname.trim() || undefined,
-      position,
-      bio: bio.trim() || undefined,
-      avatarColor,
-    });
-    updateStats(stats);
+  const handleSave = async () => {
+    setLoading(true);
+    await updateProfile(
+      {
+        name: name.trim(),
+        nickname: nickname.trim() || undefined,
+        position,
+        bio: bio.trim() || undefined,
+        avatarColor,
+      },
+      avatarUri !== user.avatarUrl ? avatarUri : undefined,
+    );
+    await updateStats(stats);
+    setLoading(false);
     router.back();
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ImagePickerField
+        label="Profile Photo"
+        imageUri={avatarUri}
+        fallbackName={name || user.name}
+        fallbackColor={avatarColor}
+        onPick={setAvatarUri}
+      />
+
       <Text style={styles.label}>Full Name</Text>
       <Input value={name} onChangeText={setName} style={styles.field} />
 
@@ -80,7 +98,11 @@ export default function EditProfileScreen() {
               { backgroundColor: color },
               avatarColor === color && styles.colorSwatchActive,
             ]}
-          />
+          >
+            {avatarColor === color ? (
+              <Ionicons name="checkmark" size={18} color={colors.text} />
+            ) : null}
+          </Pressable>
         ))}
       </View>
 
@@ -93,7 +115,7 @@ export default function EditProfileScreen() {
       <StatSlider label="Defense" value={stats.defense} onChange={(defense) => setStats({ ...stats, defense })} />
       <StatSlider label="Stamina" value={stats.stamina} onChange={(stamina) => setStats({ ...stats, stamina })} />
 
-      <Button title="Save Changes" onPress={handleSave} size="lg" style={styles.submit} />
+      <Button title="Save Changes" onPress={handleSave} loading={loading} size="lg" style={styles.submit} />
     </ScrollView>
   );
 }
@@ -156,6 +178,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   colorSwatchActive: {
     borderWidth: 3,

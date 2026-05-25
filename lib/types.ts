@@ -10,15 +10,41 @@ export interface PlayerStats {
   stamina: number;
 }
 
+export interface BoxScoreStats {
+  points: number;
+  rebounds: number;
+  assists: number;
+  blocks: number;
+  steals: number;
+}
+
+export interface GameStatRecord {
+  id: string;
+  eventId: string;
+  userId: string;
+  stats: BoxScoreStats;
+  recordedAt: string;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
   nickname?: string;
   position: Position;
   avatarColor: string;
+  avatarUrl?: string;
   stats: PlayerStats;
   bio?: string;
   joinedAt: string;
+}
+
+export type ClubVisibility = 'open' | 'private';
+
+export interface ClubJoinRequest {
+  id: string;
+  clubId: string;
+  userId: string;
+  createdAt: string;
 }
 
 export interface Club {
@@ -29,7 +55,14 @@ export interface Club {
   memberIds: string[];
   adminId: string;
   iconColor: string;
+  iconUrl?: string;
+  visibility: ClubVisibility;
   createdAt: string;
+}
+
+export interface CourtGame {
+  teamA: string[];
+  teamB: string[];
 }
 
 export interface GameEvent {
@@ -38,13 +71,17 @@ export interface GameEvent {
   title: string;
   description: string;
   location: string;
+  latitude?: number;
+  longitude?: number;
   dateTime: string;
   maxPlayers: number;
+  /** Total players assigned to each court when shuffling (even, min 4). Default 10 = 5v5. */
+  playersPerGame?: number;
   participantIds: string[];
-  teamA?: string[];
-  teamB?: string[];
+  courtGames?: CourtGame[];
   shuffled: boolean;
   createdBy: string;
+  finishedAt?: string;
 }
 
 export interface BalancedTeams {
@@ -72,4 +109,28 @@ export const DEFAULT_STATS: PlayerStats = {
   shooting: 5,
   defense: 5,
   stamina: 5,
+};
+
+export const EMPTY_BOX_SCORE: BoxScoreStats = {
+  points: 0,
+  rebounds: 0,
+  assists: 0,
+  blocks: 0,
+  steals: 0,
+};
+
+export const BOX_SCORE_FIELDS: (keyof BoxScoreStats)[] = [
+  'points',
+  'rebounds',
+  'assists',
+  'blocks',
+  'steals',
+];
+
+export const BOX_SCORE_LABELS: Record<keyof BoxScoreStats, string> = {
+  points: 'PTS',
+  rebounds: 'REB',
+  assists: 'AST',
+  blocks: 'BLK',
+  steals: 'STL',
 };

@@ -2,24 +2,78 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
 
+import { BoxScoreTable } from '../../components/BoxScoreTable';
+import { ConfirmModal } from '../../components/ConfirmModal';
+import { EventLocationCard } from '../../components/EventLocationCard';
 import { PlayerCard } from '../../components/PlayerCard';
+import { PlayersPerGamePicker } from '../../components/PlayersPerGamePicker';
 import { TeamShuffleView, triggerShuffleHaptic } from '../../components/TeamShuffleView';
 import { Badge, Button, Card, SectionHeader } from '../../components/ui';
-import { calculatePlayerRating } from '../../lib/teamBalancer';
+import {
+  canEditEvent,
+  canManageEventStats,
+  canMarkEventFinished,
+  canRecordEventStats,
+  hasEventStarted,
+  isEventOptionsLocked,
+} from '../../lib/gameEvents';
+import { canShuffleEvent, getCourtGameCount, formatRosterRating } from '../../lib/eventRoster';
+import {
+  clampPlayersPerGame,
+  DEFAULT_PLAYERS_PER_GAME,
+  describeCourtCapacity,
+  formatGameSizeLabel,
+  getPlayersPerGame,
+} from '../../lib/gameFormats';
 import { colors, spacing, typography } from '../../lib/theme';
-import { UserProfile } from '../../lib/types';
+import { BoxScoreStats, EMPTY_BOX_SCORE, UserProfile } from '../../lib/types';
+import { useClub, useCourtGames, useEvent, useEventWaitlist } from '../../store/hooks';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const event = useAppStore((state) => state.getEventById(id));
-  const club = useAppStore((state) => state.getClubById(event?.clubId ?? ''));
-  const getUserById = useAppStore((state) => state.getUserById);
+  const router = useRouter();
+  const event = useEvent(id);
+  const club = useClub(event?.clubId ?? '');
+  const users = useAppStore((state) => state.users);
   const currentUserId = useAppStore((state) => state.currentUserId);
+  const gameStatRecords = useAppStore((state) => state.gameStatRecords);
   const joinEvent = useAppStore((state) => state.joinEvent);
   const leaveEvent = useAppStore((state) => state.leaveEvent);
   const shuffleTeams = useAppStore((state) => state.shuffleTeams);
+  const finishEvent = useAppStore((state) => state.finishEvent);
+  const [leaveModalVisible, setLeaveModalVisible] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [playersPerGame, setPlayersPerGame] = useState(DEFAULT_PLAYERS_PER_GAME);
+
+  useEffect(() => {
+    if (!event) return;
+    setPlayersPerGame(clampPlayersPerGame(getPlayersPerGame(event), event.maxPlayers));
+  }, [event?.id, event?.maxPlayers, event?.playersPerGame]);
+
+  const participants = useMemo(
+    () =>
+      (event?.participantIds ?? [])
+        .map((playerId) => users.find((user) => user.id === playerId))
+        .filter((player): player is UserProfile => Boolean(player)),
+    [event?.participantIds, users],
+  );
+
+  const eventStats = useMemo(() => {
+    const map: Record<string, BoxScoreStats> = {};
+    for (const record of gameStatRecords) {
+      if (record.eventId === id) {
+        map[record.userId] = record.stats;
+      }
+    }
+    return map;
+  }, [gameStatRecords, id]);
+
+  const courtGames = useCourtGames(event, users);
+  const waitlist = useEventWaitlist(event, users);
+  const courtGameCount = event ? getCourtGameCount(event) : 0;
 
   if (!event) {
     return (
@@ -32,34 +86,29 @@ export default function EventDetailScreen() {
   const isJoined = event.participantIds.includes(currentUserId ?? '');
   const isFull = event.participantIds.length >= event.maxPlayers;
   const isClubMember = club?.memberIds.includes(currentUserId ?? '') ?? false;
-  const canShuffle = event.participantIds.length >= 2;
-
-  const participants = event.participantIds
-    .map((playerId) => getUserById(playerId))
-    .filter((player): player is UserProfile => Boolean(player));
-
-  const teams =
-    event.shuffled && event.teamA && event.teamB
-      ? (() => {
-          const teamA = event.teamA
-            .map((playerId) => getUserById(playerId))
-            .filter((player): player is UserProfile => Boolean(player));
-          const teamB = event.teamB
-            .map((playerId) => getUserById(playerId))
-            .filter((player): player is UserProfile => Boolean(player));
-
-          return {
-            teamA,
-            teamB,
-            ratingA: teamA.reduce((sum, player) => sum + calculatePlayerRating(player.stats), 0),
-            ratingB: teamB.reduce((sum, player) => sum + calculatePlayerRating(player.stats), 0),
-          };
-        })()
-      : null;
+  const shuffleReady = event ? canShuffleEvent(event, playersPerGame) : false;
+  const courtCapacity = describeCourtCapacity(event.participantIds.length, playersPerGame);
+  const gameSizeLabel = formatGameSizeLabel(playersPerGame);
+  const optionsLocked = isEventOptionsLocked(event);
+  const eventStarted = hasEventStarted(event);
+  const canEdit = canEditEvent(event, currentUserId, club?.adminId);
+  const canRecordStats = canRecordEventStats(event, currentUserId, club?.adminId);
+  const canManageStats = canManageEventStats(event, currentUserId, club?.adminId);
+  const canFinish = canMarkEventFinished(event, currentUserId, club?.adminId);
 
   const handleShuffle = async () => {
-    shuffleTeams(event.id);
+    shuffleTeams(event.id, playersPerGame);
     await triggerShuffleHaptic();
+  };
+
+  const handleLeaveGame = async () => {
+    setLeaving(true);
+    try {
+      await leaveEvent(event.id);
+      setLeaveModalVisible(false);
+    } finally {
+      setLeaving(false);
+    }
   };
 
   const date = new Date(event.dateTime);
@@ -93,13 +142,46 @@ export default function EventDetailScreen() {
               label={`${event.participantIds.length}/${event.maxPlayers} players`}
               color={isFull ? colors.warning : colors.success}
             />
-            {event.shuffled ? <Badge label="Teams balanced" color={colors.accent} /> : null}
+            {event.shuffled && courtGameCount > 0 ? (
+              <Badge
+                label={`${courtGameCount}× ${formatGameSizeLabel(getPlayersPerGame(event))}`}
+                color={colors.accent}
+              />
+            ) : null}
+            {eventStarted && !optionsLocked ? <Badge label="Live" color={colors.success} /> : null}
+            {event.finishedAt ? <Badge label="Finished" color={colors.textMuted} /> : null}
+            {optionsLocked && !event.finishedAt ? (
+              <Badge label="Options closed" color={colors.textMuted} />
+            ) : null}
           </View>
         </Card>
 
-        {isClubMember ? (
+        {event.latitude != null && event.longitude != null ? (
+          <EventLocationCard
+            location={{
+              label: event.location,
+              latitude: event.latitude,
+              longitude: event.longitude,
+            }}
+          />
+        ) : null}
+
+        {optionsLocked ? (
+          <Text style={styles.hint}>
+            {event.finishedAt
+              ? 'This game is finished. Join, shuffle, and stat entry are closed.'
+              : 'This game closed 12 hours after the scheduled tip-off.'}
+          </Text>
+        ) : null}
+
+        {isClubMember && !optionsLocked ? (
           isJoined ? (
-            <Button title="Leave Game" variant="outline" onPress={() => leaveEvent(event.id)} style={styles.action} />
+            <Button
+              title="Leave Game"
+              variant="outline"
+              onPress={() => setLeaveModalVisible(true)}
+              style={styles.action}
+            />
           ) : (
             <Button
               title={isFull ? 'Game Full' : 'Join Game'}
@@ -108,46 +190,172 @@ export default function EventDetailScreen() {
               style={styles.action}
             />
           )
-        ) : (
+        ) : isClubMember ? null : (
           <Text style={styles.hint}>Join the club to participate in this game.</Text>
         )}
 
-        {isJoined && canShuffle ? (
+        {isJoined && !optionsLocked ? (
+          <>
+            <Text style={styles.sectionLabel}>Players per court</Text>
+            <PlayersPerGamePicker
+              value={playersPerGame}
+              maxPlayers={event.maxPlayers}
+              onChange={setPlayersPerGame}
+            />
+            {courtCapacity.courtCount > 0 ? (
+              <Text style={styles.shuffleHint}>
+                {courtCapacity.courtCount} court{courtCapacity.courtCount === 1 ? '' : 's'} (
+                {courtCapacity.assignedCount} players)
+                {courtCapacity.unassignedCount > 0
+                  ? ` · ${courtCapacity.unassignedCount} unassigned`
+                  : ''}
+              </Text>
+            ) : null}
+          </>
+        ) : null}
+
+        {isJoined && shuffleReady && !optionsLocked ? (
           <Button
-            title={event.shuffled ? 'Re-shuffle Teams' : 'Shuffle Teams'}
+            title={
+              event.shuffled
+                ? `Re-shuffle into ${gameSizeLabel} courts`
+                : `Shuffle into ${gameSizeLabel} courts`
+            }
             variant="secondary"
             onPress={handleShuffle}
             icon={<Ionicons name="shuffle" size={18} color={colors.text} />}
             style={styles.action}
           />
+        ) : isJoined && !shuffleReady && !optionsLocked ? (
+          <Text style={styles.shuffleHint}>
+            Need at least {playersPerGame} players for {gameSizeLabel} (
+            {event.participantIds.length}/{playersPerGame}).
+          </Text>
         ) : null}
 
-        {teams ? (
+        {canEdit ? (
+          <Button
+            title="Edit Game"
+            variant="outline"
+            onPress={() => router.push(`/event/edit/${event.id}`)}
+            icon={<Ionicons name="create-outline" size={18} color={colors.primary} />}
+            style={styles.action}
+          />
+        ) : null}
+
+        {canRecordStats ? (
+          <Button
+            title="Open Scorekeeper"
+            onPress={() => router.push(`/event/stats/${event.id}`)}
+            icon={<Ionicons name="clipboard-outline" size={18} color={colors.text} />}
+            style={styles.action}
+          />
+        ) : canManageStats && !event.shuffled ? (
+          <Text style={styles.shuffleHint}>Shuffle courts before opening the scorekeeper.</Text>
+        ) : null}
+
+        {canFinish ? (
+          <Button
+            title="Mark Game Finished"
+            variant="outline"
+            onPress={() => finishEvent(event.id)}
+            icon={<Ionicons name="checkmark-circle-outline" size={18} color={colors.primary} />}
+            style={styles.action}
+          />
+        ) : null}
+
+        {courtGames.length > 0 ? (
           <>
             <SectionHeader
-              title="Balanced Teams"
-              subtitle="Split based on height, weight, and skill stats"
+              title="Court Assignments"
+              subtitle={`${courtGames.length} ${formatGameSizeLabel(getPlayersPerGame(event))} game${courtGames.length === 1 ? '' : 's'} · ${courtGames.length * getPlayersPerGame(event)} on court`}
             />
-            <TeamShuffleView
-              teamA={teams.teamA}
-              teamB={teams.teamB}
-              ratingA={teams.ratingA}
-              ratingB={teams.ratingB}
-            />
+            {courtGames.map((game) => (
+              <View key={game.label} style={styles.courtBlock}>
+                <Text style={styles.courtTitle}>{game.label}</Text>
+                <TeamShuffleView
+                  teamA={game.teamA}
+                  teamB={game.teamB}
+                  ratingA={formatRosterRating(game.teamA)}
+                  ratingB={formatRosterRating(game.teamB)}
+                />
+              </View>
+            ))}
           </>
         ) : null}
 
+        {courtGames.map((game) => {
+          const roster = [...game.teamA, ...game.teamB];
+          const gameHasStats = roster.some((player) => eventStats[player.id] != null);
+          if (!gameHasStats && !canRecordStats) return null;
+
+          return (
+            <View key={`box-${game.label}`}>
+              <SectionHeader
+                title={`${game.label} Box Score`}
+                subtitle={`${formatGameSizeLabel(getPlayersPerGame(event))} on-court stats`}
+              />
+              <BoxScoreTable participants={roster} statsByPlayer={eventStats} />
+            </View>
+          );
+        })}
+
+        {waitlist.length > 0 ? (
+          <>
+            <SectionHeader
+              title="Unassigned"
+              subtitle={`${waitlist.length} joined but not on a full court`}
+            />
+            {waitlist.some((player) => eventStats[player.id] != null) || canRecordStats ? (
+              <BoxScoreTable participants={waitlist} statsByPlayer={eventStats} />
+            ) : (
+              waitlist.map((player) => (
+                <View key={player.id} style={styles.participantRow}>
+                  <PlayerCard player={player} compact />
+                </View>
+              ))
+            )}
+          </>
+        ) : null}
+
+        {courtGames.length === 0 ? (
+          <>
         <SectionHeader
           title="Participants"
           subtitle={`${participants.length} joined`}
         />
-        {participants.map((player) => (
-          <View key={player.id} style={styles.participantRow}>
-            <PlayerCard player={player} compact />
-            <Text style={styles.participantRating}>OVR {calculatePlayerRating(player.stats)}</Text>
-          </View>
-        ))}
+        {participants.map((player) => {
+          const stats = eventStats[player.id] ?? EMPTY_BOX_SCORE;
+          const hasStats = eventStats[player.id] != null;
+
+          return (
+            <View key={player.id} style={styles.participantRow}>
+              <PlayerCard player={player} compact />
+              {hasStats ? (
+                <Text style={styles.playerLine}>
+                  {stats.points} PTS · {stats.rebounds} REB · {stats.assists} AST · {stats.blocks} BLK ·{' '}
+                  {stats.steals} STL
+                </Text>
+              ) : null}
+            </View>
+          );
+        })}
+          </>
+        ) : null}
       </ScrollView>
+
+      <ConfirmModal
+        visible={leaveModalVisible}
+        title="Leave this game?"
+        message="You'll be removed from the participant list and lose your spot. Team assignments will reset if you rejoin."
+        confirmLabel="Leave Game"
+        cancelLabel="Stay"
+        loading={leaving}
+        onConfirm={handleLeaveGame}
+        onClose={() => {
+          if (!leaving) setLeaveModalVisible(false);
+        }}
+      />
     </>
   );
 }
@@ -227,9 +435,29 @@ const styles = StyleSheet.create({
   },
   badges: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   action: {
+    marginBottom: spacing.sm,
+  },
+  sectionLabel: {
+    ...typography.label,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
+  shuffleHint: {
+    ...typography.caption,
+    color: colors.textDim,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  courtBlock: {
+    marginBottom: spacing.lg,
+  },
+  courtTitle: {
+    ...typography.heading,
+    color: colors.text,
     marginBottom: spacing.sm,
   },
   hint: {
@@ -241,12 +469,10 @@ const styles = StyleSheet.create({
   participantRow: {
     marginBottom: spacing.sm,
   },
-  participantRating: {
+  playerLine: {
     ...typography.caption,
-    color: colors.secondary,
-    textAlign: 'right',
-    marginTop: -spacing.sm,
-    marginBottom: spacing.sm,
-    fontWeight: '700',
+    color: colors.textMuted,
+    marginTop: 4,
+    marginLeft: spacing.xs,
   },
 });

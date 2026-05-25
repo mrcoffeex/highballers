@@ -9,14 +9,15 @@ import { Screen } from '../../components/Screen';
 import { Button, SectionHeader } from '../../components/ui';
 import { calculatePlayerRating } from '../../lib/teamBalancer';
 import { colors, radius, spacing, typography } from '../../lib/theme';
+import { useCurrentUser, useMyClubs, useUpcomingEvents } from '../../store/hooks';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const user = useAppStore((state) => state.getCurrentUser());
-  const myClubs = useAppStore((state) => state.getMyClubs());
-  const upcomingEvents = useAppStore((state) => state.getUpcomingEvents());
-  const getClubById = useAppStore((state) => state.getClubById);
+  const user = useCurrentUser();
+  const myClubs = useMyClubs();
+  const upcomingEvents = useUpcomingEvents();
+  const clubs = useAppStore((state) => state.clubs);
   const currentUserId = useAppStore((state) => state.currentUserId);
 
   const myEvents = upcomingEvents.filter((event) =>
@@ -55,7 +56,7 @@ export default function HomeScreen() {
             title="Browse"
             variant="ghost"
             size="sm"
-            onPress={() => router.push('/(tabs)/clubs')}
+            onPress={() => router.navigate('/clubs')}
           />
         }
       />
@@ -70,7 +71,7 @@ export default function HomeScreen() {
           <EventCard
             key={event.id}
             event={event}
-            clubName={getClubById(event.clubId)?.name}
+            clubName={clubs.find((club) => club.id === event.clubId)?.name}
             isJoined={event.participantIds.includes(currentUserId ?? '')}
             onPress={() => router.push(`/event/${event.id}`)}
           />
@@ -85,7 +86,7 @@ export default function HomeScreen() {
             title="See all"
             variant="ghost"
             size="sm"
-            onPress={() => router.push('/(tabs)/clubs')}
+            onPress={() => router.navigate('/clubs')}
           />
         }
       />
@@ -96,17 +97,17 @@ export default function HomeScreen() {
           <Text style={styles.emptyText}>Join a club to get started</Text>
           <Button
             title="Explore Clubs"
-            onPress={() => router.push('/(tabs)/clubs')}
+            onPress={() => router.navigate('/clubs')}
             style={styles.emptyBtn}
           />
         </View>
       ) : (
-        myClubs.slice(0, 2).map((club) => (
+        myClubs.map((club) => (
           <ClubCard
             key={club.id}
             club={club}
             isMember
-            onPress={() => router.push(`/club/${club.id}`)}
+            onPress={() => router.push(`/clubs/${club.id}`)}
           />
         ))
       )}
@@ -115,7 +116,7 @@ export default function HomeScreen() {
         <QuickAction
           icon="add-circle"
           label="Create Club"
-          onPress={() => router.push('/club/create')}
+          onPress={() => router.push('/clubs/create')}
         />
         <QuickAction
           icon="basketball"
