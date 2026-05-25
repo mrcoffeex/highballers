@@ -1,0 +1,222 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { ClubCard } from '../../components/ClubCard';
+import { EventCard } from '../../components/EventCard';
+import { Screen } from '../../components/Screen';
+import { Button, SectionHeader } from '../../components/ui';
+import { calculatePlayerRating } from '../../lib/teamBalancer';
+import { colors, radius, spacing, typography } from '../../lib/theme';
+import { useAppStore } from '../../store/useAppStore';
+
+export default function HomeScreen() {
+  const router = useRouter();
+  const user = useAppStore((state) => state.getCurrentUser());
+  const myClubs = useAppStore((state) => state.getMyClubs());
+  const upcomingEvents = useAppStore((state) => state.getUpcomingEvents());
+  const getClubById = useAppStore((state) => state.getClubById);
+  const currentUserId = useAppStore((state) => state.currentUserId);
+
+  const myEvents = upcomingEvents.filter((event) =>
+    event.participantIds.includes(currentUserId ?? ''),
+  );
+  const rating = user ? calculatePlayerRating(user.stats) : 0;
+
+  return (
+    <Screen>
+      <LinearGradient
+        colors={[`${colors.primary}25`, 'transparent']}
+        style={styles.heroBanner}
+      >
+        <View style={styles.heroContent}>
+          <View>
+            <Text style={styles.greeting}>What&apos;s good,</Text>
+            <Text style={styles.userName}>{user?.nickname ?? user?.name ?? 'Baller'}</Text>
+          </View>
+          <View style={styles.ratingBadge}>
+            <Text style={styles.ratingLabel}>OVR</Text>
+            <Text style={styles.ratingValue}>{rating}</Text>
+          </View>
+        </View>
+        <Text style={styles.heroSub}>
+          {myEvents.length > 0
+            ? `${myEvents.length} upcoming game${myEvents.length > 1 ? 's' : ''} on your schedule`
+            : 'Join a club and hop into your next run'}
+        </Text>
+      </LinearGradient>
+
+      <SectionHeader
+        title="Upcoming Games"
+        subtitle="Games you've joined or can join"
+        action={
+          <Button
+            title="Browse"
+            variant="ghost"
+            size="sm"
+            onPress={() => router.push('/(tabs)/clubs')}
+          />
+        }
+      />
+
+      {upcomingEvents.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Ionicons name="calendar-outline" size={32} color={colors.textDim} />
+          <Text style={styles.emptyText}>No upcoming games yet</Text>
+        </View>
+      ) : (
+        upcomingEvents.slice(0, 3).map((event) => (
+          <EventCard
+            key={event.id}
+            event={event}
+            clubName={getClubById(event.clubId)?.name}
+            isJoined={event.participantIds.includes(currentUserId ?? '')}
+            onPress={() => router.push(`/event/${event.id}`)}
+          />
+        ))
+      )}
+
+      <SectionHeader
+        title="Your Clubs"
+        subtitle={`${myClubs.length} club${myClubs.length !== 1 ? 's' : ''}`}
+        action={
+          <Button
+            title="See all"
+            variant="ghost"
+            size="sm"
+            onPress={() => router.push('/(tabs)/clubs')}
+          />
+        }
+      />
+
+      {myClubs.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Ionicons name="people-outline" size={32} color={colors.textDim} />
+          <Text style={styles.emptyText}>Join a club to get started</Text>
+          <Button
+            title="Explore Clubs"
+            onPress={() => router.push('/(tabs)/clubs')}
+            style={styles.emptyBtn}
+          />
+        </View>
+      ) : (
+        myClubs.slice(0, 2).map((club) => (
+          <ClubCard
+            key={club.id}
+            club={club}
+            isMember
+            onPress={() => router.push(`/club/${club.id}`)}
+          />
+        ))
+      )}
+
+      <View style={styles.quickActions}>
+        <QuickAction
+          icon="add-circle"
+          label="Create Club"
+          onPress={() => router.push('/club/create')}
+        />
+        <QuickAction
+          icon="basketball"
+          label="New Game"
+          onPress={() => router.push('/event/create')}
+        />
+      </View>
+    </Screen>
+  );
+}
+
+function QuickAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Button
+      title={label}
+      variant="outline"
+      onPress={onPress}
+      icon={<Ionicons name={icon} size={18} color={colors.primary} />}
+      style={styles.quickAction}
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  heroBanner: {
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    borderWidth: 1,
+    borderColor: `${colors.primary}30`,
+  },
+  heroContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  greeting: {
+    ...typography.body,
+    color: colors.textMuted,
+  },
+  userName: {
+    ...typography.title,
+    color: colors.text,
+    fontSize: 28,
+  },
+  ratingBadge: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  ratingLabel: {
+    ...typography.label,
+    color: colors.textMuted,
+    fontSize: 10,
+  },
+  ratingValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.secondary,
+  },
+  heroSub: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  emptyCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  emptyBtn: {
+    marginTop: spacing.sm,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  quickAction: {
+    flex: 1,
+  },
+});
