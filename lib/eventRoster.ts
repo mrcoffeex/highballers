@@ -162,9 +162,9 @@ export function hasActiveRoster(event: GameEvent): boolean {
   const playersPerGame = getPlayersPerGame(eventCourts);
   return Boolean(
     eventCourts.shuffled &&
-      eventCourts.courtGames?.some((game) =>
-        isActiveCourtGame(game, playersPerGame),
-      ),
+    eventCourts.courtGames?.some((game) =>
+      isActiveCourtGame(game, playersPerGame),
+    ),
   );
 }
 
@@ -172,9 +172,8 @@ export function getCourtGameCount(event: GameEvent): number {
   const courts = normalizeEventCourts(event);
   const playersPerGame = getPlayersPerGame(courts);
   return (
-    courts.courtGames?.filter((game) =>
-      isActiveCourtGame(game, playersPerGame),
-    ).length ?? 0
+    courts.courtGames?.filter((game) => isActiveCourtGame(game, playersPerGame))
+      .length ?? 0
   );
 }
 

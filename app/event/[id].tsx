@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { format } from "date-fns";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useEffect, useMemo, useState } from "react";
 
 import { BoxScoreTable } from "../../components/BoxScoreTable";
@@ -107,6 +107,15 @@ export default function EventDetailScreen() {
         .filter((player): player is UserProfile => Boolean(player)),
     [event?.participantIds, users],
   );
+
+  const creator = useMemo(
+    () => users.find((user) => user.id === event?.createdBy),
+    [event?.createdBy, users],
+  );
+
+  const creatorLabel = creator
+    ? creator.nickname?.trim() || creator.name
+    : "Unknown player";
 
   const eventStats = useMemo(() => {
     const map: Record<string, BoxScoreStats> = {};
@@ -257,6 +266,22 @@ export default function EventDetailScreen() {
                 />
                 <Text style={styles.metaText}>{event.location}</Text>
               </View>
+              <Pressable
+                style={styles.meta}
+                onPress={() => router.push(`/player/${event.createdBy}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Created by ${creatorLabel}`}
+              >
+                <Ionicons
+                  name="person-outline"
+                  size={14}
+                  color={colors.textMuted}
+                />
+                <Text style={styles.metaText}>
+                  Created by{" "}
+                  <Text style={styles.creatorName}>{creatorLabel}</Text>
+                </Text>
+              </Pressable>
             </View>
           </View>
           <Text style={styles.description}>{event.description}</Text>
@@ -707,6 +732,10 @@ const styles = StyleSheet.create({
   metaText: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  creatorName: {
+    color: colors.primary,
+    fontWeight: "600",
   },
   description: {
     ...typography.body,

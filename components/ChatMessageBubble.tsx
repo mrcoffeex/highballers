@@ -1,6 +1,10 @@
 import { format } from "date-fns";
+import { Image } from "expo-image";
+import { memo, useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { getGifMessageUrl, isGifMessage } from "../lib/chatMessageContent";
+import { isPendingChatMessageId } from "../lib/chatThread";
 import { colors, radius, spacing, typography } from "../lib/theme";
 import { UserProfile } from "../lib/types";
 import { Avatar } from "./ui";
@@ -17,12 +21,20 @@ interface ChatMessageBubbleProps {
   showAvatar: boolean;
 }
 
-export function ChatMessageBubble({
+function ChatMessageBubbleInner({
   message,
   sender,
   isMine,
   showAvatar,
 }: ChatMessageBubbleProps) {
+  const gifUrl = getGifMessageUrl(message.body);
+  const isGif = isGifMessage(message.body) && gifUrl != null;
+  const timeLabel = useMemo(
+    () => format(new Date(message.createdAt), "h:mm a"),
+    [message.createdAt],
+  );
+  const isPending = isPendingChatMessageId(message.id);
+
   return (
     <View style={[styles.row, isMine ? styles.rowMine : styles.rowTheirs]}>
       {!isMine && showAvatar ? (
@@ -40,6 +52,8 @@ export function ChatMessageBubble({
         style={[
           styles.bubble,
           isMine ? styles.bubbleMine : styles.bubbleTheirs,
+          isGif && styles.bubbleGif,
+          isPending && styles.bubblePending,
         ]}
       >
         {!isMine && showAvatar ? (
@@ -47,16 +61,29 @@ export function ChatMessageBubble({
             {sender?.nickname ?? sender?.name ?? "Baller"}
           </Text>
         ) : null}
-        <Text style={[styles.body, isMine && styles.bodyMine]}>
-          {message.body}
-        </Text>
+        {isGif ? (
+          <Image
+            source={{ uri: gifUrl }}
+            style={styles.gif}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={message.id}
+            accessibilityLabel="GIF"
+          />
+        ) : (
+          <Text style={[styles.body, isMine && styles.bodyMine]}>
+            {message.body}
+          </Text>
+        )}
         <Text style={[styles.time, isMine && styles.timeMine]}>
-          {format(new Date(message.createdAt), "h:mm a")}
+          {timeLabel}
         </Text>
       </View>
     </View>
   );
 }
+
+export const ChatMessageBubble = memo(ChatMessageBubbleInner);
 
 const styles = StyleSheet.create({
   row: {
@@ -80,6 +107,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderWidth: 1,
+  },
+  bubbleGif: {
+    paddingHorizontal: spacing.xs,
+    paddingTop: spacing.xs,
+    maxWidth: "72%",
+  },
+  bubblePending: {
+    opacity: 0.72,
   },
   bubbleMine: {
     backgroundColor: colors.primary,
@@ -105,6 +140,12 @@ const styles = StyleSheet.create({
   },
   bodyMine: {
     color: colors.text,
+  },
+  gif: {
+    width: 200,
+    height: 200,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
   },
   time: {
     ...typography.caption,

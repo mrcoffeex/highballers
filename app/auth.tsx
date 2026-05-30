@@ -141,145 +141,145 @@ export default function AuthScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-        <View style={styles.hero}>
-          <Image
-            source={require("../assets/splash-icon.png")}
-            style={styles.logo}
-            contentFit="contain"
-            accessibilityLabel={`${getAppDisplayName()} logo`}
-          />
-          <Text style={styles.brand}>HighBallers</Text>
-          <Text style={styles.tagline}>
-            Sign in to sync clubs and games across devices.
-          </Text>
-        </View>
-
-        <View style={styles.tabs}>
-          <Pressable
-            onPress={() => {
-              setMode("signIn");
-              setLegalError(null);
-            }}
-            style={[styles.tab, mode === "signIn" && styles.tabActive]}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                mode === "signIn" && styles.tabTextActive,
-              ]}
-            >
-              Sign In
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              setMode("signUp");
-              setLegalError(null);
-            }}
-            style={[styles.tab, mode === "signUp" && styles.tabActive]}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                mode === "signUp" && styles.tabTextActive,
-              ]}
-            >
-              Sign Up
-            </Text>
-          </Pressable>
-        </View>
-
-        {requiresLegalConsent ? (
-          <LegalConsent
-            checked={legalAccepted}
-            onCheckedChange={(value) => {
-              setLegalAccepted(value);
-              if (value) setLegalError(null);
-            }}
-            error={legalError ?? undefined}
-          />
-        ) : null}
-
-        {isSupabaseEnabled ? (
-          <>
-            <Button
-              title="Continue with Google"
-              onPress={handleGoogleSignIn}
-              loading={googleLoading}
-              disabled={
-                loading
-                || !!configError
-                || (requiresLegalConsent && !legalAccepted)
-              }
-              variant="outline"
-              size="lg"
-              icon={
-                <Ionicons name="logo-google" size={20} color={colors.text} />
-              }
-              style={styles.googleBtn}
+          <View style={styles.hero}>
+            <Image
+              source={require("../assets/splash-icon.png")}
+              style={styles.logo}
+              contentFit="contain"
+              accessibilityLabel={`${getAppDisplayName()} logo`}
             />
+            <Text style={styles.brand}>HighBallers</Text>
+            <Text style={styles.tagline}>
+              Sign in to sync clubs and games across devices.
+            </Text>
+          </View>
 
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or use email</Text>
-              <View style={styles.dividerLine} />
-            </View>
-          </>
-        ) : null}
+          <View style={styles.tabs}>
+            <Pressable
+              onPress={() => {
+                setMode("signIn");
+                setLegalError(null);
+              }}
+              style={[styles.tab, mode === "signIn" && styles.tabActive]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  mode === "signIn" && styles.tabTextActive,
+                ]}
+              >
+                Sign In
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setMode("signUp");
+                setLegalError(null);
+              }}
+              style={[styles.tab, mode === "signUp" && styles.tabActive]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  mode === "signUp" && styles.tabTextActive,
+                ]}
+              >
+                Sign Up
+              </Text>
+            </Pressable>
+          </View>
 
-        <Input
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={styles.field}
-        />
-        <Input
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          style={styles.field}
-        />
+          {requiresLegalConsent ? (
+            <LegalConsent
+              checked={legalAccepted}
+              onCheckedChange={(value) => {
+                setLegalAccepted(value);
+                if (value) setLegalError(null);
+              }}
+              error={legalError ?? undefined}
+            />
+          ) : null}
 
-        {configError ? (
-          <Text style={styles.configError}>{configError}</Text>
-        ) : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+          {isSupabaseEnabled ? (
+            <>
+              <Button
+                title="Continue with Google"
+                onPress={handleGoogleSignIn}
+                loading={googleLoading}
+                disabled={
+                  loading ||
+                  !!configError ||
+                  (requiresLegalConsent && !legalAccepted)
+                }
+                variant="outline"
+                size="lg"
+                icon={
+                  <Ionicons name="logo-google" size={20} color={colors.text} />
+                }
+                style={styles.googleBtn}
+              />
 
-        <Button
-          title={mode === "signIn" ? "Sign In" : "Create Account"}
-          onPress={handleSubmit}
-          loading={loading}
-          disabled={
-            googleLoading ||
-            !!configError ||
-            !email.trim() ||
-            password.length < 6 ||
-            (requiresLegalConsent && !legalAccepted)
-          }
-          size="lg"
-          style={styles.submit}
-        />
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or use email</Text>
+                <View style={styles.dividerLine} />
+              </View>
+            </>
+          ) : null}
 
-        {!isSupabaseEnabled ? (
-          <>
+          <Input
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            style={styles.field}
+          />
+          <Input
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            style={styles.field}
+          />
+
+          {configError ? (
+            <Text style={styles.configError}>{configError}</Text>
+          ) : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Button
+            title={mode === "signIn" ? "Sign In" : "Create Account"}
+            onPress={handleSubmit}
+            loading={loading}
+            disabled={
+              googleLoading ||
+              !!configError ||
+              !email.trim() ||
+              password.length < 6 ||
+              (requiresLegalConsent && !legalAccepted)
+            }
+            size="lg"
+            style={styles.submit}
+          />
+
+          {!isSupabaseEnabled ? (
+            <>
+              <Text style={styles.note}>
+                Add Supabase env vars to enable cloud sync. You can still play
+                locally.
+              </Text>
+              <Button
+                title="Continue Offline"
+                variant="outline"
+                onPress={continueOffline}
+              />
+            </>
+          ) : __DEV__ ? (
             <Text style={styles.note}>
-              Add Supabase env vars to enable cloud sync. You can still play
-              locally.
+              OAuth redirect: {getOAuthRedirectUri()}
             </Text>
-            <Button
-              title="Continue Offline"
-              variant="outline"
-              onPress={continueOffline}
-            />
-          </>
-        ) : __DEV__ ? (
-          <Text style={styles.note}>
-            OAuth redirect: {getOAuthRedirectUri()}
-          </Text>
-        ) : null}
+          ) : null}
 
           <AuthLegalFooter mode={mode} />
         </ScrollView>

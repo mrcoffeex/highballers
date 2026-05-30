@@ -30,12 +30,8 @@ export default function HomeScreen() {
   const currentUserId = useAppStore((state) => state.currentUserId);
   const upgradeToAllStar = useAppStore((state) => state.upgradeToAllStar);
   const isPro = useIsAllStar();
-  const {
-    upgradeVisible,
-    upgradeReason,
-    promptUpgrade,
-    closeUpgrade,
-  } = useUpgradePrompt();
+  const { upgradeVisible, upgradeReason, promptUpgrade, closeUpgrade } =
+    useUpgradePrompt();
   const myEvents = upcomingEvents.filter((event) =>
     event.participantIds.includes(currentUserId ?? ""),
   );

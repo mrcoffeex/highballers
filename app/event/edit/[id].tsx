@@ -145,7 +145,7 @@ export default function EditEventScreen() {
         <View style={styles.blocked}>
           <Text style={styles.blockedTitle}>Editing locked</Text>
           <Text style={styles.blockedText}>
-            Only the game creator or club admin can edit, and only before the
+            Only the game creator or club captain can edit, and only before the
             game closes.
           </Text>
         </View>

@@ -9,7 +9,7 @@ interface AppSplashScreenProps {
 }
 
 export function AppSplashScreen({
-  message = "Loading your run…",
+  message = "Loading your greatness…",
 }: AppSplashScreenProps) {
   return (
     <View style={styles.container}>

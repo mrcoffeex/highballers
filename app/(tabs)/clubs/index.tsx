@@ -7,6 +7,8 @@ import { ClubCard } from "../../../components/ClubCard";
 import { Screen } from "../../../components/Screen";
 import { Button, EmptyState } from "../../../components/ui";
 import { colors, radius, spacing, typography } from "../../../lib/theme";
+import { useUpgradePrompt } from "../../../lib/useUpgradePrompt";
+import { useClubMembershipLimits, useIsAllStar } from "../../../store/hooks";
 import { useAppStore } from "../../../store/useAppStore";
 
 type Filter = "all" | "joined" | "discover";
@@ -14,6 +16,9 @@ type Filter = "all" | "joined" | "discover";
 export default function ClubsScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
+  const isPro = useIsAllStar();
+  const limits = useClubMembershipLimits();
+  const { promptUpgrade } = useUpgradePrompt();
   const clubs = useAppStore((state) => state.clubs);
   const joinRequests = useAppStore((state) => state.joinRequests);
   const currentUserId = useAppStore((state) => state.currentUserId);
@@ -52,7 +57,17 @@ export default function ClubsScreen() {
         <Button
           title="Create"
           size="sm"
-          onPress={() => router.push("/clubs/create")}
+          variant={limits.canCreateClub || isPro ? "primary" : "outline"}
+          onPress={() => {
+            if (!limits.canCreateClub && !isPro) {
+              promptUpgrade(
+                limits.createBlockedReason ??
+                  "Basic Ballers can create only one club.",
+              );
+              return;
+            }
+            router.push("/clubs/create");
+          }}
           icon={<Ionicons name="add" size={18} color={colors.text} />}
         />
       </View>

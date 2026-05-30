@@ -158,7 +158,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     title: "Clubs & Organizers",
     paragraphs: [
-      "Club admins may manage membership, games, and visibility settings. We are not responsible for disputes between players or clubs. Private club and organizer tools may be limited by subscription tier.",
+      "Club captains may manage membership, games, and visibility settings. We are not responsible for disputes between players or clubs. Private club and organizer tools may be limited by subscription tier.",
     ],
   },
   {

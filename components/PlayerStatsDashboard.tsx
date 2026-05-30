@@ -79,10 +79,10 @@ export function PlayerStatsDashboard({
     return (
       <View style={styles.emptyWrap}>
         <Ionicons name="analytics-outline" size={32} color={colors.textDim} />
-        <Text style={styles.emptyTitle}>No recorded runs yet</Text>
+        <Text style={styles.emptyTitle}>No recorded games yet</Text>
         <Text style={styles.emptyText}>
           {isOwnProfile
-            ? "Box scores from the scorekeeper will show up here — like Strava activities for the court."
+            ? "Box scores from the scorekeeper will show up here."
             : "This baller has not logged a scored game yet."}
         </Text>
       </View>

@@ -30,7 +30,9 @@ interface GameStatsRecorderProps {
   saved?: boolean;
   saveError?: string | null;
   refreshControl?: ScrollViewProps["refreshControl"];
-  onSave: (statsByPlayer: Record<string, BoxScoreStats>) => void | Promise<void>;
+  onSave: (
+    statsByPlayer: Record<string, BoxScoreStats>,
+  ) => void | Promise<void>;
 }
 
 const STAT_META: Record<

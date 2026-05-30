@@ -74,8 +74,8 @@ export default function ClubJoinRequestsScreen() {
     return (
       <View style={styles.notFound}>
         <EmptyState
-          title="Admins only"
-          description="Only the admin of a private club can review join requests."
+          title="Captains only"
+          description="Only the captain of a private club can review join requests."
         />
         <Button
           title="Back to Club"

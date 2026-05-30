@@ -61,9 +61,10 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as PurchasePayload;
     const productId = body.productId?.trim();
     const transactionId = body.transactionId?.trim();
-    const platform = body.platform === "ios" || body.platform === "android"
-      ? body.platform
-      : "unknown";
+    const platform =
+      body.platform === "ios" || body.platform === "android"
+        ? body.platform
+        : "unknown";
 
     if (!productId || productId !== ALL_STAR_PRODUCT_ID) {
       return new Response(JSON.stringify({ error: "Invalid product" }), {
@@ -84,7 +85,8 @@ Deno.serve(async (req) => {
       ? new Date(body.transactionDate).toISOString()
       : new Date().toISOString();
 
-    const { error: receiptError } = await admin.from("subscription_receipts")
+    const { error: receiptError } = await admin
+      .from("subscription_receipts")
       .upsert(
         {
           user_id: user.id,
@@ -117,13 +119,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(
-      JSON.stringify({ ok: true, tier: "all_star" }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return new Response(JSON.stringify({ ok: true, tier: "all_star" }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     return new Response(JSON.stringify({ error: message }), {

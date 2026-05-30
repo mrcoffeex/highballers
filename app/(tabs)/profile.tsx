@@ -51,12 +51,8 @@ export default function ProfileScreen() {
   const signOut = useAppStore((state) => state.signOut);
   const users = useAppStore((state) => state.users);
   const hydrated = useAppStore((state) => state.hydrated);
-  const {
-    upgradeVisible,
-    upgradeReason,
-    promptUpgrade,
-    closeUpgrade,
-  } = useUpgradePrompt();
+  const { upgradeVisible, upgradeReason, promptUpgrade, closeUpgrade } =
+    useUpgradePrompt();
   const [storiesOpen, setStoriesOpen] = useState(false);
   const [storiesGroupIndex, setStoriesGroupIndex] = useState(0);
   const [storiesSlideIndex, setStoriesSlideIndex] = useState(0);
@@ -88,7 +84,6 @@ export default function ProfileScreen() {
     { label: "Defense", value: user.stats.defense },
     { label: "Stamina", value: user.stats.stamina },
   ];
-
 
   return (
     <Fragment>

@@ -20,10 +20,7 @@ export function getPlayersPerGame(
     firstGame?.teamA.length &&
     firstGame.teamA.length === firstGame.teamB.length
   ) {
-    return clampPlayersPerGame(
-      firstGame.teamA.length * 2,
-      event.maxPlayers,
-    );
+    return clampPlayersPerGame(firstGame.teamA.length * 2, event.maxPlayers);
   }
 
   return DEFAULT_PLAYERS_PER_GAME;

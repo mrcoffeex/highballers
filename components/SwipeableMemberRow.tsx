@@ -15,7 +15,7 @@ import Swipeable, {
 
 import { colors, radius, spacing, typography } from "../lib/theme";
 
-const ACTION_WIDTH = 76;
+const ACTION_WIDTH = 80;
 
 export type { SwipeableMethods };
 
@@ -26,7 +26,60 @@ type SwipeableMemberRowProps = {
   onBan: () => void;
   onSwipeOpen?: (methods: SwipeableMethods) => void;
   style?: StyleProp<ViewStyle>;
+  /** Captain-only: assign or remove sub-captain (max 2 per club). */
+  onSubCaptain?: () => void;
+  isSubCaptain?: boolean;
+  subCaptainAtCapacity?: boolean;
 };
+
+function SubCaptainAction({
+  isSubCaptain,
+  atCapacity,
+  onPress,
+  compact,
+}: {
+  isSubCaptain: boolean;
+  atCapacity: boolean;
+  onPress: () => void;
+  compact?: boolean;
+}) {
+  const disabled = atCapacity && !isSubCaptain;
+  const label = isSubCaptain ? "Remove" : "+ Sub-Captain";
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={
+        isSubCaptain ? "Remove sub-captain" : "Assign sub-captain"
+      }
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      style={({ pressed }) => [
+        compact ? styles.webAction : styles.action,
+        styles.subCaptainAction,
+        disabled && styles.actionDisabled,
+        pressed && !disabled && styles.actionPressed,
+      ]}
+      onPress={onPress}
+    >
+      <Ionicons
+        name={isSubCaptain ? "shield-outline" : "add-circle-outline"}
+        size={compact ? 18 : 22}
+        color={disabled ? colors.textDim : colors.accent}
+      />
+      <Text
+        style={[
+          styles.actionLabel,
+          styles.subCaptainLabel,
+          disabled && styles.actionLabelDisabled,
+        ]}
+        numberOfLines={2}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 export function SwipeableMemberRow({
   children,
@@ -35,8 +88,13 @@ export function SwipeableMemberRow({
   onBan,
   onSwipeOpen,
   style,
+  onSubCaptain,
+  isSubCaptain = false,
+  subCaptainAtCapacity = false,
 }: SwipeableMemberRowProps) {
   const swipeRef = useRef<SwipeableMethods>(null);
+  const actionCount = onSubCaptain ? 3 : 2;
+  const actionsWidth = ACTION_WIDTH * actionCount;
 
   const closeThen = (action: () => void) => {
     swipeRef.current?.close();
@@ -82,6 +140,14 @@ export function SwipeableMemberRow({
             />
             <Text style={[styles.actionLabel, styles.banLabel]}>Ban</Text>
           </Pressable>
+          {onSubCaptain ? (
+            <SubCaptainAction
+              compact
+              isSubCaptain={isSubCaptain}
+              atCapacity={subCaptainAtCapacity}
+              onPress={onSubCaptain}
+            />
+          ) : null}
         </View>
       </View>
     );
@@ -98,7 +164,7 @@ export function SwipeableMemberRow({
         if (swipeRef.current) onSwipeOpen?.(swipeRef.current);
       }}
       renderRightActions={() => (
-        <View style={styles.actionsRow}>
+        <View style={[styles.actionsRow, { width: actionsWidth }]}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Kick member"
@@ -129,6 +195,13 @@ export function SwipeableMemberRow({
             />
             <Text style={[styles.actionLabel, styles.banLabel]}>Ban</Text>
           </Pressable>
+          {onSubCaptain ? (
+            <SubCaptainAction
+              isSubCaptain={isSubCaptain}
+              atCapacity={subCaptainAtCapacity}
+              onPress={() => closeThen(onSubCaptain)}
+            />
+          ) : null}
         </View>
       )}
     >
@@ -148,7 +221,6 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: "row",
-    width: ACTION_WIDTH * 2,
     height: "100%",
   },
   action: {
@@ -164,18 +236,34 @@ const styles = StyleSheet.create({
   banAction: {
     backgroundColor: `${colors.error}22`,
   },
+  subCaptainAction: {
+    backgroundColor: `${colors.accent}22`,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: colors.cardBorder,
+  },
+  actionDisabled: {
+    opacity: 0.45,
+  },
   actionPressed: {
     opacity: 0.85,
   },
   actionLabel: {
     ...typography.caption,
     fontWeight: "600",
+    textAlign: "center",
+    fontSize: 11,
+  },
+  actionLabelDisabled: {
+    color: colors.textDim,
   },
   kickLabel: {
     color: colors.warning,
   },
   banLabel: {
     color: colors.error,
+  },
+  subCaptainLabel: {
+    color: colors.accent,
   },
   webActions: {
     flexDirection: "row",

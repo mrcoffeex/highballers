@@ -2,11 +2,11 @@ import Constants from "expo-constants";
 import * as Linking from "expo-linking";
 import { Platform } from "react-native";
 
-const APP_SCHEME = "highballers";
+import { getClubInvitePath } from "./clubPaths";
 
-export function getClubInvitePath(clubId: string) {
-  return `/clubs/${clubId}`;
-}
+export { getClubInvitePath } from "./clubPaths";
+
+const APP_SCHEME = "highballers";
 
 export function getClubInviteUrl(clubId: string) {
   const configuredOrigin = process.env.EXPO_PUBLIC_APP_URL?.replace(/\/$/, "");

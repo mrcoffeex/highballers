@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { useCallback, useMemo, useState } from "react";
 
+import { ConfirmModal } from "../../../../components/ConfirmModal";
 import { ClubVisibilityPicker } from "../../../../components/ClubVisibilityPicker";
 import { EventCard } from "../../../../components/EventCard";
 import { ClubIcon } from "../../../../components/ClubIcon";
@@ -24,6 +25,7 @@ import { colors, spacing, typography } from "../../../../lib/theme";
 import { useTabBarPadding } from "../../../../lib/tabBar";
 import { useRefreshControl } from "../../../../lib/useRefreshControl";
 import { isUserBannedFromClub } from "../../../../lib/clubBans";
+import { isClubCaptain, isClubSubCaptain } from "../../../../lib/clubRoles";
 import {
   useClub,
   useClubBans,
@@ -74,6 +76,8 @@ export default function ClubDetailScreen() {
     handleSubscriptionError,
   } = useUpgradePrompt();
   const [showInvite, setShowInvite] = useState(false);
+  const [leaveModalVisible, setLeaveModalVisible] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [savingVisibility, setSavingVisibility] = useState(false);
@@ -135,7 +139,8 @@ export default function ClubDetailScreen() {
     );
   }
 
-  const isAdmin = club.adminId === currentUserId;
+  const isCaptain = isClubCaptain(club, currentUserId);
+  const isSubCaptain = isClubSubCaptain(club, currentUserId);
   const clubEvents = events
     .filter((event) => event.clubId === club.id)
     .sort(
@@ -146,9 +151,19 @@ export default function ClubDetailScreen() {
     Boolean(currentUserId) &&
     isUserBannedFromClub(club.id, currentUserId!, clubBans);
 
+  const handleLeaveClub = async () => {
+    setLeaving(true);
+    try {
+      await leaveClub(club.id);
+      setLeaveModalVisible(false);
+    } finally {
+      setLeaving(false);
+    }
+  };
+
   const joinAction = async () => {
     if (isMember) {
-      leaveClub(club.id);
+      setLeaveModalVisible(true);
       return;
     }
 
@@ -186,8 +201,8 @@ export default function ClubDetailScreen() {
           ? "Cancel Request"
           : "Request to Join";
 
-  const clubAdmin = users.find((user) => user.id === club.adminId) ?? null;
-  const clubMemberCap = getClubMemberCap(clubAdmin);
+  const clubCaptain = users.find((user) => user.id === club.adminId) ?? null;
+  const clubMemberCap = getClubMemberCap(clubCaptain);
   const memberCapLabel =
     clubMemberCap < 9999
       ? `${members.length}/${clubMemberCap}`
@@ -264,15 +279,19 @@ export default function ClubDetailScreen() {
               value={String(clubEvents.length)}
               label="Games"
             />
-            {isAdmin ? (
-              <StatPill icon="shield" value="Admin" label="Role" />
+            {isCaptain ? (
+              <StatPill icon="shield" value="Captain" label="Role" />
+            ) : isSubCaptain ? (
+              <StatPill icon="shield" value="Sub-Captain" label="Role" />
             ) : null}
           </View>
         </View>
 
         <Button
           title={joinButtonTitle}
-          variant={isMember || myPendingRequest || isBanned ? "outline" : "primary"}
+          variant={
+            isMember || myPendingRequest || isBanned ? "outline" : "primary"
+          }
           onPress={joinAction}
           disabled={isBanned}
           style={styles.actionBtn}
@@ -280,8 +299,8 @@ export default function ClubDetailScreen() {
         {joinError ? <Text style={styles.bannedHint}>{joinError}</Text> : null}
         {isBanned ? (
           <Text style={styles.bannedHint}>
-            You were banned from this club. Contact the admin if you think this
-            was a mistake.
+            You were banned from this club. Contact the captain if you think
+            this was a mistake.
           </Text>
         ) : null}
 
@@ -328,7 +347,7 @@ export default function ClubDetailScreen() {
           </>
         ) : null}
 
-        {isAdmin && club.visibility === "private" ? (
+        {isCaptain && club.visibility === "private" ? (
           <Button
             title={
               pendingRequests.length > 0
@@ -348,7 +367,7 @@ export default function ClubDetailScreen() {
           />
         ) : null}
 
-        {isAdmin ? (
+        {isCaptain ? (
           <Card style={styles.visibilityCard}>
             <Text style={styles.visibilityTitle}>Club visibility</Text>
             <Text style={styles.visibilityHint}>
@@ -415,6 +434,25 @@ export default function ClubDetailScreen() {
           ))
         )}
       </ScrollView>
+      <ConfirmModal
+        visible={leaveModalVisible}
+        title="Leave this club?"
+        message={
+          isCaptain
+            ? "You'll be removed from the member list but remain the club captain. You can rejoin as a member anytime."
+            : "You'll lose access to club games and chat. You can rejoin later if the club is public or request access again for private clubs."
+        }
+        confirmLabel="Leave Club"
+        cancelLabel="Stay"
+        loading={leaving}
+        onConfirm={() => {
+          void handleLeaveClub();
+        }}
+        onClose={() => {
+          if (!leaving) setLeaveModalVisible(false);
+        }}
+      />
+
       <UpgradeModal
         visible={upgradeVisible}
         reason={upgradeReason}

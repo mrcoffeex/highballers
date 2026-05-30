@@ -4,8 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
   Platform,
   Pressable,
   StyleSheet,
@@ -14,17 +12,20 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { v4 as uuidv4 } from "uuid";
 
-import { ChatMessageBubble } from "../../../components/ChatMessageBubble";
+import { ChatEmojiPicker } from "../../../components/ChatEmojiPicker";
+import { ChatGifPicker } from "../../../components/ChatGifPicker";
+import { ChatThreadList } from "../../../components/ChatThreadList";
 import { FloatingAlert } from "../../../components/FloatingAlert";
-import {
-  ChatThreadSkeleton,
-  LoadMoreSkeleton,
-  SkeletonCircle,
-} from "../../../components/ui";
+import { ChatThreadSkeleton, SkeletonCircle } from "../../../components/ui";
 import { shouldShowEntitySkeleton } from "../../../lib/entityLoading";
 import { isSupabaseEnabled } from "../../../lib/config";
 import { getRemoteCache, setRemoteCache } from "../../../lib/remoteCache";
+import { encodeGifMessage } from "../../../lib/chatMessageContent";
+import { isPendingChatMessageId } from "../../../lib/chatThread";
+import { pushRecentChatEmoji } from "../../../lib/chatEmojis";
+import type { GiphyGif } from "../../../lib/giphy";
 import { formatSyncError } from "../../../lib/syncErrors";
 import { useFloatingAlert } from "../../../lib/useFloatingAlert";
 import {
@@ -34,9 +35,15 @@ import {
   subscribeToClubChat,
 } from "../../../lib/supabaseSync";
 import { colors, radius, spacing, typography } from "../../../lib/theme";
+import type { ChatListItem } from "../../../lib/chatThread";
 import { ClubChatMessage } from "../../../lib/types";
 import { useClub } from "../../../store/hooks";
 import { useAppStore } from "../../../store/useAppStore";
+
+function persistMessages(cacheKey: string, messages: ClubChatMessage[]) {
+  if (!cacheKey) return;
+  setRemoteCache(cacheKey, messages);
+}
 
 export default function ClubChatScreen() {
   const { clubId } = useLocalSearchParams<{ clubId: string }>();
@@ -47,7 +54,7 @@ export default function ClubChatScreen() {
   const currentUserId = useAppStore((state) => state.currentUserId);
   const insets = useSafeAreaInsets();
   const floatingAlert = useFloatingAlert();
-  const listRef = useRef<FlatList<ClubChatMessage>>(null);
+  const listRef = useRef<FlatList<ChatListItem>>(null);
 
   const cacheKey = clubId ? `club-chat:${clubId}` : "";
   const cachedMessages = cacheKey
@@ -63,10 +70,26 @@ export default function ClubChatScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
+  const [composerPanel, setComposerPanel] = useState<"none" | "emoji" | "gif">(
+    "none",
+  );
+  const [recentEmojis, setRecentEmojis] = useState<string[]>([]);
   const [hasMore, setHasMore] = useState(false);
-  const endReachedGuard = useRef(false);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   const isMember = club?.memberIds.includes(currentUserId ?? "") ?? false;
+
+  const setThreadMessages = useCallback(
+    (updater: (prev: ClubChatMessage[]) => ClubChatMessage[]) => {
+      setMessages((prev) => {
+        const next = updater(prev);
+        persistMessages(cacheKey, next);
+        return next;
+      });
+    },
+    [cacheKey],
+  );
 
   const loadInitial = useCallback(
     async (silent = false) => {
@@ -85,7 +108,7 @@ export default function ClubChatScreen() {
           CLUB_CHAT_PAGE_SIZE,
         );
         setMessages(page);
-        setRemoteCache(cacheKey, page);
+        persistMessages(cacheKey, page);
         setHasMore(page.length >= CLUB_CHAT_PAGE_SIZE);
       } finally {
         setLoading(false);
@@ -95,33 +118,28 @@ export default function ClubChatScreen() {
   );
 
   const loadOlder = useCallback(async () => {
-    if (
-      !clubId ||
-      !isSupabaseEnabled ||
-      loadingMore ||
-      !hasMore ||
-      messages.length === 0
-    )
+    const oldest = messagesRef.current[0]?.createdAt;
+    if (!clubId || !isSupabaseEnabled || loadingMore || !hasMore || !oldest) {
       return;
+    }
 
     setLoadingMore(true);
     try {
       const older = await fetchClubChatMessagesPage(
         clubId,
         CLUB_CHAT_PAGE_SIZE,
-        messages[0]?.createdAt,
+        oldest,
       );
       if (older.length === 0) {
         setHasMore(false);
         return;
       }
-      setMessages((prev) => [...older, ...prev]);
+      setThreadMessages((prev) => [...older, ...prev]);
       setHasMore(older.length >= CLUB_CHAT_PAGE_SIZE);
     } finally {
       setLoadingMore(false);
-      endReachedGuard.current = false;
     }
-  }, [clubId, hasMore, loadingMore, messages]);
+  }, [clubId, hasMore, loadingMore, setThreadMessages]);
 
   useEffect(() => {
     loadInitial();
@@ -131,55 +149,96 @@ export default function ClubChatScreen() {
     if (!clubId || !isSupabaseEnabled) return undefined;
 
     return subscribeToClubChat(clubId, (message) => {
-      setMessages((prev) => {
+      setThreadMessages((prev) => {
         if (prev.some((item) => item.id === message.id)) return prev;
-        const next = [...prev, message];
-        setRemoteCache(cacheKey, next);
-        return next;
+        const withoutPending = prev.filter(
+          (item) =>
+            !(
+              isPendingChatMessageId(item.id) &&
+              item.userId === message.userId &&
+              item.body === message.body
+            ),
+        );
+        return [...withoutPending, message];
       });
     });
-  }, [cacheKey, clubId]);
+  }, [clubId, setThreadMessages]);
 
-  useEffect(() => {
-    if (messages.length === 0 || !cacheKey) return;
-    setRemoteCache(cacheKey, messages);
-  }, [cacheKey, messages]);
-
-  useEffect(() => {
-    if (messages.length === 0) return;
-    listRef.current?.scrollToEnd({ animated: true });
-  }, [messages.length]);
-
-  const handleSend = async () => {
-    if (!clubId || !currentUserId || !draft.trim() || sending || !isSupabaseEnabled) {
+  const postMessage = async (body: string) => {
+    if (
+      !clubId ||
+      !currentUserId ||
+      !body.trim() ||
+      sending ||
+      !isSupabaseEnabled
+    ) {
       return;
     }
 
+    const trimmed = body.trim();
+    const pendingId = `pending-${uuidv4()}`;
+    const optimistic: ClubChatMessage = {
+      id: pendingId,
+      clubId,
+      userId: currentUserId,
+      body: trimmed,
+      createdAt: new Date().toISOString(),
+    };
+
     setSending(true);
     floatingAlert.dismiss();
+    setThreadMessages((prev) => [...prev, optimistic]);
+
     try {
-      const message = await sendClubChatMessage(clubId, currentUserId, draft);
-      setDraft("");
-      setMessages((prev) => {
-        if (prev.some((item) => item.id === message.id)) return prev;
-        return [...prev, message];
+      const message = await sendClubChatMessage(clubId, currentUserId, trimmed);
+      setThreadMessages((prev) => {
+        const withoutPending = prev.filter((item) => item.id !== pendingId);
+        if (withoutPending.some((item) => item.id === message.id)) {
+          return withoutPending;
+        }
+        return [...withoutPending, message];
       });
     } catch (error) {
+      setThreadMessages((prev) => prev.filter((item) => item.id !== pendingId));
       floatingAlert.show(
         formatSyncError(error, "Could not send message."),
         "error",
       );
+      throw error;
     } finally {
       setSending(false);
     }
   };
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (event.nativeEvent.contentOffset.y <= 24 && hasMore && !loadingMore) {
-      if (endReachedGuard.current) return;
-      endReachedGuard.current = true;
-      loadOlder();
+  const handleSend = async () => {
+    if (!draft.trim()) return;
+
+    const text = draft;
+    setDraft("");
+    setComposerPanel("none");
+    try {
+      await postMessage(text);
+    } catch {
+      setDraft(text);
     }
+  };
+
+  const handleSendGif = async (gif: GiphyGif) => {
+    setComposerPanel("none");
+    try {
+      await postMessage(encodeGifMessage(gif.fullUrl));
+    } catch {
+      // Error alert already shown in postMessage.
+    }
+  };
+
+  const handlePickEmoji = (emoji: string) => {
+    setDraft((current) => `${current}${emoji}`);
+    setRecentEmojis((current) => pushRecentChatEmoji(current, emoji));
+  };
+
+  const toggleComposerPanel = (panel: "emoji" | "gif") => {
+    setComposerPanel((current) => (current === panel ? "none" : panel));
   };
 
   if (!club) {
@@ -221,47 +280,27 @@ export default function ClubChatScreen() {
         {loading && messages.length === 0 ? (
           <ChatThreadSkeleton count={6} />
         ) : (
-          <FlatList
-            ref={listRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            style={styles.list}
-            contentContainerStyle={[
-              styles.listContent,
-              messages.length === 0 && styles.listEmpty,
-            ]}
-            renderItem={({ item, index }) => {
-              const previous = messages[index - 1];
-              const isMine = item.userId === currentUserId;
-              const sender = users.find((user) => user.id === item.userId);
-              const showAvatar = !previous || previous.userId !== item.userId;
-
-              return (
-                <ChatMessageBubble
-                  message={item}
-                  sender={sender}
-                  isMine={isMine}
-                  showAvatar={showAvatar}
-                />
-              );
-            }}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                Be the first to drop a message in {club.name}.
-              </Text>
-            }
-            ListHeaderComponent={
-              loadingMore ? <LoadMoreSkeleton rows={1} /> : null
-            }
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            onContentSizeChange={() => {
-              if (messages.length > 0) {
-                listRef.current?.scrollToEnd({ animated: false });
-              }
-            }}
+          <ChatThreadList
+            listRef={listRef}
+            messages={messages}
+            users={users}
+            currentUserId={currentUserId}
+            clubName={club.name}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            onLoadOlder={loadOlder}
           />
         )}
+
+        {composerPanel === "emoji" ? (
+          <ChatEmojiPicker
+            recentEmojis={recentEmojis}
+            onPick={handlePickEmoji}
+          />
+        ) : null}
+        {composerPanel === "gif" ? (
+          <ChatGifPicker onPick={(gif) => void handleSendGif(gif)} />
+        ) : null}
 
         <View
           style={[
@@ -269,40 +308,76 @@ export default function ClubChatScreen() {
             { paddingBottom: Math.max(insets.bottom, spacing.sm) },
           ]}
         >
-          <View style={styles.inputShell}>
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={
-                isSupabaseEnabled
-                  ? "Message the squad..."
-                  : "Chat unavailable offline"
-              }
-              placeholderTextColor={colors.textDim}
-              style={styles.input}
-              multiline
-              maxLength={2000}
-              editable={!sending && isSupabaseEnabled}
-              textAlignVertical="center"
-              underlineColorAndroid="transparent"
-              selectionColor={colors.primary}
-            />
+          <View style={styles.composerRow}>
             <Pressable
+              onPress={() => toggleComposerPanel("emoji")}
               style={[
-                styles.sendBtn,
-                (!draft.trim() || sending || !isSupabaseEnabled) &&
-                  styles.sendBtnDisabled,
+                styles.accessoryBtn,
+                composerPanel === "emoji" && styles.accessoryBtnActive,
               ]}
-              disabled={!draft.trim() || sending || !isSupabaseEnabled}
-              onPress={handleSend}
               hitSlop={8}
+              accessibilityLabel="Emoji picker"
             >
-              {sending ? (
-                <SkeletonCircle size={18} />
-              ) : (
-                <Ionicons name="send" size={18} color={colors.text} />
-              )}
+              <Ionicons
+                name="happy-outline"
+                size={22}
+                color={
+                  composerPanel === "emoji" ? colors.primary : colors.textMuted
+                }
+              />
             </Pressable>
+            <Pressable
+              onPress={() => toggleComposerPanel("gif")}
+              style={[
+                styles.accessoryBtn,
+                composerPanel === "gif" && styles.accessoryBtnActive,
+              ]}
+              hitSlop={8}
+              accessibilityLabel="GIF picker"
+            >
+              <Ionicons
+                name="images-outline"
+                size={22}
+                color={
+                  composerPanel === "gif" ? colors.primary : colors.textMuted
+                }
+              />
+            </Pressable>
+            <View style={styles.inputShell}>
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                placeholder={
+                  isSupabaseEnabled
+                    ? "Message the squad..."
+                    : "Chat unavailable offline"
+                }
+                placeholderTextColor={colors.textDim}
+                style={styles.input}
+                multiline
+                maxLength={2000}
+                editable={!sending && isSupabaseEnabled}
+                textAlignVertical="center"
+                underlineColorAndroid="transparent"
+                selectionColor={colors.primary}
+              />
+              <Pressable
+                style={[
+                  styles.sendBtn,
+                  (!draft.trim() || sending || !isSupabaseEnabled) &&
+                    styles.sendBtnDisabled,
+                ]}
+                disabled={!draft.trim() || sending || !isSupabaseEnabled}
+                onPress={() => void handleSend()}
+                hitSlop={8}
+              >
+                {sending ? (
+                  <SkeletonCircle size={18} />
+                ) : (
+                  <Ionicons name="send" size={18} color={colors.text} />
+                )}
+              </Pressable>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -316,17 +391,6 @@ const styles = StyleSheet.create({
     position: "relative",
     backgroundColor: colors.background,
   },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  listEmpty: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
   centered: {
     flex: 1,
     alignItems: "center",
@@ -339,11 +403,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: "center",
   },
-  emptyText: {
-    ...typography.body,
-    color: colors.textDim,
-    textAlign: "center",
-  },
   composer: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
@@ -352,7 +411,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: spacing.sm,
   },
+  composerRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.xs,
+  },
+  accessoryBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    marginBottom: 1,
+  },
+  accessoryBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}18`,
+  },
   inputShell: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "flex-end",
     minHeight: 48,

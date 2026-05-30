@@ -1,17 +1,17 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import * as Linking from 'expo-linking';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import * as Linking from "expo-linking";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
   openSubscriptionManagement,
   restoreAllStarSubscription,
-} from '@/lib/allStarPurchase';
-import { isIapSupportedEnvironment } from '@/lib/iapConfig';
-import { getAccountDeletionMailto, LEGAL_EMAIL } from '@/lib/legal';
-import { SubscriptionError } from '@/lib/subscription';
-import { colors, spacing, typography } from '@/lib/theme';
-import { useAppStore } from '@/store/useAppStore';
+} from "@/lib/allStarPurchase";
+import { isIapSupportedEnvironment } from "@/lib/iapConfig";
+import { getAccountDeletionMailto, LEGAL_EMAIL } from "@/lib/legal";
+import { SubscriptionError } from "@/lib/subscription";
+import { colors, spacing, typography } from "@/lib/theme";
+import { useAppStore } from "@/store/useAppStore";
 
 interface LegalRowProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -28,7 +28,9 @@ function LegalRow({ icon, label, onPress, destructive }: LegalRowProps) {
         size={20}
         color={destructive ? colors.error : colors.textMuted}
       />
-      <Text style={[styles.rowLabel, destructive && styles.destructive]}>{label}</Text>
+      <Text style={[styles.rowLabel, destructive && styles.destructive]}>
+        {label}
+      </Text>
       <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
     </Pressable>
   );
@@ -41,12 +43,12 @@ export function LegalSettingsCard() {
 
   const openDeleteAccount = () => {
     Alert.alert(
-      'Delete account',
+      "Delete account",
       `To delete your account and personal data, email ${LEGAL_EMAIL} from the address linked to your account. We will confirm deletion within a reasonable time.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Email support',
+          text: "Email support",
           onPress: () => {
             void Linking.openURL(getAccountDeletionMailto());
           },
@@ -60,19 +62,19 @@ export function LegalSettingsCard() {
       const restored = await restoreAllStarSubscription();
       if (restored) {
         await upgradeToAllStar();
-        Alert.alert('Restored', 'Your All-Star Baller subscription is active.');
+        Alert.alert("Restored", "Your All-Star Baller subscription is active.");
         return;
       }
       Alert.alert(
-        'No subscription found',
-        'We could not find an active All-Star subscription for this store account.',
+        "No subscription found",
+        "We could not find an active All-Star subscription for this store account.",
       );
     } catch (error) {
       Alert.alert(
-        'Restore failed',
+        "Restore failed",
         error instanceof SubscriptionError
           ? error.message
-          : 'Could not restore purchases. Try again.',
+          : "Could not restore purchases. Try again.",
       );
     }
   };
@@ -82,10 +84,10 @@ export function LegalSettingsCard() {
       await openSubscriptionManagement();
     } catch (error) {
       Alert.alert(
-        'Unavailable',
+        "Unavailable",
         error instanceof SubscriptionError
           ? error.message
-          : 'Could not open subscription settings.',
+          : "Could not open subscription settings.",
       );
     }
   };
@@ -96,12 +98,12 @@ export function LegalSettingsCard() {
       <LegalRow
         icon="document-text-outline"
         label="Terms & Conditions"
-        onPress={() => router.push('/legal/terms')}
+        onPress={() => router.push("/legal/terms")}
       />
       <LegalRow
         icon="shield-checkmark-outline"
         label="Privacy Policy"
-        onPress={() => router.push('/legal/privacy')}
+        onPress={() => router.push("/legal/privacy")}
       />
       {storeAvailable ? (
         <>
@@ -142,21 +144,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: spacing.lg,
   },
   heading: {
     ...typography.caption,
     color: colors.textMuted,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.8,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.xs,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,

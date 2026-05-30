@@ -63,27 +63,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    const [{ data: club }, { data: creator }, memberSource] = await Promise.all([
-      supabase
-        .from("clubs")
-        .select("name")
-        .eq("id", event.club_id)
-        .maybeSingle(),
-      supabase
-        .from("profiles")
-        .select("name, nickname")
-        .eq("id", event.created_by)
-        .maybeSingle(),
-      event.visibility === "private"
-        ? supabase
-            .from("event_invites")
-            .select("user_id")
-            .eq("event_id", event.id)
-        : supabase
-            .from("club_members")
-            .select("user_id")
-            .eq("club_id", event.club_id),
-    ]);
+    const [{ data: club }, { data: creator }, memberSource] = await Promise.all(
+      [
+        supabase
+          .from("clubs")
+          .select("name")
+          .eq("id", event.club_id)
+          .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("name, nickname")
+          .eq("id", event.created_by)
+          .maybeSingle(),
+        event.visibility === "private"
+          ? supabase
+              .from("event_invites")
+              .select("user_id")
+              .eq("event_id", event.id)
+          : supabase
+              .from("club_members")
+              .select("user_id")
+              .eq("club_id", event.club_id),
+      ],
+    );
 
     const memberIds = (memberSource.data ?? [])
       .map((row) => row.user_id as string)
@@ -101,19 +103,22 @@ Deno.serve(async (req) => {
     }
 
     const clubName = club?.name ?? "Your club";
-    const creatorName = creator?.nickname ?? creator?.name ?? "Someone";
+    const creatorName =
+      creator?.nickname?.trim() || creator?.name?.trim() || "Someone";
     const when = formatEventWhen(event.date_time);
     const location = event.location?.trim() || "TBD";
 
     const pushMessages: ExpoPushMessage[] = tokens.map((token) => ({
       to: token,
       title: `${clubName} · New game`,
-      body: `${creatorName} posted ${event.title} · ${when} · ${location}`,
+      body: `Created by ${creatorName}: ${event.title} · ${when} · ${location}`,
       sound: "default",
       channelId: "club-games",
       data: {
         eventId: event.id,
         clubId: event.club_id,
+        createdBy: event.created_by,
+        createdByName: creatorName,
         url: `/event/${event.id}`,
       },
     }));

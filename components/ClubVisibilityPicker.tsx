@@ -36,10 +36,7 @@ export function ClubVisibilityPicker({
           color={value === "open" ? colors.primary : colors.textMuted}
         />
         <Text
-          style={[
-            styles.typeTitle,
-            value === "open" && styles.typeTitleActive,
-          ]}
+          style={[styles.typeTitle, value === "open" && styles.typeTitleActive]}
         >
           Public
         </Text>

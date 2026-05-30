@@ -1,5 +1,5 @@
-import { LegalDocumentView } from '../../components/LegalDocumentView';
-import { TERMS_SECTIONS } from '../../lib/legalDocuments';
+import { LegalDocumentView } from "../../components/LegalDocumentView";
+import { TERMS_SECTIONS } from "../../lib/legalDocuments";
 
 export default function TermsScreen() {
   return (

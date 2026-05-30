@@ -47,9 +47,7 @@ export default function EditEventCourtsScreen() {
   const playersPerGame = event ? getPlayersPerGame(event) : 10;
   const initialCourtGames = useMemo<CourtGame[]>(
     () =>
-      event?.courtGames?.length
-        ? event.courtGames
-        : [{ teamA: [], teamB: [] }],
+      event?.courtGames?.length ? event.courtGames : [{ teamA: [], teamB: [] }],
     [event?.courtGames, event?.id],
   );
 
@@ -95,7 +93,7 @@ export default function EditEventCourtsScreen() {
         <View style={[styles.blocked, { paddingBottom: insets.bottom }]}>
           <Text style={styles.blockedTitle}>Editing locked</Text>
           <Text style={styles.blockedText}>
-            Only the game creator or club admin can edit court assignments
+            Only the game creator or club captain can edit court assignments
             before the game closes.
           </Text>
         </View>

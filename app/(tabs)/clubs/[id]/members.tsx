@@ -33,6 +33,7 @@ import { formatSyncError } from "../../../../lib/syncErrors";
 import { colors, radius, spacing, typography } from "../../../../lib/theme";
 import { useTabBarPadding } from "../../../../lib/tabBar";
 import { useRefreshControl } from "../../../../lib/useRefreshControl";
+import { isClubCaptain, MAX_SUB_CAPTAINS } from "../../../../lib/clubRoles";
 import { Club, UserProfile } from "../../../../lib/types";
 import { useClub, useClubBans } from "../../../../store/hooks";
 import { useAppStore } from "../../../../store/useAppStore";
@@ -93,10 +94,14 @@ export default function ClubMembersScreen() {
     action: "kick" | "ban" | "unban";
   } | null>(null);
   const [moderating, setModerating] = useState(false);
+  const [togglingSubCaptainId, setTogglingSubCaptainId] = useState<
+    string | null
+  >(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const kickMember = useAppStore((state) => state.kickMember);
   const banMember = useAppStore((state) => state.banMember);
   const unbanMember = useAppStore((state) => state.unbanMember);
+  const setClubSubCaptains = useAppStore((state) => state.setClubSubCaptains);
   const clubBans = useClubBans(clubId ?? "");
   const endReachedGuard = useRef(false);
   const initialLoadKeyRef = useRef<string | null>(null);
@@ -110,12 +115,12 @@ export default function ClubMembersScreen() {
     [club, users],
   );
 
+  const isCaptain = Boolean(club && isClubCaptain(club, currentUserId));
+  const subCaptainIds = club?.subCaptainIds ?? [];
+  const subCaptainAtCapacity = subCaptainIds.length >= MAX_SUB_CAPTAINS;
+
   const applyMemberPage = useCallback(
-    (
-      pageMembers: UserProfile[],
-      pageTotal: number,
-      append: boolean,
-    ) => {
+    (pageMembers: UserProfile[], pageTotal: number, append: boolean) => {
       setTotal(pageTotal);
       setMembers((prev) => {
         const nextMembers = append
@@ -302,15 +307,7 @@ export default function ClubMembersScreen() {
       members: fromStore.members,
       total: fromStore.total,
     });
-  }, [
-    cacheKey,
-    club,
-    clubId,
-    loading,
-    memberIdsKey,
-    members.length,
-    users,
-  ]);
+  }, [cacheKey, club, clubId, loading, memberIdsKey, members.length, users]);
 
   const reloadMembers = useCallback(
     () => loadPage(0, false, { silent: true, forceSpinner: true }),
@@ -353,6 +350,35 @@ export default function ClubMembersScreen() {
     [clubBans, users],
   );
 
+  const handleToggleSubCaptain = async (userId: string) => {
+    if (!club) return;
+
+    const isSub = subCaptainIds.includes(userId);
+    if (!isSub && subCaptainAtCapacity) {
+      setActionError(
+        `You can only assign ${MAX_SUB_CAPTAINS} sub-captains. Remove one first.`,
+      );
+      return;
+    }
+
+    const next = isSub
+      ? subCaptainIds.filter((id) => id !== userId)
+      : [...subCaptainIds, userId];
+
+    setTogglingSubCaptainId(userId);
+    setActionError(null);
+
+    try {
+      await setClubSubCaptains(club.id, next);
+    } catch (error) {
+      setActionError(
+        formatSyncError(error, "Could not update sub-captains. Try again."),
+      );
+    } finally {
+      setTogglingSubCaptainId(null);
+    }
+  };
+
   const handleConfirmModeration = async () => {
     if (!moderation || !clubId) return;
 
@@ -385,7 +411,10 @@ export default function ClubMembersScreen() {
 
   const getMemberBadge = (memberId: string) => {
     if (memberId === club?.adminId) {
-      return { label: "Admin", color: colors.warning };
+      return { label: "Captain", color: colors.warning };
+    }
+    if ((club?.subCaptainIds ?? []).includes(memberId)) {
+      return { label: "Sub-Captain", color: colors.accent };
     }
     if (memberId === currentUserId) {
       return { label: "You", color: colors.accent };
@@ -454,6 +483,10 @@ export default function ClubMembersScreen() {
               player={item}
               badge={getMemberBadge(item.id)}
               showAdminActions={isAdmin}
+              showSubCaptainAction={isCaptain}
+              isSubCaptain={subCaptainIds.includes(item.id)}
+              subCaptainAtCapacity={subCaptainAtCapacity}
+              subCaptainLoading={togglingSubCaptainId === item.id}
               onPress={() => router.push(`/player/${item.id}`)}
               onKick={() =>
                 setModeration({
@@ -469,11 +502,11 @@ export default function ClubMembersScreen() {
                   action: "ban",
                 })
               }
+              onSubCaptain={() => {
+                void handleToggleSubCaptain(item.id);
+              }}
               onSwipeOpen={(methods) => {
-                if (
-                  openSwipeRef.current &&
-                  openSwipeRef.current !== methods
-                ) {
+                if (openSwipeRef.current && openSwipeRef.current !== methods) {
                   openSwipeRef.current.close();
                 }
                 openSwipeRef.current = methods;
@@ -562,7 +595,7 @@ export default function ClubMembersScreen() {
 
               {showAdmin ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>Club Admin</Text>
+                  <Text style={styles.sectionLabel}>Club Captain</Text>
                   <PlayerCard
                     player={adminMember}
                     compact
@@ -671,17 +704,27 @@ function MemberRow({
   player,
   badge,
   showAdminActions,
+  showSubCaptainAction,
+  isSubCaptain,
+  subCaptainAtCapacity,
+  subCaptainLoading,
   onPress,
   onKick,
   onBan,
+  onSubCaptain,
   onSwipeOpen,
 }: {
   player: UserProfile;
   badge?: { label: string; color?: string };
   showAdminActions: boolean;
+  showSubCaptainAction?: boolean;
+  isSubCaptain?: boolean;
+  subCaptainAtCapacity?: boolean;
+  subCaptainLoading?: boolean;
   onPress?: () => void;
   onKick: () => void;
   onBan: () => void;
+  onSubCaptain?: () => void;
   onSwipeOpen?: (methods: SwipeableMethods) => void;
 }) {
   return (
@@ -690,6 +733,11 @@ function MemberRow({
       onKick={onKick}
       onBan={onBan}
       onSwipeOpen={onSwipeOpen}
+      onSubCaptain={
+        showSubCaptainAction && !subCaptainLoading ? onSubCaptain : undefined
+      }
+      isSubCaptain={isSubCaptain}
+      subCaptainAtCapacity={subCaptainAtCapacity}
     >
       <PlayerCard player={player} compact badge={badge} onPress={onPress} />
     </SwipeableMemberRow>

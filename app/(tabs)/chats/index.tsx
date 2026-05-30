@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo } from "react";
-import { StyleSheet, Text } from "react-native";
+import { FlatList, StyleSheet, Text } from "react-native";
 
 import { ChatListItem } from "../../../components/ChatListItem";
 import { Screen } from "../../../components/Screen";
@@ -48,17 +48,25 @@ export default function ChatsScreen() {
     fetch: fetchPreviews,
   });
 
-  const sortedClubs = useMemo(() => {
-    const previewMap = new Map(
-      previews.map((preview) => [preview.clubId, preview]),
-    );
+  const previewByClubId = useMemo(
+    () => new Map(previews.map((preview) => [preview.clubId, preview])),
+    [previews],
+  );
 
+  const usersById = useMemo(
+    () => new Map(users.map((user) => [user.id, user])),
+    [users],
+  );
+
+  const sortedClubs = useMemo(() => {
     return [...myClubs].sort((a, b) => {
-      const aTime = previewMap.get(a.id)?.lastMessage?.createdAt ?? a.createdAt;
-      const bTime = previewMap.get(b.id)?.lastMessage?.createdAt ?? b.createdAt;
+      const aTime =
+        previewByClubId.get(a.id)?.lastMessage?.createdAt ?? a.createdAt;
+      const bTime =
+        previewByClubId.get(b.id)?.lastMessage?.createdAt ?? b.createdAt;
       return new Date(bTime).getTime() - new Date(aTime).getTime();
     });
-  }, [myClubs, previews]);
+  }, [myClubs, previewByClubId]);
 
   const showDataLoading =
     isSupabaseEnabled &&
@@ -98,24 +106,28 @@ export default function ChatsScreen() {
             description="Join or create a club to unlock group chat."
           />
         ) : (
-          sortedClubs.map((club) => {
-            const preview = previews.find(
-              (item) => item.clubId === club.id,
-            ) ?? { clubId: club.id };
-            const sender = preview.lastMessage
-              ? users.find((user) => user.id === preview.lastMessage?.userId)
-              : undefined;
+          <FlatList
+            data={sortedClubs}
+            keyExtractor={(club) => club.id}
+            scrollEnabled={false}
+            renderItem={({ item: club }) => {
+              const preview = previewByClubId.get(club.id) ?? {
+                clubId: club.id,
+              };
+              const sender = preview.lastMessage
+                ? usersById.get(preview.lastMessage.userId)
+                : undefined;
 
-            return (
-              <ChatListItem
-                key={club.id}
-                club={club}
-                preview={preview}
-                sender={sender}
-                onPress={() => router.push(`/chats/${club.id}`)}
-              />
-            );
-          })
+              return (
+                <ChatListItem
+                  club={club}
+                  preview={preview}
+                  sender={sender}
+                  onPress={() => router.push(`/chats/${club.id}`)}
+                />
+              );
+            }}
+          />
         )}
       </Screen>
     </TabSkeletonOverlay>

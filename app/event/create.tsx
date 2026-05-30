@@ -11,7 +11,9 @@ import { useUpgradePrompt } from "../../lib/useUpgradePrompt";
 import { searchPlaces } from "../../lib/geocoding";
 import { EventLocation } from "../../lib/location";
 import { colors, radius, spacing, typography } from "../../lib/theme";
+import { formatSyncError } from "../../lib/syncErrors";
 import { EventVisibility } from "../../lib/types";
+import { canCreatePrivateGame } from "../../lib/clubRoles";
 import { getDefaultGameDateTime, useAppStore } from "../../store/useAppStore";
 import { useMyClubs } from "../../store/hooks";
 
@@ -58,6 +60,23 @@ export default function CreateEventScreen() {
     [myClubs, clubId],
   );
 
+  const canSchedulePrivate = useMemo(
+    () =>
+      Boolean(
+        selectedClub &&
+        currentUserId &&
+        canCreatePrivateGame(selectedClub, currentUserId),
+      ),
+    [currentUserId, selectedClub],
+  );
+
+  useEffect(() => {
+    if (!canSchedulePrivate && visibility === "private") {
+      setVisibility("open");
+      setInvitedMemberIds([]);
+    }
+  }, [canSchedulePrivate, visibility]);
+
   const resolvedMaxPlayers = useMemo(() => {
     if (!useCustomMax) return maxPlayers;
     return parseCustomMaxPlayers(customMaxPlayers);
@@ -68,7 +87,9 @@ export default function CreateEventScreen() {
     return selectedClub.memberIds
       .filter((memberId) => memberId !== currentUserId)
       .map((memberId) => users.find((user) => user.id === memberId))
-      .filter((member): member is NonNullable<typeof member> => Boolean(member));
+      .filter((member): member is NonNullable<typeof member> =>
+        Boolean(member),
+      );
   }, [currentUserId, selectedClub, users]);
 
   const isFutureDate = dateTime.getTime() > Date.now();
@@ -142,7 +163,9 @@ export default function CreateEventScreen() {
         router.replace(`/event/${id}`);
       } catch (error) {
         if (handleSubscriptionError(error)) return;
-        setCreateError("Could not create the game. Try again.");
+        setCreateError(
+          formatSyncError(error, "Could not create the game. Try again."),
+        );
       } finally {
         setLoading(false);
       }
@@ -220,18 +243,20 @@ export default function CreateEventScreen() {
           <Text style={styles.typeDesc}>Any club member can join</Text>
         </Pressable>
         <Pressable
-          onPress={() => setVisibility("private")}
+          onPress={() => {
+            if (!canSchedulePrivate) return;
+            setVisibility("private");
+          }}
           style={[
             styles.typeCard,
             visibility === "private" && styles.typeCardActive,
+            !canSchedulePrivate && styles.typeCardLocked,
           ]}
         >
           <Ionicons
             name="lock-closed-outline"
             size={22}
-            color={
-              visibility === "private" ? colors.primary : colors.textMuted
-            }
+            color={visibility === "private" ? colors.primary : colors.textMuted}
           />
           <Text
             style={[
@@ -241,7 +266,11 @@ export default function CreateEventScreen() {
           >
             Private Game
           </Text>
-          <Text style={styles.typeDesc}>Pick who can join</Text>
+          <Text style={styles.typeDesc}>
+            {canSchedulePrivate
+              ? "Pick who can join"
+              : "Captain or sub-captain only"}
+          </Text>
         </Pressable>
       </View>
 
@@ -459,6 +488,9 @@ const styles = StyleSheet.create({
   typeDesc: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  typeCardLocked: {
+    opacity: 0.72,
   },
   inviteHint: {
     ...typography.caption,

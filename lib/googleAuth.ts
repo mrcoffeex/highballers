@@ -48,7 +48,9 @@ export function getOAuthRedirectUri() {
   }
 
   const useDevRedirect =
-    __DEV__ || Constants.appOwnership === "expo" || Constants.appOwnership === null;
+    __DEV__ ||
+    Constants.appOwnership === "expo" ||
+    Constants.appOwnership === null;
 
   return makeRedirectUri({
     scheme: "highballers",
@@ -76,7 +78,9 @@ export async function waitForSupabaseSession(
   return false;
 }
 
-export function buildCallbackHrefFromParams(params: SearchParams): string | null {
+export function buildCallbackHrefFromParams(
+  params: SearchParams,
+): string | null {
   if (!paramsHaveOAuthPayload(params)) return null;
 
   const search = new URLSearchParams();
@@ -157,9 +161,7 @@ export function serializeOAuthParams(params: SearchParams): string {
     "error_description",
     "error_code",
   ] as const;
-  return keys
-    .map((key) => `${key}=${firstParam(params[key]) ?? ""}`)
-    .join("&");
+  return keys.map((key) => `${key}=${firstParam(params[key]) ?? ""}`).join("&");
 }
 
 function parseAuthParams(url: string) {

@@ -239,7 +239,11 @@ export function CourtAssignmentsEditor({
 
           {ids.length === 0 ? (
             <View style={styles.emptyTeam}>
-              <Ionicons name="person-add-outline" size={20} color={colors.textDim} />
+              <Ionicons
+                name="person-add-outline"
+                size={20}
+                color={colors.textDim}
+              />
               <Text style={styles.emptyTeamText}>
                 {selectedUnassignedId
                   ? "Tap + to add"
@@ -356,7 +360,9 @@ export function CourtAssignmentsEditor({
         <View style={styles.workspace} />
       )}
 
-      <View style={[styles.footer, { paddingBottom: spacing.md + bottomInset }]}>
+      <View
+        style={[styles.footer, { paddingBottom: spacing.md + bottomInset }]}
+      >
         <View style={styles.footerHeader}>
           <Text style={styles.unassignedTitle}>
             Substitutes ({unassigned.length})

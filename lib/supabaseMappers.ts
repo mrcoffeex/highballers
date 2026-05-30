@@ -139,13 +139,18 @@ export function profileToRow(profile: UserProfile) {
   };
 }
 
-export function clubFromRow(row: ClubRow, memberIds: string[]): Club {
+export function clubFromRow(
+  row: ClubRow,
+  memberIds: string[],
+  subCaptainIds: string[] = [],
+): Club {
   return {
     id: row.id,
     name: row.name,
     description: row.description,
     location: row.location,
     adminId: row.admin_id,
+    subCaptainIds,
     iconColor: row.icon_color,
     iconUrl: row.icon_url ?? undefined,
     visibility: row.visibility ?? "open",

@@ -63,7 +63,9 @@ export interface Club {
   description: string;
   location: string;
   memberIds: string[];
+  /** Club captain (stored as admin_id in Supabase). */
   adminId: string;
+  subCaptainIds: string[];
   iconColor: string;
   iconUrl?: string;
   visibility: ClubVisibility;

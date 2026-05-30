@@ -5,7 +5,10 @@ export const TIER_LABELS: Record<SubscriptionTier, string> = {
   all_star: "All-Star Baller",
 };
 
+/** @deprecated Use BASIC_MAX_OWNED_CLUBS — basic users may belong to at most 2 clubs (1 created + 1 joined). */
 export const BASIC_MAX_CLUBS = 1;
+export const BASIC_MAX_OWNED_CLUBS = 1;
+export const BASIC_MAX_JOINED_CLUBS = 1;
 export const BASIC_MAX_CLUB_MEMBERS = 20;
 export const BASIC_MAX_EVENT_SIZE = 10;
 export const BASIC_MAX_GAME_HISTORY = 3;
@@ -85,6 +88,13 @@ export function countOwnedClubs(clubs: Club[], userId: string): number {
   return clubs.filter((club) => club.adminId === userId).length;
 }
 
+/** Clubs the user belongs to but does not captain. */
+export function countJoinedClubs(clubs: Club[], userId: string): number {
+  return clubs.filter(
+    (club) => club.memberIds.includes(userId) && club.adminId !== userId,
+  ).length;
+}
+
 export function getClubMemberCap(
   admin: UserProfile | null | undefined,
 ): number {
@@ -93,13 +103,14 @@ export function getClubMemberCap(
 
 export function canCreateClub(
   tier: SubscriptionTier,
-  memberClubCount: number,
+  clubs: Club[],
+  userId: string,
 ): { ok: boolean; reason?: string } {
   if (tier === "all_star") return { ok: true };
-  if (memberClubCount >= BASIC_MAX_CLUBS) {
+  if (countOwnedClubs(clubs, userId) >= BASIC_MAX_OWNED_CLUBS) {
     return {
       ok: false,
-      reason: `Basic Ballers can belong to ${BASIC_MAX_CLUBS} club. Leave your current club or upgrade to All-Star.`,
+      reason: `Basic Ballers can create only ${BASIC_MAX_OWNED_CLUBS} club. Upgrade to All-Star to run multiple crews.`,
     };
   }
   return { ok: true };
@@ -107,11 +118,13 @@ export function canCreateClub(
 
 export function canJoinClub(
   tier: SubscriptionTier,
-  memberClubCount: number,
+  clubs: Club[],
+  userId: string,
   club: Club,
   admin: UserProfile | null | undefined,
 ): { ok: boolean; reason?: string } {
   if (tier === "all_star") return { ok: true };
+  if (club.memberIds.includes(userId)) return { ok: true };
 
   if (club.visibility === "private") {
     return {
@@ -120,10 +133,14 @@ export function canJoinClub(
     };
   }
 
-  if (memberClubCount >= BASIC_MAX_CLUBS) {
+  if (club.adminId === userId) {
+    return { ok: true };
+  }
+
+  if (countJoinedClubs(clubs, userId) >= BASIC_MAX_JOINED_CLUBS) {
     return {
       ok: false,
-      reason: `Basic Ballers can belong to ${BASIC_MAX_CLUBS} club. Upgrade to All-Star for unlimited clubs.`,
+      reason: `Basic Ballers can join only ${BASIC_MAX_JOINED_CLUBS} other club. Leave a club or upgrade to All-Star.`,
     };
   }
 
@@ -183,7 +200,7 @@ export const TIER_COMPARISON: Array<{
 }> = [
   {
     label: "Clubs",
-    basic: "1 club · 20 members · invites",
+    basic: "Create 1 · join 1 other · 20 members",
     allStar: "Unlimited",
   },
   { label: "Games", basic: "Create & join up to 10", allStar: "Join any size" },

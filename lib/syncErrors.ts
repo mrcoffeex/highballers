@@ -55,6 +55,18 @@ export function formatSyncError(
     return "Database needs an update. Run supabase/migrations (latest timestamp files) or ./scripts/db-migrate-all.sh in the Supabase SQL Editor.";
   }
 
+  if (lower.includes("event_invites")) {
+    return "Database needs an update. Run supabase/migrations/20250110121300_event-visibility.sql in the Supabase SQL Editor.";
+  }
+
+  if (lower.includes("row-level security") && lower.includes("events")) {
+    return "Could not create this game. Confirm you are a club member (or captain) and that database migrations are up to date.";
+  }
+
+  if (lower.includes("cloud sync timed out")) {
+    return "Save timed out. Check your connection and try again.";
+  }
+
   if (lower.includes("does not exist") && lower.includes("relation")) {
     return "Database schema is out of date. Run supabase/schema.sql and supabase/migrations in order (see ./scripts/db-migrate-all.sh).";
   }
@@ -63,20 +75,20 @@ export function formatSyncError(
     return "Database needs an update. Run supabase/migrations/20250110121400_club-bans.sql in the Supabase SQL Editor.";
   }
 
+  if (lower.includes("club_sub_captains")) {
+    return "Database needs an update. Run supabase/migrations/20250110121800_club-sub-captains.sql in the Supabase SQL Editor.";
+  }
+
   if (lower.includes("row-level security") && lower.includes("club_chat")) {
     return "Chat is blocked by database rules. Run supabase/migrations/20250110121000_basic-chat.sql in the Supabase SQL Editor.";
   }
 
   if (lower.includes("row-level security")) {
-    return "Only the game creator or club admin can save stats. Sign in with that account, or run supabase/migrations/20250110120600_event-stats-rls.sql in Supabase.";
+    return "Only the game creator or club captain can save stats. Sign in with that account, or run supabase/migrations/20250110120600_event-stats-rls.sql in Supabase.";
   }
 
   if (lower.includes("foreign key") && lower.includes("profiles")) {
     return "A player on this court does not have a saved profile yet. Ask them to finish onboarding, then try again.";
-  }
-
-  if (lower.includes("cloud sync timed out")) {
-    return "Save timed out. Check your connection and try again.";
   }
 
   if (lower.includes("not signed in")) {

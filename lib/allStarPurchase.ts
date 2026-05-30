@@ -75,7 +75,9 @@ export async function fetchAllStarSubscription(): Promise<ProductSubscription | 
   return (match as ProductSubscription | undefined) ?? null;
 }
 
-function getAndroidOfferToken(subscription: ProductSubscription | null): string | undefined {
+function getAndroidOfferToken(
+  subscription: ProductSubscription | null,
+): string | undefined {
   if (!subscription || subscription.platform !== "android") return undefined;
   const offer = subscription.subscriptionOfferDetailsAndroid?.[0];
   return offer?.offerToken ?? undefined;

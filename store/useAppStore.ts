@@ -25,6 +25,7 @@ import { uploadAvatar, uploadClubLogo } from "../lib/storage";
 import { getSupabase } from "../lib/supabase";
 import {
   deleteClubBan,
+  replaceClubSubCaptains,
   deleteJoinRequest,
   fetchAllData,
   insertClubBan,
@@ -47,6 +48,11 @@ import {
 } from "../lib/supabaseSync";
 import { formatSyncError } from "../lib/syncErrors";
 import { isUserBannedFromClub } from "../lib/clubBans";
+import {
+  canCreatePrivateGame,
+  isClubCaptain,
+  MAX_SUB_CAPTAINS,
+} from "../lib/clubRoles";
 import { canUserJoinEvent } from "../lib/eventAccess";
 import {
   assertFeatureAccess,
@@ -54,11 +60,11 @@ import {
   canCreateClub,
   canJoinClub,
   canJoinEvent,
-  countMyClubs,
   getUserTier,
   isAllStar,
   SubscriptionError,
 } from "../lib/subscription";
+import { buildMemberRemovalUpdate } from "../lib/memberRemoval";
 import { clearRemoteCache } from "../lib/remoteCache";
 import { clearTabFetchSession } from "../lib/useCachedFetch";
 import { clampPlayersPerGame, getPlayersPerGame } from "../lib/gameFormats";
@@ -91,62 +97,6 @@ import {
   SubscriptionTier,
   UserProfile,
 } from "../lib/types";
-
-function buildMemberRemovalUpdate(
-  clubs: Club[],
-  events: GameEvent[],
-  joinRequests: ClubJoinRequest[],
-  clubBans: ClubBan[],
-  clubId: string,
-  userId: string,
-  ban?: ClubBan,
-) {
-  const pendingRequests = joinRequests.filter(
-    (request) => request.clubId === clubId && request.userId === userId,
-  );
-
-  return {
-    clubs: clubs.map((club) =>
-      club.id === clubId
-        ? {
-            ...club,
-            memberIds: club.memberIds.filter((memberId) => memberId !== userId),
-          }
-        : club,
-    ),
-    events: events.map((event) => {
-      if (event.clubId !== clubId || !event.participantIds.includes(userId)) {
-        return event;
-      }
-
-      const participantIds = event.participantIds.filter((id) => id !== userId);
-      const courtGames = removePlayerFromCourtGames(
-        event.courtGames,
-        userId,
-        participantIds,
-      );
-
-      return {
-        ...event,
-        participantIds,
-        courtGames,
-        shuffled: Boolean(courtGames?.length),
-      };
-    }),
-    joinRequests: joinRequests.filter(
-      (request) => request.clubId !== clubId || request.userId !== userId,
-    ),
-    clubBans: ban
-      ? [
-          ...clubBans.filter(
-            (entry) => !(entry.clubId === clubId && entry.userId === userId),
-          ),
-          ban,
-        ]
-      : clubBans,
-    pendingRequests,
-  };
-}
 
 interface AppState {
   hydrated: boolean;
@@ -194,13 +144,17 @@ interface AppState {
   banMember: (clubId: string, userId: string) => Promise<void>;
   unbanMember: (clubId: string, userId: string) => Promise<void>;
   createClub: (
-    club: Omit<Club, "id" | "createdAt" | "memberIds" | "adminId">,
+    club: Omit<
+      Club,
+      "id" | "createdAt" | "memberIds" | "adminId" | "subCaptainIds"
+    >,
     logoUri?: string,
   ) => Promise<string>;
   updateClubVisibility: (
     clubId: string,
     visibility: Club["visibility"],
   ) => Promise<void>;
+  setClubSubCaptains: (clubId: string, userIds: string[]) => Promise<void>;
 
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
@@ -460,7 +414,10 @@ export const useAppStore = create<AppState>()(
 
           set({
             users: data.users,
-            clubs: data.clubs,
+            clubs: data.clubs.map((club) => ({
+              ...club,
+              subCaptainIds: club.subCaptainIds ?? [],
+            })),
             events: data.events,
             joinRequests: data.joinRequests,
             clubBans: data.clubBans,
@@ -587,35 +544,51 @@ export const useAppStore = create<AppState>()(
       },
 
       joinClub: async (clubId) => {
-        const { currentUserId, clubs, users, clubBans } = get();
-        if (!currentUserId) return;
+        const { currentUserId, clubs, users, clubBans, session } = get();
+        const userId = session?.user?.id ?? currentUserId;
+        if (!userId) return;
 
         const club = clubs.find((item) => item.id === clubId);
         if (!club || club.visibility !== "open") return;
 
-        if (isUserBannedFromClub(clubId, currentUserId, clubBans)) {
+        if (isUserBannedFromClub(clubId, userId, clubBans)) {
           throw new Error("You are banned from this club.");
         }
 
         const user = getCurrentUser(get);
         const tier = getUserTier(user);
-        const memberClubCount = countMyClubs(clubs, currentUserId);
         const admin = users.find((item) => item.id === club.adminId) ?? null;
-        const joinCheck = canJoinClub(tier, memberClubCount, club, admin);
+        const joinCheck = canJoinClub(tier, clubs, userId, club, admin);
         if (!joinCheck.ok) {
           throw new SubscriptionError(joinCheck.reason!);
         }
 
         set({
           clubs: clubs.map((item) =>
-            item.id === clubId && !item.memberIds.includes(currentUserId)
-              ? { ...item, memberIds: [...item.memberIds, currentUserId] }
+            item.id === clubId && !item.memberIds.includes(userId)
+              ? { ...item, memberIds: [...item.memberIds, userId] }
               : item,
           ),
         });
 
         if (isSupabaseEnabled) {
-          await joinClubRemote(clubId, currentUserId);
+          try {
+            await joinClubRemote(clubId, userId);
+          } catch (error) {
+            set({
+              clubs: get().clubs.map((item) =>
+                item.id === clubId
+                  ? {
+                      ...item,
+                      memberIds: item.memberIds.filter((id) => id !== userId),
+                    }
+                  : item,
+              ),
+            });
+            throw new Error(
+              formatSyncError(error, "Could not join club. Try again."),
+            );
+          }
         }
       },
 
@@ -638,6 +611,15 @@ export const useAppStore = create<AppState>()(
           )
         ) {
           return;
+        }
+
+        const user = getCurrentUser(get);
+        const tier = getUserTier(user);
+        const admin =
+          get().users.find((item) => item.id === club.adminId) ?? null;
+        const joinCheck = canJoinClub(tier, clubs, currentUserId, club, admin);
+        if (!joinCheck.ok) {
+          throw new SubscriptionError(joinCheck.reason!);
         }
 
         const request: ClubJoinRequest = {
@@ -698,6 +680,22 @@ export const useAppStore = create<AppState>()(
           throw new SubscriptionError(memberCheck.reason!);
         }
 
+        const requester = users.find((item) => item.id === request.userId);
+        const requesterTier = getUserTier(requester);
+        const joinCheck = canJoinClub(
+          requesterTier,
+          clubs,
+          request.userId,
+          club,
+          admin,
+        );
+        if (!joinCheck.ok) {
+          throw new SubscriptionError(
+            joinCheck.reason ??
+              "This player cannot join more clubs on their plan.",
+          );
+        }
+
         set({
           clubs: clubs.map((item) =>
             item.id === request.clubId &&
@@ -755,10 +753,10 @@ export const useAppStore = create<AppState>()(
         const { currentUserId, clubs, events, joinRequests, clubBans } = get();
         const club = clubs.find((item) => item.id === clubId);
         if (!club || club.adminId !== currentUserId) {
-          throw new Error("Only the club admin can remove members.");
+          throw new Error("Only the club captain can remove members.");
         }
         if (userId === club.adminId) {
-          throw new Error("The club admin cannot be removed.");
+          throw new Error("The club captain cannot be removed.");
         }
         if (!club.memberIds.includes(userId)) return;
 
@@ -784,10 +782,10 @@ export const useAppStore = create<AppState>()(
         const { currentUserId, clubs, events, joinRequests, clubBans } = get();
         const club = clubs.find((item) => item.id === clubId);
         if (!club || club.adminId !== currentUserId) {
-          throw new Error("Only the club admin can ban members.");
+          throw new Error("Only the club captain can ban members.");
         }
         if (userId === club.adminId) {
-          throw new Error("The club admin cannot be banned.");
+          throw new Error("The club captain cannot be banned.");
         }
 
         const ban: ClubBan = {
@@ -821,7 +819,7 @@ export const useAppStore = create<AppState>()(
         const { currentUserId, clubs, clubBans } = get();
         const club = clubs.find((item) => item.id === clubId);
         if (!club || club.adminId !== currentUserId) {
-          throw new Error("Only the club admin can unban members.");
+          throw new Error("Only the club captain can unban members.");
         }
 
         set({
@@ -844,8 +842,7 @@ export const useAppStore = create<AppState>()(
 
         const user = get().users.find((item) => item.id === userId) ?? null;
         const tier = getUserTier(user);
-        const memberClubCount = countMyClubs(clubs, userId);
-        const createCheck = canCreateClub(tier, memberClubCount);
+        const createCheck = canCreateClub(tier, clubs, userId);
         if (!createCheck.ok) {
           throw new SubscriptionError(createCheck.reason!);
         }
@@ -872,6 +869,7 @@ export const useAppStore = create<AppState>()(
           id,
           memberIds: [userId],
           adminId: userId,
+          subCaptainIds: [],
           createdAt: new Date().toISOString(),
         };
 
@@ -901,7 +899,7 @@ export const useAppStore = create<AppState>()(
 
         const club = clubs.find((item) => item.id === clubId);
         if (!club || club.adminId !== currentUserId) {
-          throw new Error("Only the club admin can change visibility.");
+          throw new Error("Only the club captain can change visibility.");
         }
 
         if (club.visibility === visibility) return;
@@ -915,9 +913,7 @@ export const useAppStore = create<AppState>()(
         const updatedClub: Club = { ...club, visibility };
 
         set({
-          clubs: clubs.map((item) =>
-            item.id === clubId ? updatedClub : item,
-          ),
+          clubs: clubs.map((item) => (item.id === clubId ? updatedClub : item)),
         });
 
         if (isSupabaseEnabled) {
@@ -936,6 +932,60 @@ export const useAppStore = create<AppState>()(
                 error,
                 "Could not update club visibility. Try again.",
               ),
+            );
+          }
+        }
+      },
+
+      setClubSubCaptains: async (clubId, userIds) => {
+        const { currentUserId, clubs, session } = get();
+        const userId = session?.user?.id ?? currentUserId;
+        if (!userId) {
+          throw new Error("Sign in to update sub-captains.");
+        }
+
+        const club = clubs.find((item) => item.id === clubId);
+        if (!club || !isClubCaptain(club, userId)) {
+          throw new Error("Only the club captain can assign sub-captains.");
+        }
+
+        const uniqueIds = [...new Set(userIds)];
+        if (uniqueIds.length > MAX_SUB_CAPTAINS) {
+          throw new Error(
+            `You can assign up to ${MAX_SUB_CAPTAINS} sub-captains.`,
+          );
+        }
+
+        const invalid = uniqueIds.find(
+          (memberId) =>
+            memberId === club.adminId || !club.memberIds.includes(memberId),
+        );
+        if (invalid) {
+          throw new Error(
+            "Sub-captains must be club members other than the captain.",
+          );
+        }
+
+        const previous = club.subCaptainIds ?? [];
+        const updatedClub: Club = { ...club, subCaptainIds: uniqueIds };
+
+        set({
+          clubs: clubs.map((item) => (item.id === clubId ? updatedClub : item)),
+        });
+
+        if (isSupabaseEnabled) {
+          try {
+            await replaceClubSubCaptains(clubId, uniqueIds, userId);
+          } catch (error) {
+            set({
+              clubs: get().clubs.map((item) =>
+                item.id === clubId
+                  ? { ...item, subCaptainIds: previous }
+                  : item,
+              ),
+            });
+            throw new Error(
+              formatSyncError(error, "Could not save sub-captains. Try again."),
             );
           }
         }
@@ -1028,17 +1078,33 @@ export const useAppStore = create<AppState>()(
       },
 
       createEvent: async (eventData) => {
-        const { currentUserId, events } = get();
-        if (!currentUserId) return "";
+        const { currentUserId, events, session, clubs } = get();
+        const userId = session?.user?.id ?? currentUserId;
+        if (!userId) {
+          throw new Error("Sign in to create a game.");
+        }
+
+        const club = clubs.find((item) => item.id === eventData.clubId);
+        if (!club) {
+          throw new Error("Club not found.");
+        }
+        if (!club.memberIds.includes(userId)) {
+          throw new Error("Join this club before creating a game.");
+        }
 
         assertFeatureAccess(getCurrentUserTier(get), "create_event");
 
         const id = uuidv4();
         const visibility = eventData.visibility ?? "open";
+        if (visibility === "private" && !canCreatePrivateGame(club, userId)) {
+          throw new Error(
+            "Only the captain and sub-captains can schedule private games.",
+          );
+        }
         const invitedMemberIds =
           visibility === "private"
             ? (eventData.invitedMemberIds ?? []).filter(
-                (memberId) => memberId !== currentUserId,
+                (memberId) => memberId !== userId,
               )
             : undefined;
 
@@ -1047,24 +1113,31 @@ export const useAppStore = create<AppState>()(
           id,
           visibility,
           invitedMemberIds,
-          participantIds: [currentUserId],
+          participantIds: [userId],
           shuffled: false,
-          createdBy: currentUserId,
+          createdBy: userId,
         };
 
         set({ events: [...events, newEvent] });
+
+        if (isSupabaseEnabled) {
+          try {
+            await insertEvent(newEvent, { membershipVerified: true });
+          } catch (error) {
+            set({
+              events: get().events.filter((item) => item.id !== id),
+            });
+            throw new Error(
+              formatSyncError(error, "Could not save game to the cloud."),
+            );
+          }
+        }
 
         void scheduleGameReminder(
           newEvent.id,
           newEvent.title,
           newEvent.dateTime,
         ).catch(() => undefined);
-
-        if (isSupabaseEnabled) {
-          void insertEvent(newEvent)
-            .then(() => get().refreshFromServer())
-            .catch(() => undefined);
-        }
 
         return id;
       },
@@ -1172,7 +1245,7 @@ export const useAppStore = create<AppState>()(
         const club = clubs.find((item) => item.id === event.clubId);
         if (!canManageEvent(event, currentUserId, club?.adminId)) {
           throw new Error(
-            "Only the game creator or club admin can save court assignments.",
+            "Only the game creator or club captain can save court assignments.",
           );
         }
 
@@ -1251,7 +1324,7 @@ export const useAppStore = create<AppState>()(
         const club = clubs.find((item) => item.id === event.clubId);
         if (!canManageEvent(event, currentUserId, club?.adminId)) {
           throw new Error(
-            "Only the club admin or game creator can cancel this game.",
+            "Only the club captain or game creator can cancel this game.",
           );
         }
 
@@ -1300,7 +1373,7 @@ export const useAppStore = create<AppState>()(
         const canSave =
           currentUserId === event.createdBy || currentUserId === club?.adminId;
         if (!canSave) {
-          return "Only the game creator or club admin can save stats.";
+          return "Only the game creator or club captain can save stats.";
         }
 
         try {

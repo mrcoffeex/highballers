@@ -6,7 +6,10 @@ import {
   purchaseAllStarSubscription,
   restoreAllStarSubscription,
 } from "@/lib/allStarPurchase";
-import { isIapSupportedEnvironment, SUBSCRIPTION_DISCLOSURE } from "@/lib/iapConfig";
+import {
+  isIapSupportedEnvironment,
+  SUBSCRIPTION_DISCLOSURE,
+} from "@/lib/iapConfig";
 import { SubscriptionError } from "@/lib/subscription";
 import type { ProductSubscription } from "expo-iap";
 

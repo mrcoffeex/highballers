@@ -87,8 +87,9 @@ Deno.serve(async (req) => {
 
     const senderName = sender?.nickname ?? sender?.name ?? "Someone";
     const clubName = club?.name ?? "Club chat";
-    const preview =
-      message.body.length > 120
+    const preview = message.body.startsWith("hb-gif:")
+      ? "GIF"
+      : message.body.length > 120
         ? `${message.body.slice(0, 117)}...`
         : message.body;
 

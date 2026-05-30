@@ -48,9 +48,12 @@
     "@types/leaflet": "^1.9.21",
     "@types/react": "~19.2.2",
     "supabase": "^2.101.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^3.2.4"
   },
   "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
     "start": "expo start --no-dev --minify",
     "start:dev": "expo start",
     "android": "expo start --android --no-dev --minify",

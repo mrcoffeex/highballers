@@ -16,7 +16,10 @@ interface TabCreateButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export function TabCreateButton({ onPressCreate, style }: TabCreateButtonProps) {
+export function TabCreateButton({
+  onPressCreate,
+  style,
+}: TabCreateButtonProps) {
   const handlePress = () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(

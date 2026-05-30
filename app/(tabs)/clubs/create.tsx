@@ -7,23 +7,20 @@ import { ClubVisibilityPicker } from "../../../components/ClubVisibilityPicker";
 import { ImagePickerField } from "../../../components/ImagePickerField";
 import { UpgradeModal } from "../../../components/UpgradeModal";
 import { Button, Input } from "../../../components/ui";
-import {
-  BASIC_MAX_CLUB_MEMBERS,
-  BASIC_MAX_CLUBS,
-} from "../../../lib/subscription";
+import { BASIC_MAX_CLUB_MEMBERS } from "../../../lib/subscription";
 import { useUpgradePrompt } from "../../../lib/useUpgradePrompt";
 import { AVATAR_COLORS } from "../../../lib/seedData";
 import { formatSyncError } from "../../../lib/syncErrors";
 import { colors, radius, spacing, typography } from "../../../lib/theme";
 import { ClubVisibility } from "../../../lib/types";
-import { useIsAllStar, useMyClubs } from "../../../store/hooks";
+import { useClubMembershipLimits, useIsAllStar } from "../../../store/hooks";
 import { useAppStore } from "../../../store/useAppStore";
 
 export default function CreateClubScreen() {
   const router = useRouter();
   const createClub = useAppStore((state) => state.createClub);
   const upgradeToAllStar = useAppStore((state) => state.upgradeToAllStar);
-  const myClubs = useMyClubs();
+  const limits = useClubMembershipLimits();
   const isPro = useIsAllStar();
   const {
     upgradeVisible,
@@ -42,9 +39,19 @@ export default function CreateClubScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canCreate = name.trim().length >= 3 && location.trim().length >= 3;
+  const canSubmit =
+    limits.canCreateClub &&
+    name.trim().length >= 3 &&
+    location.trim().length >= 3;
 
   const handleCreate = async () => {
+    if (!limits.canCreateClub) {
+      promptUpgrade(
+        limits.createBlockedReason ?? "Basic Ballers can create only one club.",
+      );
+      return;
+    }
+
     setError(null);
     setLoading(true);
 
@@ -75,7 +82,8 @@ export default function CreateClubScreen() {
         <View style={styles.planBanner}>
           <Text style={styles.planBannerTitle}>Basic Baller club</Text>
           <Text style={styles.planBannerText}>
-            {myClubs.length}/{BASIC_MAX_CLUBS} club · up to{" "}
+            Create {limits.ownedCount}/{limits.maxOwned} club · join{" "}
+            {limits.joinedCount}/{limits.maxJoined} other · up to{" "}
             {BASIC_MAX_CLUB_MEMBERS} members · open clubs only
           </Text>
         </View>
@@ -151,7 +159,7 @@ export default function CreateClubScreen() {
       <Button
         title="Create Club"
         onPress={handleCreate}
-        disabled={!canCreate}
+        disabled={!canSubmit}
         loading={loading}
         size="lg"
         style={styles.submit}

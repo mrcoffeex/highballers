@@ -7,7 +7,15 @@ import {
   SubscriptionTier,
   UserProfile,
 } from "../lib/types";
-import { getUserTier, isAllStar } from "../lib/subscription";
+import {
+  BASIC_MAX_JOINED_CLUBS,
+  BASIC_MAX_OWNED_CLUBS,
+  canCreateClub,
+  countJoinedClubs,
+  countOwnedClubs,
+  getUserTier,
+  isAllStar,
+} from "../lib/subscription";
 import {
   normalizeEventCourts,
   resolveActiveRosterPlayers,
@@ -42,8 +50,37 @@ export function useMyClubs(): Club[] {
 
   return useMemo(() => {
     if (!currentUserId) return [];
-    return clubs.filter((club) => club.memberIds.includes(currentUserId));
+    return clubs
+      .filter((club) => club.memberIds.includes(currentUserId))
+      .map((club) => ({
+        ...club,
+        subCaptainIds: club.subCaptainIds ?? [],
+      }));
   }, [clubs, currentUserId]);
+}
+
+export function useClubMembershipLimits() {
+  const currentUserId = useAppStore((state) => state.currentUserId);
+  const clubs = useAppStore((state) => state.clubs);
+  const tier = useSubscriptionTier();
+
+  return useMemo(() => {
+    const userId = currentUserId ?? "";
+    const ownedCount = countOwnedClubs(clubs, userId);
+    const joinedCount = countJoinedClubs(clubs, userId);
+    const createCheck = canCreateClub(tier, clubs, userId);
+
+    return {
+      ownedCount,
+      joinedCount,
+      maxOwned: BASIC_MAX_OWNED_CLUBS,
+      maxJoined: BASIC_MAX_JOINED_CLUBS,
+      canCreateClub: createCheck.ok,
+      createBlockedReason: createCheck.reason,
+      atOwnedLimit: !createCheck.ok,
+      atJoinedLimit: joinedCount >= BASIC_MAX_JOINED_CLUBS,
+    };
+  }, [clubs, currentUserId, tier]);
 }
 
 export function useUpcomingEvents(): GameEvent[] {
@@ -61,7 +98,11 @@ export function useUpcomingEvents(): GameEvent[] {
 }
 
 export function useClub(clubId: string): Club | undefined {
-  return useAppStore((state) => state.clubs.find((club) => club.id === clubId));
+  const club = useAppStore((state) =>
+    state.clubs.find((item) => item.id === clubId),
+  );
+  if (!club) return undefined;
+  return { ...club, subCaptainIds: club.subCaptainIds ?? [] };
 }
 
 export function useEvent(eventId: string): GameEvent | undefined {
