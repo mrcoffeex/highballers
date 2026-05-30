@@ -59,11 +59,11 @@
     "ios:dev": "expo start --ios",
     "web": "expo start --web --no-dev --minify",
     "web:dev": "expo start --web",
-    "eas:init": "eas init",
-    "eas:env:push": "eas env:push --environment preview --path .env && eas env:push --environment production --path .env",
-    "build:apk": "eas build --platform android --profile preview",
-    "build:ios": "eas build --platform ios --profile preview",
-    "build:mobile": "eas build --platform all --profile preview"
+    "eas:init": "npx eas init",
+    "eas:env:push": "./scripts/push-eas-env.sh",
+    "build:apk": "npx eas build --platform android --profile preview",
+    "build:ios": "npx eas build --platform ios --profile preview",
+    "build:mobile": "npx eas build --platform all --profile preview"
   },
   "private": true,
   "overrides": {
