@@ -10,7 +10,7 @@ export const BASIC_MAX_CLUBS = 1;
 export const BASIC_MAX_OWNED_CLUBS = 1;
 export const BASIC_MAX_JOINED_CLUBS = 1;
 export const BASIC_MAX_CLUB_MEMBERS = 20;
-export const BASIC_MAX_EVENT_SIZE = 10;
+export const BASIC_MAX_EVENT_SIZE = 20;
 export const BASIC_MAX_GAME_HISTORY = 3;
 
 export type ProFeature =
@@ -188,7 +188,7 @@ export const ALL_STAR_FEATURES: Array<{ icon: string; label: string }> = [
   { icon: "people-outline", label: "Unlimited clubs & large crews" },
   { icon: "lock-closed-outline", label: "Create private clubs" },
   { icon: "stats-chart-outline", label: "Full game history" },
-  { icon: "basketball-outline", label: "Join large games (10+ cap)" },
+  { icon: "basketball-outline", label: "Join large games (20+ cap)" },
 ];
 
 export const ALL_STAR_TAGLINE = "Run your crew. Own game night.";
@@ -203,7 +203,7 @@ export const TIER_COMPARISON: Array<{
     basic: "Create 1 · join 1 other · 20 members",
     allStar: "Unlimited",
   },
-  { label: "Games", basic: "Create & join up to 10", allStar: "Join any size" },
+  { label: "Games", basic: "Create & join up to 20", allStar: "Join any size" },
   {
     label: "Organizer tools",
     basic: "Create · edit · finish · shuffle · courts",

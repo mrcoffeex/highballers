@@ -71,12 +71,12 @@ describe("subscription", () => {
     ).toBe(false);
   });
 
-  it("limits basic users to smaller events", () => {
-    const large = mockEvent({ maxPlayers: 20 });
-    const small = mockEvent({ maxPlayers: 10 });
-    expect(canJoinEvent("basic", large).ok).toBe(false);
-    expect(canJoinEvent("basic", small).ok).toBe(true);
-    expect(canJoinEvent("all_star", large).ok).toBe(true);
+  it("limits basic users to events with 20 players or fewer", () => {
+    const overCap = mockEvent({ maxPlayers: 30 });
+    const atCap = mockEvent({ maxPlayers: 20 });
+    expect(canJoinEvent("basic", overCap).ok).toBe(false);
+    expect(canJoinEvent("basic", atCap).ok).toBe(true);
+    expect(canJoinEvent("all_star", overCap).ok).toBe(true);
   });
 
   it("assertFeatureAccess throws SubscriptionError for locked features", () => {
