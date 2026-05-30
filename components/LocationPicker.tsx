@@ -1,13 +1,23 @@
-import { Ionicons } from '@expo/vector-icons';
-import * as ExpoLocation from 'expo-location';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, Region, UrlTile } from 'react-native-maps';
+import { Ionicons } from "@expo/vector-icons";
+import * as ExpoLocation from "expo-location";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import MapView, { Marker, Region, UrlTile } from "react-native-maps";
 
-import { GeocodingResult, reverseGeocode, searchPlaces } from '../lib/geocoding';
-import { DEFAULT_MAP_CENTER, EventLocation, GeoPoint } from '../lib/location';
-import { colors, radius, spacing, typography } from '../lib/theme';
-import { Button, Input } from './ui';
+import {
+  GeocodingResult,
+  reverseGeocode,
+  searchPlaces,
+} from "../lib/geocoding";
+import { DEFAULT_MAP_CENTER, EventLocation, GeoPoint } from "../lib/location";
+import { colors, radius, spacing, typography } from "../lib/theme";
+import {
+  Button,
+  Input,
+  LocationPickerSkeleton,
+  LocationResultsSkeleton,
+  SkeletonInline,
+} from "./ui";
 
 export interface LocationPickerProps {
   value: EventLocation | null;
@@ -16,15 +26,15 @@ export interface LocationPickerProps {
   initialCenter?: GeoPoint;
 }
 
-const OSM_TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_TILE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 export function LocationPicker({
   value,
   onChange,
-  placeholder = 'Search courts, gyms, parks...',
+  placeholder = "Search courts, gyms, parks...",
   initialCenter = DEFAULT_MAP_CENTER,
 }: LocationPickerProps) {
-  const [query, setQuery] = useState(value?.label ?? '');
+  const [query, setQuery] = useState(value?.label ?? "");
   const [results, setResults] = useState<GeocodingResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [resolving, setResolving] = useState(false);
@@ -38,9 +48,7 @@ export function LocationPicker({
 
   const markerPoint = useMemo(
     () =>
-      value
-        ? { latitude: value.latitude, longitude: value.longitude }
-        : null,
+      value ? { latitude: value.latitude, longitude: value.longitude } : null,
     [value],
   );
 
@@ -67,7 +75,7 @@ export function LocationPicker({
         const places = await searchPlaces(trimmed);
         setResults(places);
       } catch {
-        setSearchError('Location search failed. Try again.');
+        setSearchError("Location search failed. Try again.");
         setResults([]);
       } finally {
         setSearching(false);
@@ -97,7 +105,7 @@ export function LocationPicker({
       setQuery(resolved.label);
       setResults([]);
     } catch {
-      setSearchError('Could not resolve that spot on the map.');
+      setSearchError("Could not resolve that spot on the map.");
     } finally {
       setResolving(false);
     }
@@ -109,7 +117,9 @@ export function LocationPicker({
     try {
       const permission = await ExpoLocation.requestForegroundPermissionsAsync();
       if (!permission.granted) {
-        setSearchError('Location permission is required to use your current position.');
+        setSearchError(
+          "Location permission is required to use your current position.",
+        );
         return;
       }
 
@@ -119,7 +129,7 @@ export function LocationPicker({
         longitude: position.coords.longitude,
       });
     } catch {
-      setSearchError('Could not read your current location.');
+      setSearchError("Could not read your current location.");
     } finally {
       setResolving(false);
     }
@@ -128,7 +138,12 @@ export function LocationPicker({
   return (
     <View style={styles.container}>
       <View style={styles.searchWrap}>
-        <Ionicons name="search" size={18} color={colors.textDim} style={styles.searchIcon} />
+        <Ionicons
+          name="search"
+          size={18}
+          color={colors.textDim}
+          style={styles.searchIcon}
+        />
         <Input
           value={query}
           onChangeText={setQuery}
@@ -136,7 +151,7 @@ export function LocationPicker({
           style={styles.searchInput}
         />
         {searching || resolving ? (
-          <ActivityIndicator size="small" color={colors.primary} style={styles.searchSpinner} />
+          <SkeletonInline size={18} style={styles.searchSpinner} />
         ) : null}
       </View>
 
@@ -145,23 +160,44 @@ export function LocationPicker({
         variant="outline"
         size="sm"
         onPress={useCurrentLocation}
-        icon={<Ionicons name="locate-outline" size={16} color={colors.primary} />}
+        icon={
+          <Ionicons name="locate-outline" size={16} color={colors.primary} />
+        }
       />
 
       {searchError ? <Text style={styles.error}>{searchError}</Text> : null}
 
+      {searching && results.length === 0 ? (
+        <LocationResultsSkeleton count={3} />
+      ) : null}
+
       {results.length > 0 ? (
         <View style={styles.results}>
           {results.map((result) => (
-            <Pressable key={`${result.latitude}-${result.longitude}-${result.label}`} onPress={() => selectResult(result)} style={styles.resultRow}>
-              <Ionicons name="location-outline" size={16} color={colors.primary} />
-              <Text style={styles.resultText} numberOfLines={2}>{result.label}</Text>
+            <Pressable
+              key={`${result.latitude}-${result.longitude}-${result.label}`}
+              onPress={() => selectResult(result)}
+              style={styles.resultRow}
+            >
+              <Ionicons
+                name="location-outline"
+                size={16}
+                color={colors.primary}
+              />
+              <Text style={styles.resultText} numberOfLines={2}>
+                {result.label}
+              </Text>
             </Pressable>
           ))}
         </View>
       ) : null}
 
       <View style={styles.mapShell}>
+        {resolving ? (
+          <View style={styles.mapOverlay}>
+            <LocationPickerSkeleton />
+          </View>
+        ) : null}
         <MapView
           style={styles.map}
           region={region}
@@ -194,12 +230,18 @@ export function LocationPicker({
           <Ionicons name="navigate" size={16} color={colors.success} />
           <View style={styles.selectedCopy}>
             <Text style={styles.selectedLabel}>Selected court</Text>
-            <Text style={styles.selectedValue} numberOfLines={2}>{value.label}</Text>
-            <Text style={styles.coords}>{value.latitude.toFixed(5)}, {value.longitude.toFixed(5)}</Text>
+            <Text style={styles.selectedValue} numberOfLines={2}>
+              {value.label}
+            </Text>
+            <Text style={styles.coords}>
+              {value.latitude.toFixed(5)}, {value.longitude.toFixed(5)}
+            </Text>
           </View>
         </View>
       ) : (
-        <Text style={styles.helper}>Search, use your location, or tap the map to set the game spot.</Text>
+        <Text style={styles.helper}>
+          Search, use your location, or tap the map to set the game spot.
+        </Text>
       )}
 
       <Text style={styles.attribution}>© OpenStreetMap contributors</Text>
@@ -213,11 +255,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   searchWrap: {
-    position: 'relative',
-    justifyContent: 'center',
+    position: "relative",
+    justifyContent: "center",
   },
   searchIcon: {
-    position: 'absolute',
+    position: "absolute",
     left: spacing.md,
     zIndex: 1,
   },
@@ -226,7 +268,7 @@ const styles = StyleSheet.create({
     paddingRight: spacing.xl,
   },
   searchSpinner: {
-    position: 'absolute',
+    position: "absolute",
     right: spacing.md,
   },
   error: {
@@ -238,11 +280,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.cardBorder,
     borderRadius: radius.lg,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   resultRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -256,17 +298,25 @@ const styles = StyleSheet.create({
   },
   mapShell: {
     borderRadius: radius.lg,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.cardBorder,
     backgroundColor: colors.card,
+    position: "relative",
+  },
+  mapOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: `${colors.background}CC`,
+    zIndex: 2,
+    padding: spacing.md,
+    justifyContent: "center",
   },
   map: {
-    width: '100%',
+    width: "100%",
     height: 240,
   },
   selectedRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.sm,
     backgroundColor: `${colors.success}12`,
     borderWidth: 1,

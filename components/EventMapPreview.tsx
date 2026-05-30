@@ -1,10 +1,10 @@
-import { Pressable, StyleSheet } from 'react-native';
-import MapView, { Marker, UrlTile } from 'react-native-maps';
+import { Pressable, StyleSheet } from "react-native";
+import MapView, { Marker, UrlTile } from "react-native-maps";
 
-import { GeoPoint } from '../lib/location';
-import { colors, radius } from '../lib/theme';
+import { GeoPoint } from "../lib/location";
+import { colors, radius } from "../lib/theme";
 
-const OSM_TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_TILE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 interface EventMapPreviewProps {
   location: GeoPoint;
@@ -39,13 +39,13 @@ export function EventMapPreview({ location, onPress }: EventMapPreviewProps) {
 const styles = StyleSheet.create({
   shell: {
     borderRadius: radius.lg,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.cardBorder,
     backgroundColor: colors.card,
   },
   map: {
-    width: '100%',
+    width: "100%",
     height: 180,
   },
 });

@@ -1,63 +1,88 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useLinkingURL } from "expo-linking";
+import * as Linking from "expo-linking";
+import { useGlobalSearchParams, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { Skeleton, SkeletonCircle } from "../components/ui";
 
 import {
   clearOAuthCallbackUrl,
   createSessionFromUrl,
-  getOAuthCallbackUrl,
-} from '../lib/googleAuth';
-import { colors, spacing, typography } from '../lib/theme';
-import { useAppStore } from '../store/useAppStore';
+  getOAuthRedirectUri,
+  resolveOAuthCallbackHref,
+  urlHasOAuthPayload,
+} from "../lib/googleAuth";
+import { colors, spacing, typography } from "../lib/theme";
+import { useAppStore } from "../store/useAppStore";
 
 export default function OAuthCallbackScreen() {
   const router = useRouter();
-  const syncSessionFromSupabase = useAppStore((state) => state.syncSessionFromSupabase);
+  const linkingUrl = useLinkingURL();
+  const params = useGlobalSearchParams();
+  const syncSessionFromSupabase = useAppStore(
+    (state) => state.syncSessionFromSupabase,
+  );
   const [error, setError] = useState<string | null>(null);
-  const started = useRef(false);
+  const finishedRef = useRef(false);
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
+    let cancelled = false;
+
+    const finish = async (incomingUrl?: string | null) => {
+      if (finishedRef.current || cancelled) return;
+
+      const href = await resolveOAuthCallbackHref({
+        linkingUrl: incomingUrl ?? linkingUrl,
+        params,
+      });
+
+      if (!href || !urlHasOAuthPayload(href)) {
+        return;
+      }
+
+      finishedRef.current = true;
+
+      const message = await createSessionFromUrl(href);
+      if (message) {
+        finishedRef.current = false;
+        setError(message);
+        return;
+      }
+
+      const session = await syncSessionFromSupabase();
+      if (!session) {
+        finishedRef.current = false;
+        setError(
+          "Signed in with Google but no session was created. Please try again.",
+        );
+        return;
+      }
+
+      clearOAuthCallbackUrl();
+      router.replace("/");
+    };
 
     const timeout = setTimeout(() => {
-      setError('Sign in timed out. Please try again.');
+      if (!finishedRef.current && !cancelled) {
+        setError(
+          `Sign in timed out. Add this redirect URL in Supabase Auth settings: ${getOAuthRedirectUri()}`,
+        );
+      }
     }, 30000);
 
-    (async () => {
-      try {
-        const href = await getOAuthCallbackUrl();
+    void finish();
 
-        if (!href || !href.includes('oauth-callback')) {
-          setError('Missing OAuth redirect. Please try signing in again.');
-          return;
-        }
-
-        const message = await createSessionFromUrl(href);
-        if (message) {
-          setError(message);
-          return;
-        }
-
-        const session = await syncSessionFromSupabase();
-        if (!session) {
-          setError('Signed in with Google but no session was created. Please try again.');
-          return;
-        }
-
-        clearOAuthCallbackUrl();
-        router.replace('/');
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Google sign in failed.');
-      } finally {
-        clearTimeout(timeout);
-      }
-    })();
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      void finish(url);
+    });
 
     return () => {
+      cancelled = true;
       clearTimeout(timeout);
+      subscription.remove();
     };
-  }, [router, syncSessionFromSupabase]);
+  }, [linkingUrl, params, router, syncSessionFromSupabase]);
 
   return (
     <View style={styles.container}>
@@ -65,15 +90,19 @@ export default function OAuthCallbackScreen() {
         <>
           <Text style={styles.errorTitle}>Sign in failed</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={() => router.replace('/auth')} style={styles.retryBtn}>
+          <Pressable
+            onPress={() => router.replace("/auth")}
+            style={styles.retryBtn}
+          >
             <Text style={styles.retryText}>Back to sign in</Text>
           </Pressable>
         </>
       ) : (
-        <>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.loadingWrap}>
+          <SkeletonCircle size={64} />
+          <Skeleton width={220} height={14} style={styles.loadingBar} />
           <Text style={styles.loadingText}>Finishing Google sign in...</Text>
-        </>
+        </View>
       )}
     </View>
   );
@@ -83,9 +112,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: spacing.lg,
+  },
+  loadingWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+  },
+  loadingBar: {
+    marginTop: spacing.lg,
   },
   loadingText: {
     ...typography.body,
@@ -100,7 +137,7 @@ const styles = StyleSheet.create({
   errorText: {
     ...typography.body,
     color: colors.error,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: spacing.lg,
   },
   retryBtn: {

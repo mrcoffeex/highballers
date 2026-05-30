@@ -1,8 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { format, isToday, isTomorrow } from 'date-fns';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, useRef, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
+import { format, isToday, isTomorrow } from "date-fns";
+import { LinearGradient } from "expo-linear-gradient";
+import { useMemo, useRef, useState } from "react";
 import {
   Modal,
   Platform,
@@ -10,9 +12,9 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
+} from "react-native";
 
-import { colors, radius, spacing, typography } from '../lib/theme';
+import { colors, radius, spacing, typography } from "../lib/theme";
 
 interface DateTimePickerFieldProps {
   value: Date;
@@ -20,7 +22,7 @@ interface DateTimePickerFieldProps {
   minimumDate?: Date;
 }
 
-type PickerMode = 'date' | 'time';
+type PickerMode = "date" | "time";
 
 interface Preset {
   id: string;
@@ -29,7 +31,7 @@ interface Preset {
 }
 
 function pad(value: number) {
-  return String(value).padStart(2, '0');
+  return String(value).padStart(2, "0");
 }
 
 function toDateInputValue(date: Date) {
@@ -41,14 +43,14 @@ function toTimeInputValue(date: Date) {
 }
 
 function applyDatePart(base: Date, dateValue: string) {
-  const [year, month, day] = dateValue.split('-').map(Number);
+  const [year, month, day] = dateValue.split("-").map(Number);
   const next = new Date(base);
   next.setFullYear(year, month - 1, day);
   return next;
 }
 
 function applyTimePart(base: Date, timeValue: string) {
-  const [hours, minutes] = timeValue.split(':').map(Number);
+  const [hours, minutes] = timeValue.split(":").map(Number);
   const next = new Date(base);
   next.setHours(hours, minutes, 0, 0);
   return next;
@@ -74,34 +76,37 @@ function buildPresets(minimumDate: Date): Preset[] {
 
   const tonight = atTime(now, 19);
   if (tonight.getTime() > minimumDate.getTime()) {
-    presets.push({ id: 'tonight', label: 'Tonight', date: tonight });
+    presets.push({ id: "tonight", label: "Tonight", date: tonight });
   }
 
-  const tomorrow = atTime(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1), 19);
-  presets.push({ id: 'tomorrow', label: 'Tomorrow', date: tomorrow });
+  const tomorrow = atTime(
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
+    19,
+  );
+  presets.push({ id: "tomorrow", label: "Tomorrow", date: tomorrow });
 
   const saturdayMorning = nextWeekday(now, 6, 10);
-  presets.push({ id: 'sat-am', label: 'Sat 10 AM', date: saturdayMorning });
+  presets.push({ id: "sat-am", label: "Sat 10 AM", date: saturdayMorning });
 
   const saturdayNight = nextWeekday(now, 6, 19);
-  presets.push({ id: 'sat-pm', label: 'Sat 7 PM', date: saturdayNight });
+  presets.push({ id: "sat-pm", label: "Sat 7 PM", date: saturdayNight });
 
   return presets;
 }
 
 function formatSummaryDate(date: Date) {
-  if (isToday(date)) return 'Today';
-  if (isTomorrow(date)) return 'Tomorrow';
-  return format(date, 'EEE, MMM d');
+  if (isToday(date)) return "Today";
+  if (isTomorrow(date)) return "Tomorrow";
+  return format(date, "EEE, MMM d");
 }
 
 function isSamePreset(a: Date, b: Date) {
   return (
-    a.getFullYear() === b.getFullYear()
-    && a.getMonth() === b.getMonth()
-    && a.getDate() === b.getDate()
-    && a.getHours() === b.getHours()
-    && a.getMinutes() === b.getMinutes()
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate() &&
+    a.getHours() === b.getHours() &&
+    a.getMinutes() === b.getMinutes()
   );
 }
 
@@ -123,9 +128,9 @@ function PickerSheet({
   onClose: () => void;
 }) {
   const handleChange = (event: DateTimePickerEvent, selected?: Date) => {
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       onClose();
-      if (event.type === 'dismissed' || !selected) return;
+      if (event.type === "dismissed" || !selected) return;
       onChange(selected);
       return;
     }
@@ -135,14 +140,14 @@ function PickerSheet({
     }
   };
 
-  if (Platform.OS === 'android') {
+  if (Platform.OS === "android") {
     if (!visible) return null;
 
     return (
       <DateTimePicker
         value={value}
         mode={mode}
-        minimumDate={mode === 'date' ? minimumDate : undefined}
+        minimumDate={mode === "date" ? minimumDate : undefined}
         onChange={handleChange}
         display="default"
         themeVariant="dark"
@@ -151,9 +156,17 @@ function PickerSheet({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalSheet} onPress={(event) => event.stopPropagation()}>
+        <Pressable
+          style={styles.modalSheet}
+          onPress={(event) => event.stopPropagation()}
+        >
           <View style={styles.modalHandle} />
 
           <View style={styles.modalHeader}>
@@ -164,19 +177,33 @@ function PickerSheet({
           </View>
 
           <View style={styles.segmentRow}>
-            <SegmentButton active={mode === 'date'} label="Date" icon="calendar-outline" onPress={() => onModeChange('date')} />
-            <SegmentButton active={mode === 'time'} label="Time" icon="time-outline" onPress={() => onModeChange('time')} />
+            <SegmentButton
+              active={mode === "date"}
+              label="Date"
+              icon="calendar-outline"
+              onPress={() => onModeChange("date")}
+            />
+            <SegmentButton
+              active={mode === "time"}
+              label="Time"
+              icon="time-outline"
+              onPress={() => onModeChange("time")}
+            />
           </View>
 
           <View style={styles.pickerPreview}>
-            <Text style={styles.pickerPreviewDate}>{format(value, 'EEEE, MMMM d')}</Text>
-            <Text style={styles.pickerPreviewTime}>{format(value, 'h:mm a')}</Text>
+            <Text style={styles.pickerPreviewDate}>
+              {format(value, "EEEE, MMMM d")}
+            </Text>
+            <Text style={styles.pickerPreviewTime}>
+              {format(value, "h:mm a")}
+            </Text>
           </View>
 
           <DateTimePicker
             value={value}
             mode={mode}
-            minimumDate={mode === 'date' ? minimumDate : undefined}
+            minimumDate={mode === "date" ? minimumDate : undefined}
             onChange={handleChange}
             display="spinner"
             themeVariant="dark"
@@ -204,30 +231,42 @@ function SegmentButton({
       onPress={onPress}
       style={[styles.segmentBtn, active && styles.segmentBtnActive]}
     >
-      <Ionicons name={icon} size={16} color={active ? colors.primary : colors.textMuted} />
-      <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]}>{label}</Text>
+      <Ionicons
+        name={icon}
+        size={16}
+        color={active ? colors.primary : colors.textMuted}
+      />
+      <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const webHiddenInputStyle = {
-  position: 'absolute' as const,
+  position: "absolute" as const,
   opacity: 0,
   width: 1,
   height: 1,
-  pointerEvents: 'none' as const,
+  pointerEvents: "none" as const,
 };
 
-export function DateTimePickerField({ value, onChange, minimumDate }: DateTimePickerFieldProps) {
+export function DateTimePickerField({
+  value,
+  onChange,
+  minimumDate,
+}: DateTimePickerFieldProps) {
   const minDate = minimumDate ?? new Date();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerMode, setPickerMode] = useState<PickerMode>('date');
+  const [pickerMode, setPickerMode] = useState<PickerMode>("date");
   const dateInputRef = useRef<HTMLInputElement>(null);
   const timeInputRef = useRef<HTMLInputElement>(null);
 
   const presets = useMemo(() => buildPresets(minDate), [minDate]);
   const isValid = value.getTime() > minDate.getTime();
-  const activePresetId = presets.find((preset) => isSamePreset(preset.date, value))?.id;
+  const activePresetId = presets.find((preset) =>
+    isSamePreset(preset.date, value),
+  )?.id;
 
   const openPicker = (mode: PickerMode) => {
     setPickerMode(mode);
@@ -235,10 +274,10 @@ export function DateTimePickerField({ value, onChange, minimumDate }: DateTimePi
   };
 
   const openWebPicker = (mode: PickerMode) => {
-    const input = mode === 'date' ? dateInputRef.current : timeInputRef.current;
+    const input = mode === "date" ? dateInputRef.current : timeInputRef.current;
     if (!input) return;
 
-    if (typeof input.showPicker === 'function') {
+    if (typeof input.showPicker === "function") {
       input.showPicker();
       return;
     }
@@ -247,12 +286,12 @@ export function DateTimePickerField({ value, onChange, minimumDate }: DateTimePi
   };
 
   const handleTilePress = (mode: PickerMode) => {
-    if (Platform.OS === 'web') {
+    if (Platform.OS === "web") {
       openWebPicker(mode);
       return;
     }
 
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       openPicker(mode);
       return;
     }
@@ -274,8 +313,10 @@ export function DateTimePickerField({ value, onChange, minimumDate }: DateTimePi
           </View>
           <View style={styles.heroCopy}>
             <Text style={styles.heroEyebrow}>{formatSummaryDate(value)}</Text>
-            <Text style={styles.heroTitle}>{format(value, 'h:mm a')}</Text>
-            <Text style={styles.heroMeta}>{format(value, 'EEEE · MMMM d, yyyy')}</Text>
+            <Text style={styles.heroTitle}>{format(value, "h:mm a")}</Text>
+            <Text style={styles.heroMeta}>
+              {format(value, "EEEE · MMMM d, yyyy")}
+            </Text>
           </View>
         </View>
 
@@ -290,24 +331,28 @@ export function DateTimePickerField({ value, onChange, minimumDate }: DateTimePi
       <View style={styles.tileRow}>
         <Pressable
           style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
-          onPress={() => handleTilePress('date')}
+          onPress={() => handleTilePress("date")}
         >
           <View style={styles.tileIcon}>
-            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+            <Ionicons
+              name="calendar-outline"
+              size={18}
+              color={colors.primary}
+            />
           </View>
           <Text style={styles.tileLabel}>Date</Text>
-          <Text style={styles.tileValue}>{format(value, 'MMM d, yyyy')}</Text>
+          <Text style={styles.tileValue}>{format(value, "MMM d, yyyy")}</Text>
         </Pressable>
 
         <Pressable
           style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
-          onPress={() => handleTilePress('time')}
+          onPress={() => handleTilePress("time")}
         >
           <View style={styles.tileIcon}>
             <Ionicons name="time-outline" size={18} color={colors.accent} />
           </View>
           <Text style={styles.tileLabel}>Time</Text>
-          <Text style={styles.tileValue}>{format(value, 'h:mm a')}</Text>
+          <Text style={styles.tileValue}>{format(value, "h:mm a")}</Text>
         </Pressable>
       </View>
 
@@ -322,27 +367,35 @@ export function DateTimePickerField({ value, onChange, minimumDate }: DateTimePi
               onPress={() => onChange(preset.date)}
               style={[styles.presetChip, active && styles.presetChipActive]}
             >
-              <Text style={[styles.presetText, active && styles.presetTextActive]}>{preset.label}</Text>
+              <Text
+                style={[styles.presetText, active && styles.presetTextActive]}
+              >
+                {preset.label}
+              </Text>
             </Pressable>
           );
         })}
       </View>
 
-      {Platform.OS === 'web' ? (
+      {Platform.OS === "web" ? (
         <>
           <input
             ref={dateInputRef}
             type="date"
             value={toDateInputValue(value)}
             min={toDateInputValue(minDate)}
-            onChange={(event) => onChange(applyDatePart(value, event.target.value))}
+            onChange={(event) =>
+              onChange(applyDatePart(value, event.target.value))
+            }
             style={webHiddenInputStyle}
           />
           <input
             ref={timeInputRef}
             type="time"
             value={toTimeInputValue(value)}
-            onChange={(event) => onChange(applyTimePart(value, event.target.value))}
+            onChange={(event) =>
+              onChange(applyTimePart(value, event.target.value))
+            }
             style={webHiddenInputStyle}
           />
         </>
@@ -374,8 +427,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   heroTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
   },
   heroIconWrap: {
@@ -383,8 +436,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: radius.md,
     backgroundColor: `${colors.primary}18`,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   heroCopy: {
     flex: 1,
@@ -406,8 +459,8 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   warningRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.xs,
     paddingTop: spacing.xs,
   },
@@ -416,7 +469,7 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
   tileRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.sm,
   },
   tile: {
@@ -437,8 +490,8 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: radius.sm,
     backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   tileLabel: {
     ...typography.label,
@@ -456,8 +509,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   presetsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
   },
   presetChip: {
@@ -475,14 +528,14 @@ const styles = StyleSheet.create({
   presetText: {
     ...typography.caption,
     color: colors.textMuted,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   presetTextActive: {
     color: colors.primary,
   },
   modalBackdrop: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
     backgroundColor: colors.overlay,
   },
   modalSheet: {
@@ -494,7 +547,7 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
   },
   modalHandle: {
-    alignSelf: 'center',
+    alignSelf: "center",
     width: 40,
     height: 4,
     borderRadius: radius.full,
@@ -503,9 +556,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
   },
@@ -519,16 +572,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   segmentRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
   },
   segmentBtn: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: spacing.xs,
     paddingVertical: spacing.sm,
     borderRadius: radius.full,
@@ -543,13 +596,13 @@ const styles = StyleSheet.create({
   segmentLabel: {
     ...typography.caption,
     color: colors.textMuted,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   segmentLabelActive: {
     color: colors.primary,
   },
   pickerPreview: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: spacing.sm,
     gap: 2,
   },

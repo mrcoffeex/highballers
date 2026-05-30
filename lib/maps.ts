@@ -1,6 +1,6 @@
-import { Linking, Platform } from 'react-native';
+import { Linking, Platform } from "react-native";
 
-import { GeoPoint } from './location';
+import { GeoPoint } from "./location";
 
 export function getGoogleMapsUrl(point: GeoPoint, label?: string) {
   const query = label
@@ -18,8 +18,8 @@ export function getOsmStaticMapUrl(point: GeoPoint, width = 640, height = 280) {
 export async function openGoogleMaps(point: GeoPoint, label?: string) {
   const url = getGoogleMapsUrl(point, label);
 
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    window.open(url, '_blank', 'noopener,noreferrer');
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    window.open(url, "_blank", "noopener,noreferrer");
     return;
   }
 

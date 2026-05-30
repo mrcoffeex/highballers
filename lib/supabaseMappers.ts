@@ -1,5 +1,18 @@
-import { Club, ClubJoinRequest, CourtGame, DEFAULT_STATS, GameEvent, GameStatRecord, PlayerStats, Position, UserProfile, BoxScoreStats } from './types';
-import { normalizeCourtGames } from './eventRoster';
+import {
+  Club,
+  ClubChatMessage,
+  ClubJoinRequest,
+  CourtGame,
+  DEFAULT_STATS,
+  GameEvent,
+  GameStatRecord,
+  PlayerStats,
+  Position,
+  SubscriptionTier,
+  UserProfile,
+  BoxScoreStats,
+} from "./types";
+import { normalizeCourtGames } from "./eventRoster";
 
 interface ProfileRow {
   id: string;
@@ -11,6 +24,7 @@ interface ProfileRow {
   bio: string | null;
   stats: PlayerStats;
   joined_at: string;
+  subscription_tier?: SubscriptionTier | null;
 }
 
 interface ClubRow {
@@ -21,7 +35,7 @@ interface ClubRow {
   admin_id: string;
   icon_color: string;
   icon_url: string | null;
-  visibility: 'open' | 'private' | null;
+  visibility: "open" | "private" | null;
   created_at: string;
 }
 
@@ -73,6 +87,14 @@ interface EventParticipantRow {
   user_id: string;
 }
 
+interface ClubChatMessageRow {
+  id: string;
+  club_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+}
+
 export function profileFromRow(row: ProfileRow): UserProfile {
   return {
     id: row.id,
@@ -84,6 +106,7 @@ export function profileFromRow(row: ProfileRow): UserProfile {
     stats: row.stats ?? { ...DEFAULT_STATS },
     bio: row.bio ?? undefined,
     joinedAt: row.joined_at,
+    subscriptionTier: row.subscription_tier ?? "basic",
   };
 }
 
@@ -98,6 +121,7 @@ export function profileToRow(profile: UserProfile) {
     bio: profile.bio ?? null,
     stats: profile.stats,
     joined_at: profile.joinedAt,
+    subscription_tier: profile.subscriptionTier ?? "basic",
   };
 }
 
@@ -110,7 +134,7 @@ export function clubFromRow(row: ClubRow, memberIds: string[]): Club {
     adminId: row.admin_id,
     iconColor: row.icon_color,
     iconUrl: row.icon_url ?? undefined,
-    visibility: row.visibility ?? 'open',
+    visibility: row.visibility ?? "open",
     memberIds,
     createdAt: row.created_at,
   };
@@ -125,10 +149,13 @@ export function joinRequestFromRow(row: ClubJoinRequestRow): ClubJoinRequest {
   };
 }
 
-export function eventFromRow(row: EventRow, participantIds: string[]): GameEvent {
+export function eventFromRow(
+  row: EventRow,
+  participantIds: string[],
+): GameEvent {
   const courtGames =
-    normalizeCourtGames(row.court_games)
-    ?? (row.team_a?.length && row.team_b?.length
+    normalizeCourtGames(row.court_games) ??
+    (row.team_a?.length && row.team_b?.length
       ? normalizeCourtGames([{ teamA: row.team_a, teamB: row.team_b }])
       : undefined);
 
@@ -167,9 +194,13 @@ export function gameStatFromRow(row: EventPlayerStatsRow): GameStatRecord {
   };
 }
 
-export function boxScoreToRow(eventId: string, userId: string, stats: BoxScoreStats, id?: string) {
+export function boxScoreToRow(
+  eventId: string,
+  userId: string,
+  stats: BoxScoreStats,
+  recordedAt?: string,
+) {
   return {
-    id,
     event_id: eventId,
     user_id: userId,
     points: stats.points,
@@ -177,7 +208,29 @@ export function boxScoreToRow(eventId: string, userId: string, stats: BoxScoreSt
     assists: stats.assists,
     blocks: stats.blocks,
     steals: stats.steals,
+    recorded_at: recordedAt ?? new Date().toISOString(),
   };
 }
 
-export type { ClubJoinRequestRow, ClubMemberRow, ClubRow, EventParticipantRow, EventPlayerStatsRow, EventRow, ProfileRow };
+export function clubChatMessageFromRow(
+  row: ClubChatMessageRow,
+): ClubChatMessage {
+  return {
+    id: row.id,
+    clubId: row.club_id,
+    userId: row.user_id,
+    body: row.body,
+    createdAt: row.created_at,
+  };
+}
+
+export type {
+  ClubChatMessageRow,
+  ClubJoinRequestRow,
+  ClubMemberRow,
+  ClubRow,
+  EventParticipantRow,
+  EventPlayerStatsRow,
+  EventRow,
+  ProfileRow,
+};

@@ -1,17 +1,22 @@
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { StatSlider } from '../components/StatSlider';
-import { ImagePickerField } from '../components/ImagePickerField';
-import { Avatar, Button, Input } from '../components/ui';
-import { getGoogleProfileHints } from '../lib/googleAuth';
-import { colors, radius, spacing, typography } from '../lib/theme';
-import { POSITIONS, Position } from '../lib/types';
-import { createDefaultProfile, useAppStore } from '../store/useAppStore';
+import { LegalConsent } from "../components/LegalConsent";
+import { StatSlider } from "../components/StatSlider";
+import {
+  hasAcceptedCurrentLegal,
+  setAcceptedLegalVersion,
+} from "../lib/legalAcceptance";
+import { ImagePickerField } from "../components/ImagePickerField";
+import { Avatar, Button, Input } from "../components/ui";
+import { getGoogleProfileHints } from "../lib/googleAuth";
+import { colors, radius, spacing, typography } from "../lib/theme";
+import { POSITIONS, Position } from "../lib/types";
+import { createDefaultProfile, useAppStore } from "../store/useAppStore";
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -22,17 +27,38 @@ export default function OnboardingScreen() {
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState(googleHints.name);
-  const [nickname, setNickname] = useState('');
-  const [position, setPosition] = useState<Position>('SG');
-  const [stats, setStats] = useState(createDefaultProfile('', 'SG').stats);
-  const [avatarUri, setAvatarUri] = useState<string | undefined>(googleHints.avatarUrl);
+  const [nickname, setNickname] = useState("");
+  const [position, setPosition] = useState<Position>("SG");
+  const [stats, setStats] = useState(createDefaultProfile("", "SG").stats);
+  const [avatarUri, setAvatarUri] = useState<string | undefined>(
+    googleHints.avatarUrl,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [legalAccepted, setLegalAccepted] = useState(false);
+  const [legalError, setLegalError] = useState<string | null>(null);
+  const [legalAlreadyAccepted, setLegalAlreadyAccepted] = useState(false);
 
   const canContinue = name.trim().length >= 2;
 
+  useEffect(() => {
+    hasAcceptedCurrentLegal().then((accepted) => {
+      setLegalAlreadyAccepted(accepted);
+      if (accepted) setLegalAccepted(true);
+    });
+  }, []);
+
   const handleFinish = async () => {
     setError(null);
+    setLegalError(null);
+
+    if (!legalAlreadyAccepted && !legalAccepted) {
+      setLegalError(
+        "You must accept the Terms & Conditions and Privacy Policy.",
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -44,20 +70,33 @@ export default function OnboardingScreen() {
         },
         avatarUri,
       );
-      router.replace('/(tabs)');
+      if (!legalAlreadyAccepted) {
+        await setAcceptedLegalVersion();
+      }
+      router.replace("/(tabs)");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save your profile. Try again.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not save your profile. Try again.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <LinearGradient colors={['#0A0E14', '#141C28', '#0A0E14']} style={styles.container}>
+    <LinearGradient
+      colors={["#0A0E14", "#141C28", "#0A0E14"]}
+      style={styles.container}
+    >
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg },
+          {
+            paddingTop: insets.top + spacing.lg,
+            paddingBottom: insets.bottom + spacing.lg,
+          },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -66,7 +105,9 @@ export default function OnboardingScreen() {
             <Ionicons name="basketball" size={40} color={colors.primary} />
           </View>
           <Text style={styles.brand}>HighBallers</Text>
-          <Text style={styles.tagline}>Your court. Your crew. Balanced games.</Text>
+          <Text style={styles.tagline}>
+            Your court. Your crew. Balanced games.
+          </Text>
         </View>
 
         <View style={styles.steps}>
@@ -81,7 +122,9 @@ export default function OnboardingScreen() {
         {step === 0 && (
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>Who&apos;s ballin&apos;?</Text>
-            <Text style={styles.stepDesc}>Set up your player profile to join clubs and games.</Text>
+            <Text style={styles.stepDesc}>
+              Set up your player profile to join clubs and games.
+            </Text>
             <Input
               placeholder="Full name"
               value={name}
@@ -108,7 +151,9 @@ export default function OnboardingScreen() {
         {step === 1 && (
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>Pick your position</Text>
-            <Text style={styles.stepDesc}>Where do you make your mark on the court?</Text>
+            <Text style={styles.stepDesc}>
+              Where do you make your mark on the court?
+            </Text>
             <View style={styles.positionGrid}>
               {POSITIONS.map((pos) => (
                 <Pressable
@@ -119,7 +164,12 @@ export default function OnboardingScreen() {
                     position === pos && styles.positionCardActive,
                   ]}
                 >
-                  <Text style={[styles.positionText, position === pos && styles.positionTextActive]}>
+                  <Text
+                    style={[
+                      styles.positionText,
+                      position === pos && styles.positionTextActive,
+                    ]}
+                  >
                     {pos}
                   </Text>
                 </Pressable>
@@ -127,7 +177,12 @@ export default function OnboardingScreen() {
             </View>
             <View style={styles.navRow}>
               <Button title="Back" variant="ghost" onPress={() => setStep(0)} />
-              <Button title="Continue" onPress={() => setStep(2)} size="lg" style={styles.flexBtn} />
+              <Button
+                title="Continue"
+                onPress={() => setStep(2)}
+                size="lg"
+                style={styles.flexBtn}
+              />
             </View>
           </View>
         )}
@@ -141,7 +196,7 @@ export default function OnboardingScreen() {
             <ImagePickerField
               label="Profile Photo"
               imageUri={avatarUri}
-              fallbackName={name || 'Player'}
+              fallbackName={name || "Player"}
               fallbackColor={colors.primary}
               onPick={setAvatarUri}
             />
@@ -163,22 +218,66 @@ export default function OnboardingScreen() {
               unit="kg"
               step={1}
             />
-            <StatSlider label="Speed" value={stats.speed} onChange={(speed) => setStats({ ...stats, speed })} />
-            <StatSlider label="Strength" value={stats.strength} onChange={(strength) => setStats({ ...stats, strength })} />
-            <StatSlider label="Shooting" value={stats.shooting} onChange={(shooting) => setStats({ ...stats, shooting })} />
-            <StatSlider label="Defense" value={stats.defense} onChange={(defense) => setStats({ ...stats, defense })} />
-            <StatSlider label="Stamina" value={stats.stamina} onChange={(stamina) => setStats({ ...stats, stamina })} />
+            <StatSlider
+              label="Speed"
+              value={stats.speed}
+              onChange={(speed) => setStats({ ...stats, speed })}
+            />
+            <StatSlider
+              label="Strength"
+              value={stats.strength}
+              onChange={(strength) => setStats({ ...stats, strength })}
+            />
+            <StatSlider
+              label="Shooting"
+              value={stats.shooting}
+              onChange={(shooting) => setStats({ ...stats, shooting })}
+            />
+            <StatSlider
+              label="Defense"
+              value={stats.defense}
+              onChange={(defense) => setStats({ ...stats, defense })}
+            />
+            <StatSlider
+              label="Stamina"
+              value={stats.stamina}
+              onChange={(stamina) => setStats({ ...stats, stamina })}
+            />
             <View style={styles.preview}>
-              <Avatar name={name || 'Player'} color={colors.primary} size={56} imageUrl={avatarUri} />
+              <Avatar
+                name={name || "Player"}
+                color={colors.primary}
+                size={56}
+                imageUrl={avatarUri}
+              />
               <View>
-                <Text style={styles.previewName}>{name || 'Your Name'}</Text>
-                <Text style={styles.previewMeta}>{position} · Ready to hoop</Text>
+                <Text style={styles.previewName}>{name || "Your Name"}</Text>
+                <Text style={styles.previewMeta}>
+                  {position} · Ready to hoop
+                </Text>
               </View>
             </View>
+            {!legalAlreadyAccepted ? (
+              <LegalConsent
+                checked={legalAccepted}
+                onCheckedChange={(value) => {
+                  setLegalAccepted(value);
+                  if (value) setLegalError(null);
+                }}
+                error={legalError ?? undefined}
+              />
+            ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <View style={styles.navRow}>
               <Button title="Back" variant="ghost" onPress={() => setStep(1)} />
-              <Button title="Start Playing" onPress={handleFinish} loading={loading} size="lg" style={styles.flexBtn} />
+              <Button
+                title="Start Playing"
+                onPress={handleFinish}
+                loading={loading}
+                disabled={!legalAlreadyAccepted && !legalAccepted}
+                size="lg"
+                style={styles.flexBtn}
+              />
             </View>
           </View>
         )}
@@ -195,7 +294,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   hero: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: spacing.xl,
   },
   logoCircle: {
@@ -203,8 +302,8 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: `${colors.primary}20`,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: spacing.md,
     borderWidth: 2,
     borderColor: `${colors.primary}40`,
@@ -217,11 +316,11 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textMuted,
     marginTop: spacing.sm,
-    textAlign: 'center',
+    textAlign: "center",
   },
   steps: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: spacing.sm,
     marginBottom: spacing.xl,
   },
@@ -254,20 +353,20 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   positionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
   positionCard: {
-    width: '30%',
+    width: "30%",
     flexGrow: 1,
     paddingVertical: spacing.lg,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.cardBorder,
-    alignItems: 'center',
+    alignItems: "center",
   },
   positionCardActive: {
     borderColor: colors.primary,
@@ -282,8 +381,8 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
     marginTop: spacing.lg,
   },
@@ -293,12 +392,12 @@ const styles = StyleSheet.create({
   error: {
     ...typography.caption,
     color: colors.error,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: spacing.sm,
   },
   preview: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
     backgroundColor: colors.surface,
     padding: spacing.md,

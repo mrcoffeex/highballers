@@ -12,6 +12,7 @@ create table if not exists public.profiles (
   bio text,
   stats jsonb not null default '{}'::jsonb,
   push_token text,
+  subscription_tier text not null default 'basic' check (subscription_tier in ('basic', 'all_star')),
   joined_at timestamptz not null default now()
 );
 
@@ -91,6 +92,33 @@ alter table public.event_participants enable row level security;
 alter table public.event_player_stats enable row level security;
 alter table public.club_join_requests enable row level security;
 
+-- Policies are recreated idempotently (safe to re-run on an existing project).
+drop policy if exists "Profiles are readable by authenticated users" on public.profiles;
+drop policy if exists "Users can insert their own profile" on public.profiles;
+drop policy if exists "Users can update their own profile" on public.profiles;
+drop policy if exists "Clubs are readable by authenticated users" on public.clubs;
+drop policy if exists "Authenticated users can create clubs" on public.clubs;
+drop policy if exists "Club admins can update clubs" on public.clubs;
+drop policy if exists "Club members are readable by authenticated users" on public.club_members;
+drop policy if exists "Users can join clubs" on public.club_members;
+drop policy if exists "Users can leave clubs" on public.club_members;
+drop policy if exists "Events are readable by authenticated users" on public.events;
+drop policy if exists "Club members can create events" on public.events;
+drop policy if exists "Event creators and club admins can update events" on public.events;
+drop policy if exists "Event creators can update events" on public.events;
+drop policy if exists "Participants are readable by authenticated users" on public.event_participants;
+drop policy if exists "Users can join events" on public.event_participants;
+drop policy if exists "Users can leave events" on public.event_participants;
+drop policy if exists "Event stats are readable by authenticated users" on public.event_player_stats;
+drop policy if exists "Event stats insert by creator or club admin" on public.event_player_stats;
+drop policy if exists "Event stats update by creator or club admin" on public.event_player_stats;
+drop policy if exists "Event stats delete by creator or club admin" on public.event_player_stats;
+drop policy if exists "Creators and club admins can manage event stats" on public.event_player_stats;
+drop policy if exists "Join requests are readable by authenticated users" on public.club_join_requests;
+drop policy if exists "Users can request to join private clubs" on public.club_join_requests;
+drop policy if exists "Users can cancel their join request" on public.club_join_requests;
+drop policy if exists "Club admins can manage join requests" on public.club_join_requests;
+
 create policy "Profiles are readable by authenticated users"
   on public.profiles for select to authenticated using (true);
 
@@ -153,8 +181,19 @@ create policy "Users can leave events"
 create policy "Event stats are readable by authenticated users"
   on public.event_player_stats for select to authenticated using (true);
 
-create policy "Creators and club admins can manage event stats"
-  on public.event_player_stats for all to authenticated
+create policy "Event stats insert by creator or club admin"
+  on public.event_player_stats for insert to authenticated
+  with check (
+    exists (
+      select 1 from public.events e
+      join public.clubs c on c.id = e.club_id
+      where e.id = event_player_stats.event_id
+        and (e.created_by = auth.uid() or c.admin_id = auth.uid())
+    )
+  );
+
+create policy "Event stats update by creator or club admin"
+  on public.event_player_stats for update to authenticated
   using (
     exists (
       select 1 from public.events e
@@ -164,6 +203,17 @@ create policy "Creators and club admins can manage event stats"
     )
   )
   with check (
+    exists (
+      select 1 from public.events e
+      join public.clubs c on c.id = e.club_id
+      where e.id = event_player_stats.event_id
+        and (e.created_by = auth.uid() or c.admin_id = auth.uid())
+    )
+  );
+
+create policy "Event stats delete by creator or club admin"
+  on public.event_player_stats for delete to authenticated
+  using (
     exists (
       select 1 from public.events e
       join public.clubs c on c.id = e.club_id
@@ -194,6 +244,13 @@ create policy "Club admins can manage join requests"
 insert into storage.buckets (id, name, public)
 values ('avatars', 'avatars', true), ('club-logos', 'club-logos', true)
 on conflict (id) do nothing;
+
+drop policy if exists "Avatar images are publicly readable" on storage.objects;
+drop policy if exists "Users can upload their avatar" on storage.objects;
+drop policy if exists "Users can update their avatar" on storage.objects;
+drop policy if exists "Club logos are publicly readable" on storage.objects;
+drop policy if exists "Authenticated users can upload club logos" on storage.objects;
+drop policy if exists "Authenticated users can update club logos" on storage.objects;
 
 create policy "Avatar images are publicly readable"
   on storage.objects for select using (bucket_id = 'avatars');

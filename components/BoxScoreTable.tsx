@@ -1,31 +1,40 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from "react-native";
 
-import { Card } from './ui';
-import { colors, radius, spacing, typography } from '../lib/theme';
+import { Card } from "./ui";
+import { colors, radius, spacing, typography } from "../lib/theme";
 import {
   BOX_SCORE_FIELDS,
   BOX_SCORE_LABELS,
   BoxScoreStats,
   EMPTY_BOX_SCORE,
   UserProfile,
-} from '../lib/types';
+} from "../lib/types";
 
 interface BoxScoreTableProps {
   participants: UserProfile[];
   statsByPlayer: Record<string, BoxScoreStats>;
 }
 
-function sumStats(participants: UserProfile[], statsByPlayer: Record<string, BoxScoreStats>): BoxScoreStats {
+function sumStats(
+  participants: UserProfile[],
+  statsByPlayer: Record<string, BoxScoreStats>,
+): BoxScoreStats {
   return BOX_SCORE_FIELDS.reduce(
     (acc, field) => {
-      acc[field] = participants.reduce((sum, player) => sum + (statsByPlayer[player.id]?.[field] ?? 0), 0);
+      acc[field] = participants.reduce(
+        (sum, player) => sum + (statsByPlayer[player.id]?.[field] ?? 0),
+        0,
+      );
       return acc;
     },
     { ...EMPTY_BOX_SCORE },
   );
 }
 
-export function BoxScoreTable({ participants, statsByPlayer }: BoxScoreTableProps) {
+export function BoxScoreTable({
+  participants,
+  statsByPlayer,
+}: BoxScoreTableProps) {
   if (participants.length === 0) {
     return (
       <Card>
@@ -49,14 +58,20 @@ export function BoxScoreTable({ participants, statsByPlayer }: BoxScoreTableProp
 
       {participants.map((player, index) => {
         const stats = statsByPlayer[player.id] ?? EMPTY_BOX_SCORE;
-        const firstName = player.name.split(' ')[0];
+        const firstName = player.name.split(" ")[0];
 
         return (
           <View
             key={player.id}
-            style={[styles.dataRow, index % 2 === 1 ? styles.stripedRow : undefined]}
+            style={[
+              styles.dataRow,
+              index % 2 === 1 ? styles.stripedRow : undefined,
+            ]}
           >
-            <Text style={[styles.dataCell, styles.playerCol, styles.playerName]} numberOfLines={1}>
+            <Text
+              style={[styles.dataCell, styles.playerCol, styles.playerName]}
+              numberOfLines={1}
+            >
               {firstName}
             </Text>
             {BOX_SCORE_FIELDS.map((field) => (
@@ -85,17 +100,17 @@ const COL_WIDTH = 36;
 const styles = StyleSheet.create({
   card: {
     padding: 0,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   empty: {
     ...typography.caption,
     color: colors.textMuted,
-    textAlign: 'center',
+    textAlign: "center",
     padding: spacing.md,
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.surface,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
@@ -107,17 +122,17 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.textMuted,
     fontSize: 9,
-    textAlign: 'center',
+    textAlign: "center",
   },
   playerCol: {
     flex: 1,
     width: undefined,
-    textAlign: 'left',
+    textAlign: "left",
     paddingRight: spacing.xs,
   },
   dataRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
   },
@@ -128,16 +143,16 @@ const styles = StyleSheet.create({
     width: COL_WIDTH,
     ...typography.caption,
     color: colors.text,
-    textAlign: 'center',
-    fontWeight: '600',
+    textAlign: "center",
+    fontWeight: "600",
   },
   playerName: {
-    textAlign: 'left',
-    fontWeight: '500',
+    textAlign: "left",
+    fontWeight: "500",
   },
   footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     borderTopWidth: 1,
@@ -149,10 +164,10 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.primary,
     fontSize: 9,
-    textAlign: 'center',
+    textAlign: "center",
   },
   totalValue: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 });

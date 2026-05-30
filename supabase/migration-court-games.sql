@@ -13,5 +13,5 @@ set court_games = jsonb_build_array(
 where court_games is null
   and team_a is not null
   and team_b is not null
-  and coalesce(jsonb_array_length(team_a), 0) > 0
-  and coalesce(jsonb_array_length(team_b), 0) > 0;
+  and coalesce(array_length(team_a, 1), 0) > 0
+  and coalesce(array_length(team_b, 1), 0) > 0;

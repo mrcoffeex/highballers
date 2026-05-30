@@ -1,10 +1,17 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { ReactNode } from 'react';
-import { ScrollView, ScrollViewProps, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from "expo-linear-gradient";
+import { ReactNode } from "react";
+import {
+  ScrollView,
+  ScrollViewProps,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, spacing, typography } from '../lib/theme';
-import { useTabBarPadding } from '../lib/tabBar';
+import { useRefreshControl } from "../lib/useRefreshControl";
+import { colors, spacing, typography } from "../lib/theme";
+import { useTabBarPadding } from "../lib/tabBar";
 
 interface ScreenProps extends ScrollViewProps {
   children: ReactNode;
@@ -13,6 +20,8 @@ interface ScreenProps extends ScrollViewProps {
   headerRight?: ReactNode;
   scroll?: boolean;
   padded?: boolean;
+  refreshable?: boolean;
+  onRefreshExtra?: () => void | Promise<void>;
 }
 
 export function Screen({
@@ -22,12 +31,19 @@ export function Screen({
   headerRight,
   scroll = true,
   padded = true,
+  refreshable = true,
+  onRefreshExtra,
   style,
   contentContainerStyle,
+  refreshControl: refreshControlProp,
   ...props
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const bottomPadding = useTabBarPadding(spacing.lg);
+  const { refreshControl: defaultRefreshControl } = useRefreshControl(
+    onRefreshExtra,
+    refreshable,
+  );
 
   const content = (
     <>
@@ -56,16 +72,19 @@ export function Screen({
 
   if (!scroll) {
     return (
-      <LinearGradient colors={[colors.background, '#0F1520']} style={containerStyle}>
+      <LinearGradient
+        colors={[colors.background, "#0F1520"]}
+        style={containerStyle}
+      >
         {content}
       </LinearGradient>
     );
   }
 
   return (
-    <LinearGradient colors={[colors.background, '#0F1520']} style={styles.flex}>
+    <LinearGradient colors={[colors.background, "#0F1520"]} style={styles.flex}>
       <ScrollView
-        style={styles.flex}
+        style={[styles.flex, styles.scroll]}
         contentContainerStyle={[
           {
             paddingTop: insets.top + spacing.sm,
@@ -75,6 +94,7 @@ export function Screen({
           contentContainerStyle,
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControlProp ?? defaultRefreshControl}
         {...props}
       >
         {content}
@@ -87,13 +107,16 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  scroll: {
+    backgroundColor: "transparent",
+  },
   container: {
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
     marginBottom: spacing.lg,
     gap: spacing.md,
   },

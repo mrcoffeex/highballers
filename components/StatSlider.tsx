@@ -1,6 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing, typography } from '../lib/theme';
+import { colors, radius, spacing, typography } from "../lib/theme";
 
 interface StatSliderProps {
   label: string;
@@ -31,17 +31,29 @@ export function StatSlider({
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.value}>
           {value}
-          {unit ? ` ${unit}` : ''}
+          {unit ? ` ${unit}` : ""}
         </Text>
       </View>
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${progress}%` }]} />
       </View>
       <View style={styles.controls}>
-        <Pressable onPress={decrease} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
+        <Pressable
+          onPress={decrease}
+          style={({ pressed }) => [
+            styles.button,
+            pressed && styles.buttonPressed,
+          ]}
+        >
           <Text style={styles.buttonText}>−</Text>
         </Pressable>
-        <Pressable onPress={increase} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
+        <Pressable
+          onPress={increase}
+          style={({ pressed }) => [
+            styles.button,
+            pressed && styles.buttonPressed,
+          ]}
+        >
           <Text style={styles.buttonText}>+</Text>
         </Pressable>
       </View>
@@ -54,15 +66,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: spacing.sm,
   },
   label: {
     ...typography.caption,
     color: colors.textMuted,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   value: {
@@ -74,17 +86,17 @@ const styles = StyleSheet.create({
     height: 8,
     backgroundColor: colors.cardBorder,
     borderRadius: radius.full,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: spacing.sm,
   },
   fill: {
-    height: '100%',
+    height: "100%",
     backgroundColor: colors.primary,
     borderRadius: radius.full,
   },
   controls: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     gap: spacing.sm,
   },
   button: {
@@ -94,15 +106,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonPressed: {
     backgroundColor: colors.card,
   },
   buttonText: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.text,
     lineHeight: 22,
   },

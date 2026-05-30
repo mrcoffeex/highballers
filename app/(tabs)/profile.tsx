@@ -1,257 +1,431 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { format } from 'date-fns';
-import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { Fragment, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-import { Screen } from '../../components/Screen';
-import { StatSlider } from '../../components/StatSlider';
-import { Avatar, Badge, Button, Card } from '../../components/ui';
-import { isSupabaseEnabled } from '../../lib/config';
-import { calculatePlayerRating } from '../../lib/teamBalancer';
-import { colors, radius, spacing, typography } from '../../lib/theme';
-import { BOX_SCORE_LABELS, BOX_SCORE_FIELDS, POSITION_LABELS } from '../../lib/types';
-import { useCurrentUser, useMyClubs, usePlayerGameHistory } from '../../store/hooks';
-import { useAppStore } from '../../store/useAppStore';
+import { AllStarMemberCard } from "../../components/AllStarMemberCard";
+import { LegalSettingsCard } from "../../components/LegalSettingsCard";
+import { AllStarPromoCard } from "../../components/AllStarPromoCard";
+import { SubscriptionBadge } from "../../components/SubscriptionBadge";
+import { UpgradeModal } from "../../components/UpgradeModal";
+import { Screen } from "../../components/Screen";
+import { TabSkeletonOverlay } from "../../components/TabSkeletonOverlay";
+import { ActivityStoriesViewer } from "../../components/ActivityStoriesViewer";
+import { PlayerStatsDashboard } from "../../components/PlayerStatsDashboard";
+import { findStoryIndices } from "../../lib/activityStories";
+import { useActivityStories } from "../../lib/useActivityStories";
+import { StatSlider } from "../../components/StatSlider";
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  ProfileScreenSkeleton,
+} from "../../components/ui";
+import { shouldShowEntitySkeleton } from "../../lib/entityLoading";
+import { isSupabaseEnabled } from "../../lib/config";
+import { calculatePlayerRating } from "../../lib/teamBalancer";
+import { colors, radius, spacing, typography } from "../../lib/theme";
+import { useUpgradePrompt } from "../../lib/useUpgradePrompt";
+import { POSITION_LABELS } from "../../lib/types";
+import {
+  useCurrentUser,
+  useIsAllStar,
+  useMyClubs,
+  usePlayerGameHistory,
+  useSubscriptionTier,
+} from "../../store/hooks";
+import { useAppStore } from "../../store/useAppStore";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const user = useCurrentUser();
+  const tier = useSubscriptionTier();
+  const isPro = useIsAllStar();
   const myClubs = useMyClubs();
-  const gameHistory = usePlayerGameHistory(user?.id ?? '');
+  const gameHistory = usePlayerGameHistory(user?.id ?? "");
   const updateStats = useAppStore((state) => state.updateStats);
+  const upgradeToAllStar = useAppStore((state) => state.upgradeToAllStar);
   const signOut = useAppStore((state) => state.signOut);
+  const users = useAppStore((state) => state.users);
+  const hydrated = useAppStore((state) => state.hydrated);
+  const {
+    upgradeVisible,
+    upgradeReason,
+    promptUpgrade,
+    closeUpgrade,
+  } = useUpgradePrompt();
+  const [storiesOpen, setStoriesOpen] = useState(false);
+  const [storiesGroupIndex, setStoriesGroupIndex] = useState(0);
+  const [storiesSlideIndex, setStoriesSlideIndex] = useState(0);
+  const {
+    groups: storyGroups,
+    viewedSlideIds,
+    onViewedChange,
+  } = useActivityStories();
+  const showDataLoading =
+    !user && shouldShowEntitySkeleton(user, hydrated, users.length === 0);
 
   if (!user) {
-    return null;
+    if (!showDataLoading) {
+      return null;
+    }
+
+    return (
+      <TabSkeletonOverlay showDataLoading skeleton={<ProfileScreenSkeleton />}>
+        <View style={styles.placeholder} />
+      </TabSkeletonOverlay>
+    );
   }
 
   const rating = calculatePlayerRating(user.stats);
-  const careerTotals = BOX_SCORE_FIELDS.reduce(
-    (acc, field) => {
-      acc[field] = gameHistory.reduce((sum, game) => sum + game.stats[field], 0);
-      return acc;
-    },
-    { points: 0, rebounds: 0, assists: 0, blocks: 0, steals: 0 },
-  );
   const statItems = [
-    { label: 'Speed', value: user.stats.speed },
-    { label: 'Strength', value: user.stats.strength },
-    { label: 'Shooting', value: user.stats.shooting },
-    { label: 'Defense', value: user.stats.defense },
-    { label: 'Stamina', value: user.stats.stamina },
+    { label: "Speed", value: user.stats.speed },
+    { label: "Strength", value: user.stats.strength },
+    { label: "Shooting", value: user.stats.shooting },
+    { label: "Defense", value: user.stats.defense },
+    { label: "Stamina", value: user.stats.stamina },
   ];
 
+
   return (
-    <Screen>
-      <Card style={styles.profileCard}>
-        <View style={styles.profileHeader}>
-          <Avatar name={user.name} color={user.avatarColor} size={72} imageUrl={user.avatarUrl} />
-          <View style={styles.profileInfo}>
-            <Text style={styles.name}>{user.name}</Text>
-            {user.nickname ? <Text style={styles.nickname}>&quot;{user.nickname}&quot;</Text> : null}
-            <View style={styles.badges}>
-              <Badge label={user.position} color={colors.primary} />
-              <Badge label={`OVR ${rating}`} color={colors.secondary} />
-            </View>
-          </View>
-        </View>
-        <Text style={styles.position}>{POSITION_LABELS[user.position]}</Text>
-        <View style={styles.physicalRow}>
-          <PhysicalStat label="Height" value={`${user.stats.height} cm`} />
-          <PhysicalStat label="Weight" value={`${user.stats.weight} kg`} />
-        </View>
-        <Button
-          title="Edit Profile"
-          variant="outline"
-          onPress={() => router.push('/profile/edit')}
-          style={styles.editBtn}
-        />
-      </Card>
-
-      <Text style={styles.sectionTitle}>Skill Radar</Text>
-      <Card style={styles.statsCard}>
-        {statItems.map((stat) => (
-          <View key={stat.label} style={styles.statRow}>
-            <Text style={styles.statLabel}>{stat.label}</Text>
-            <View style={styles.statBarTrack}>
-              <View style={[styles.statBarFill, { width: `${stat.value * 10}%` }]} />
-            </View>
-            <Text style={styles.statValue}>{stat.value}</Text>
-          </View>
-        ))}
-      </Card>
-
-      <Text style={styles.sectionTitle}>Quick Adjust</Text>
-      <Card>
-        <StatSlider
-          label="Shooting"
-          value={user.stats.shooting}
-          onChange={(shooting) => updateStats({ ...user.stats, shooting })}
-        />
-        <StatSlider
-          label="Defense"
-          value={user.stats.defense}
-          onChange={(defense) => updateStats({ ...user.stats, defense })}
-        />
-      </Card>
-
-      <Text style={styles.sectionTitle}>Activity</Text>
-      <View style={styles.activityRow}>
-        <ActivityItem icon="people" label="Clubs" value={String(myClubs.length)} />
-        <ActivityItem icon="basketball" label="Position" value={user.position} />
-        <ActivityItem icon="stats-chart" label="Games" value={String(gameHistory.length)} />
-      </View>
-
-      <Text style={styles.sectionTitle}>Game History</Text>
-      {gameHistory.length > 0 ? (
-        <>
-          <Card style={styles.careerCard}>
-            <Text style={styles.careerTitle}>Career totals</Text>
-            <View style={styles.careerRow}>
-              {BOX_SCORE_FIELDS.map((field) => (
-                <View key={field} style={styles.careerItem}>
-                  <Text style={styles.careerLabel}>{BOX_SCORE_LABELS[field]}</Text>
-                  <Text style={styles.careerValue}>{careerTotals[field]}</Text>
+    <Fragment>
+      <Screen>
+        <LinearGradient
+          colors={[colors.background, "#0F1520"]}
+          style={styles.background}
+        >
+          <Card
+            style={StyleSheet.flatten([
+              styles.heroCard,
+              isPro && styles.heroCardPro,
+            ])}
+          >
+            <View style={styles.heroTop}>
+              <View style={styles.avatarWrap}>
+                <Avatar
+                  name={user.name}
+                  color={user.avatarColor}
+                  size={80}
+                  imageUrl={user.avatarUrl}
+                />
+                <View style={styles.ovrRing}>
+                  <Text style={styles.ovrLabel}>OVR</Text>
+                  <Text style={styles.ovrValue}>{rating}</Text>
                 </View>
-              ))}
+              </View>
+
+              <View style={styles.heroInfo}>
+                <Text style={styles.name}>{user.name}</Text>
+                {user.nickname ? (
+                  <Text style={styles.nickname}>
+                    &quot;{user.nickname}&quot;
+                  </Text>
+                ) : null}
+                <Text style={styles.position}>
+                  {POSITION_LABELS[user.position]}
+                </Text>
+                <SubscriptionBadge
+                  tier={tier}
+                  prominent
+                  onPress={!isPro ? () => promptUpgrade() : undefined}
+                />
+              </View>
+            </View>
+
+            <View style={styles.heroMeta}>
+              <MetaChip
+                icon="resize-outline"
+                label={`${user.stats.height} cm`}
+              />
+              <MetaChip
+                icon="barbell-outline"
+                label={`${user.stats.weight} kg`}
+              />
+              <MetaChip
+                icon="people-outline"
+                label={`${myClubs.length} club${myClubs.length !== 1 ? "s" : ""}`}
+              />
+              <MetaChip
+                icon="stats-chart-outline"
+                label={`${gameHistory.length} games`}
+              />
+            </View>
+
+            <View style={styles.heroActions}>
+              <Badge label={user.position} color={colors.primary} />
+              <View style={styles.heroBtnRow}>
+                <Button
+                  title="Edit Profile"
+                  variant="outline"
+                  size="sm"
+                  onPress={() => router.push("/profile/edit")}
+                />
+                <Button
+                  title="Public Profile"
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => router.push(`/player/${user.id}`)}
+                />
+              </View>
             </View>
           </Card>
-          {gameHistory.map((game) => (
-            <Card key={game.id} style={styles.historyCard}>
-              <View style={styles.historyHeader}>
-                <Text style={styles.historyTitle}>{game.event?.title ?? 'Pickup game'}</Text>
-                <Text style={styles.historyDate}>
-                  {format(new Date(game.event?.dateTime ?? game.recordedAt), 'MMM d, yyyy')}
-                </Text>
-              </View>
-              <View style={styles.historyStats}>
-                {BOX_SCORE_FIELDS.map((field) => (
-                  <Text key={field} style={styles.historyStat}>
-                    {BOX_SCORE_LABELS[field]} {game.stats[field]}
-                  </Text>
-                ))}
-              </View>
-            </Card>
-          ))}
-        </>
-      ) : (
-        <Card>
-          <Text style={styles.emptyHistory}>No recorded games yet. Stats appear here after a game is tabulated.</Text>
-        </Card>
-      )}
 
-      {isSupabaseEnabled ? (
-        <Button
-          title="Sign Out"
-          variant="ghost"
-          onPress={async () => {
-            await signOut();
-            router.replace('/auth');
-          }}
-          style={styles.signOut}
-        />
-      ) : null}
-    </Screen>
+          {isPro ? (
+            <AllStarMemberCard />
+          ) : (
+            <AllStarPromoCard
+              variant="hero"
+              onPress={() => promptUpgrade()}
+              onCompare={() => promptUpgrade()}
+            />
+          )}
+
+          <SectionLabel title="Skill Radar" />
+          <Card style={styles.statsCard}>
+            {statItems.map((stat) => (
+              <View key={stat.label} style={styles.statRow}>
+                <Text style={styles.statLabel}>{stat.label}</Text>
+                <View style={styles.statBarTrack}>
+                  <View
+                    style={[
+                      styles.statBarFill,
+                      { width: `${stat.value * 10}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.statValue}>{stat.value}</Text>
+              </View>
+            ))}
+          </Card>
+
+          <SectionLabel title="Quick Adjust" />
+          <Card style={styles.sectionCard}>
+            <StatSlider
+              label="Shooting"
+              value={user.stats.shooting}
+              onChange={(shooting) => updateStats({ ...user.stats, shooting })}
+            />
+            <StatSlider
+              label="Defense"
+              value={user.stats.defense}
+              onChange={(defense) => updateStats({ ...user.stats, defense })}
+            />
+          </Card>
+
+          <SectionLabel
+            title="Performance"
+            subtitle="Stats, trends & story shares"
+          />
+          <PlayerStatsDashboard
+            userId={user.id}
+            isOwnProfile
+            isPro={isPro}
+            onUpgrade={() =>
+              promptUpgrade("Full game history is All-Star only.")
+            }
+            onActivityPress={(eventId) => router.push(`/event/${eventId}`)}
+            onShareStory={(recordId) => {
+              const { groupIndex, slideIndex } = findStoryIndices(
+                storyGroups,
+                user.id,
+                recordId,
+              );
+              setStoriesGroupIndex(groupIndex);
+              setStoriesSlideIndex(slideIndex);
+              setStoriesOpen(true);
+            }}
+          />
+
+          <LegalSettingsCard />
+
+          {isSupabaseEnabled ? (
+            <Button
+              title="Sign Out"
+              variant="ghost"
+              onPress={async () => {
+                await signOut();
+                router.replace("/auth");
+              }}
+              style={styles.signOut}
+            />
+          ) : null}
+        </LinearGradient>
+      </Screen>
+
+      <ActivityStoriesViewer
+        visible={storiesOpen}
+        groups={storyGroups}
+        initialGroupIndex={storiesGroupIndex}
+        initialSlideIndex={storiesSlideIndex}
+        viewedSlideIds={viewedSlideIds}
+        onViewedChange={onViewedChange}
+        onClose={() => setStoriesOpen(false)}
+      />
+
+      <UpgradeModal
+        visible={upgradeVisible}
+        reason={upgradeReason}
+        onClose={closeUpgrade}
+        onPurchased={() => {
+          void upgradeToAllStar();
+        }}
+      />
+    </Fragment>
   );
 }
 
-function PhysicalStat({ label, value }: { label: string; value: string }) {
+function SectionLabel({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
   return (
-    <View style={styles.physicalStat}>
-      <Text style={styles.physicalLabel}>{label}</Text>
-      <Text style={styles.physicalValue}>{value}</Text>
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
     </View>
   );
 }
 
-function ActivityItem({
+function MetaChip({
   icon,
   label,
-  value,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  value: string;
 }) {
   return (
-    <Card style={styles.activityCard}>
-      <Ionicons name={icon} size={22} color={colors.primary} />
-      <Text style={styles.activityValue}>{value}</Text>
-      <Text style={styles.activityLabel}>{label}</Text>
-    </Card>
+    <View style={styles.metaChip}>
+      <Ionicons name={icon} size={13} color={colors.textDim} />
+      <Text style={styles.metaChipText}>{label}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  profileCard: {
-    marginBottom: spacing.lg,
+  background: {
+    marginHorizontal: -spacing.lg,
+    marginTop: -spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
   },
-  profileHeader: {
-    flexDirection: 'row',
+  heroCard: {
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+  },
+  heroCardPro: {
+    borderColor: `${colors.secondary}44`,
+  },
+  heroTop: {
+    flexDirection: "row",
     gap: spacing.md,
     marginBottom: spacing.md,
   },
-  profileInfo: {
+  avatarWrap: {
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  ovrRing: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radius.full,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    minWidth: 52,
+  },
+  ovrLabel: {
+    ...typography.label,
+    color: colors.textDim,
+    fontSize: 8,
+  },
+  ovrValue: {
+    ...typography.heading,
+    color: colors.secondary,
+    fontSize: 18,
+    lineHeight: 20,
+  },
+  heroInfo: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
+    minWidth: 0,
   },
   name: {
     ...typography.title,
     color: colors.text,
-    fontSize: 22,
+    fontSize: 24,
   },
   nickname: {
     ...typography.caption,
     color: colors.textMuted,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     marginTop: 2,
   },
-  badges: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
   position: {
-    ...typography.body,
+    ...typography.caption,
     color: colors.textMuted,
+    marginTop: 2,
+  },
+  heroMeta: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
     marginBottom: spacing.md,
   },
-  physicalRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  physicalStat: {
-    flex: 1,
+  metaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
   },
-  physicalLabel: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 10,
+  metaChipText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 11,
   },
-  physicalValue: {
-    ...typography.heading,
-    color: colors.text,
-    marginTop: 4,
+  heroActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  editBtn: {
+  heroBtnRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  sectionHeader: {
+    marginBottom: spacing.sm,
     marginTop: spacing.xs,
   },
   sectionTitle: {
     ...typography.heading,
     color: colors.text,
-    marginBottom: spacing.md,
-    marginTop: spacing.sm,
+  },
+  sectionSubtitle: {
+    ...typography.caption,
+    color: colors.textDim,
+    marginTop: 2,
   },
   statsCard: {
     marginBottom: spacing.lg,
   },
+  sectionCard: {
+    marginBottom: spacing.lg,
+  },
   statRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },
@@ -265,10 +439,10 @@ const styles = StyleSheet.create({
     height: 8,
     backgroundColor: colors.cardBorder,
     borderRadius: radius.full,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   statBarFill: {
-    height: '100%',
+    height: "100%",
     backgroundColor: colors.primary,
     borderRadius: radius.full,
   },
@@ -276,92 +450,15 @@ const styles = StyleSheet.create({
     width: 24,
     ...typography.caption,
     color: colors.secondary,
-    fontWeight: '700',
-    textAlign: 'right',
-  },
-  activityRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  activityCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-  },
-  activityValue: {
-    ...typography.title,
-    color: colors.text,
-    fontSize: 20,
-    marginTop: spacing.sm,
-  },
-  activityLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
+    fontWeight: "700",
+    textAlign: "right",
   },
   signOut: {
+    marginTop: spacing.sm,
     marginBottom: spacing.lg,
   },
-  careerCard: {
-    marginBottom: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  careerTitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  careerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  careerItem: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  careerLabel: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 10,
-  },
-  careerValue: {
-    ...typography.body,
-    color: colors.secondary,
-    fontWeight: '700',
-  },
-  historyCard: {
-    marginBottom: spacing.sm,
-  },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  historyTitle: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
+  placeholder: {
     flex: 1,
-  },
-  historyDate: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  historyStats: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  historyStat: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  emptyHistory: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
+    backgroundColor: colors.background,
   },
 });

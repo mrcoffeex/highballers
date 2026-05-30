@@ -1,8 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing, typography } from '../lib/theme';
-import { Button } from './ui';
+import { colors, radius, spacing, typography } from "../lib/theme";
+import { Button } from "./ui";
 
 interface ConfirmModalProps {
   visible: boolean;
@@ -19,18 +19,30 @@ export function ConfirmModal({
   visible,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
   loading,
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+        <Pressable
+          style={styles.sheet}
+          onPress={(event) => event.stopPropagation()}
+        >
           <View style={styles.iconWrap}>
-            <Ionicons name="help-circle-outline" size={28} color={colors.warning} />
+            <Ionicons
+              name="help-circle-outline"
+              size={28}
+              color={colors.warning}
+            />
           </View>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
@@ -59,7 +71,7 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: colors.overlay,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: spacing.lg,
   },
   sheet: {
@@ -70,31 +82,31 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   iconWrap: {
-    alignSelf: 'center',
+    alignSelf: "center",
     width: 52,
     height: 52,
     borderRadius: radius.full,
     backgroundColor: `${colors.warning}18`,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: spacing.md,
   },
   title: {
     ...typography.heading,
     color: colors.text,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: spacing.sm,
   },
   message: {
     ...typography.body,
     color: colors.textMuted,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 14,
     lineHeight: 20,
     marginBottom: spacing.lg,
   },
   actions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.sm,
   },
   actionBtn: {

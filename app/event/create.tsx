@@ -1,17 +1,16 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { DateTimePickerField } from '../../components/DateTimePickerField';
-import { LocationPicker } from '../../components/LocationPicker';
-import { PlayersPerGamePicker } from '../../components/PlayersPerGamePicker';
-import { Button, Input } from '../../components/ui';
-import { clampPlayersPerGame, DEFAULT_PLAYERS_PER_GAME } from '../../lib/gameFormats';
-import { searchPlaces } from '../../lib/geocoding';
-import { EventLocation } from '../../lib/location';
-import { colors, radius, spacing, typography } from '../../lib/theme';
-import { getDefaultGameDateTime, useAppStore } from '../../store/useAppStore';
-import { useMyClubs } from '../../store/hooks';
+import { DateTimePickerField } from "../../components/DateTimePickerField";
+import { LocationPicker } from "../../components/LocationPicker";
+import { Button, Input } from "../../components/ui";
+import { useUpgradePrompt } from "../../lib/useUpgradePrompt";
+import { searchPlaces } from "../../lib/geocoding";
+import { EventLocation } from "../../lib/location";
+import { colors, radius, spacing, typography } from "../../lib/theme";
+import { getDefaultGameDateTime, useAppStore } from "../../store/useAppStore";
+import { useMyClubs } from "../../store/hooks";
 
 const PLAYER_PRESETS = [10, 20, 30, 40] as const;
 const MIN_PLAYERS = 10;
@@ -32,17 +31,20 @@ export default function CreateEventScreen() {
   const { clubId: paramClubId } = useLocalSearchParams<{ clubId?: string }>();
   const myClubs = useMyClubs();
   const createEvent = useAppStore((state) => state.createEvent);
+  const { handleSubscriptionError } = useUpgradePrompt();
 
-  const [clubId, setClubId] = useState(paramClubId ?? myClubs[0]?.id ?? '');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [eventLocation, setEventLocation] = useState<EventLocation | null>(null);
+  const [clubId, setClubId] = useState(paramClubId ?? myClubs[0]?.id ?? "");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [eventLocation, setEventLocation] = useState<EventLocation | null>(
+    null,
+  );
   const [maxPlayers, setMaxPlayers] = useState<number>(10);
-  const [playersPerGame, setPlayersPerGame] = useState(DEFAULT_PLAYERS_PER_GAME);
-  const [customMaxPlayers, setCustomMaxPlayers] = useState('20');
+  const [customMaxPlayers, setCustomMaxPlayers] = useState("20");
   const [useCustomMax, setUseCustomMax] = useState(false);
   const [dateTime, setDateTime] = useState(getDefaultGameDateTime());
   const [loading, setLoading] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const selectedClub = useMemo(
     () => myClubs.find((club) => club.id === clubId),
@@ -54,20 +56,15 @@ export default function CreateEventScreen() {
     return parseCustomMaxPlayers(customMaxPlayers);
   }, [customMaxPlayers, maxPlayers, useCustomMax]);
 
-  const resolvedPlayersPerGame = useMemo(() => {
-    if (resolvedMaxPlayers == null) return DEFAULT_PLAYERS_PER_GAME;
-    return clampPlayersPerGame(playersPerGame, resolvedMaxPlayers);
-  }, [playersPerGame, resolvedMaxPlayers]);
-
   const isFutureDate = dateTime.getTime() > Date.now();
   const canCreate =
-    title.trim().length >= 3
-    && Boolean(eventLocation?.label.trim())
-    && eventLocation?.latitude != null
-    && eventLocation?.longitude != null
-    && clubId
-    && isFutureDate
-    && resolvedMaxPlayers != null;
+    title.trim().length >= 3 &&
+    Boolean(eventLocation?.label.trim()) &&
+    eventLocation?.latitude != null &&
+    eventLocation?.longitude != null &&
+    clubId &&
+    isFutureDate &&
+    resolvedMaxPlayers != null;
 
   useEffect(() => {
     if (!selectedClub) return;
@@ -81,34 +78,52 @@ export default function CreateEventScreen() {
       .catch(() => undefined);
   }, [selectedClub?.id, selectedClub?.location]);
 
-  const handleCreate = async () => {
-    if (!eventLocation || resolvedMaxPlayers == null) return;
+  const handleCreate = () => {
+    if (!eventLocation || resolvedMaxPlayers == null || loading) return;
 
     setLoading(true);
-    const id = await createEvent({
-      clubId,
-      title: title.trim(),
-      description: description.trim() || 'Pickup basketball run. All members welcome!',
-      location: eventLocation.label.trim(),
-      latitude: eventLocation.latitude,
-      longitude: eventLocation.longitude,
-      dateTime: dateTime.toISOString(),
-      maxPlayers: resolvedMaxPlayers,
-      playersPerGame: resolvedPlayersPerGame,
-    });
-    setLoading(false);
+    setCreateError(null);
 
-    if (id) {
-      router.replace(`/event/${id}`);
-    }
+    void (async () => {
+      try {
+        const id = await createEvent({
+          clubId,
+          title: title.trim(),
+          description:
+            description.trim() || "Pickup basketball run. All members welcome!",
+          location: eventLocation.label.trim(),
+          latitude: eventLocation.latitude,
+          longitude: eventLocation.longitude,
+          dateTime: dateTime.toISOString(),
+          maxPlayers: resolvedMaxPlayers,
+        });
+
+        if (!id) {
+          setCreateError("Could not create the game. Sign in and try again.");
+          return;
+        }
+
+        router.replace(`/event/${id}`);
+      } catch (error) {
+        if (handleSubscriptionError(error)) return;
+        setCreateError("Could not create the game. Try again.");
+      } finally {
+        setLoading(false);
+      }
+    })();
   };
 
   if (myClubs.length === 0) {
     return (
       <View style={styles.empty}>
         <Text style={styles.emptyTitle}>Join a club first</Text>
-        <Text style={styles.emptyDesc}>You need to be in a club to create games.</Text>
-        <Button title="Browse Clubs" onPress={() => router.navigate('/clubs')} />
+        <Text style={styles.emptyDesc}>
+          You need to be in a club to create games.
+        </Text>
+        <Button
+          title="Browse Clubs"
+          onPress={() => router.navigate("/clubs")}
+        />
       </View>
     );
   }
@@ -127,9 +142,17 @@ export default function CreateEventScreen() {
             onPress={() => {
               setClubId(club.id);
             }}
-            style={[styles.clubOption, clubId === club.id && styles.clubOptionActive]}
+            style={[
+              styles.clubOption,
+              clubId === club.id && styles.clubOptionActive,
+            ]}
           >
-            <Text style={[styles.clubOptionText, clubId === club.id && styles.clubOptionTextActive]}>
+            <Text
+              style={[
+                styles.clubOptionText,
+                clubId === club.id && styles.clubOptionTextActive,
+              ]}
+            >
               {club.name}
             </Text>
           </Pressable>
@@ -137,7 +160,12 @@ export default function CreateEventScreen() {
       </View>
 
       <Text style={styles.label}>Game Title</Text>
-      <Input placeholder="e.g. Tuesday Night Run" value={title} onChangeText={setTitle} style={styles.field} />
+      <Input
+        placeholder="e.g. Tuesday Night Run"
+        value={title}
+        onChangeText={setTitle}
+        style={styles.field}
+      />
 
       <Text style={styles.label}>When</Text>
       <DateTimePickerField
@@ -150,7 +178,11 @@ export default function CreateEventScreen() {
       <LocationPicker
         value={eventLocation}
         onChange={setEventLocation}
-        placeholder={selectedClub ? `Search near ${selectedClub.location}` : 'Search courts, gyms, parks...'}
+        placeholder={
+          selectedClub
+            ? `Search near ${selectedClub.location}`
+            : "Search courts, gyms, parks..."
+        }
       />
 
       <Text style={styles.label}>Description</Text>
@@ -172,18 +204,40 @@ export default function CreateEventScreen() {
               setUseCustomMax(false);
               setMaxPlayers(count);
             }}
-            style={[styles.playerOption, !useCustomMax && maxPlayers === count && styles.playerOptionActive]}
+            style={[
+              styles.playerOption,
+              !useCustomMax &&
+                maxPlayers === count &&
+                styles.playerOptionActive,
+            ]}
           >
-            <Text style={[styles.playerOptionValue, !useCustomMax && maxPlayers === count && styles.playerOptionValueActive]}>
+            <Text
+              style={[
+                styles.playerOptionValue,
+                !useCustomMax &&
+                  maxPlayers === count &&
+                  styles.playerOptionValueActive,
+              ]}
+            >
               {count}
             </Text>
           </Pressable>
         ))}
         <Pressable
           onPress={() => setUseCustomMax(true)}
-          style={[styles.playerOption, useCustomMax && styles.playerOptionActive]}
+          style={[
+            styles.playerOption,
+            useCustomMax && styles.playerOptionActive,
+          ]}
         >
-          <Text style={[styles.playerOptionValue, useCustomMax && styles.playerOptionValueActive]}>Custom</Text>
+          <Text
+            style={[
+              styles.playerOptionValue,
+              useCustomMax && styles.playerOptionValueActive,
+            ]}
+          >
+            Custom
+          </Text>
         </Pressable>
       </View>
 
@@ -202,15 +256,9 @@ export default function CreateEventScreen() {
               : `${resolvedMaxPlayers} players`}
           </Text>
         </View>
-        ) : null}
+      ) : null}
 
-      <Text style={styles.label}>Players Per Court</Text>
-      <PlayersPerGamePicker
-        value={resolvedPlayersPerGame}
-        maxPlayers={resolvedMaxPlayers ?? MAX_PLAYERS}
-        onChange={setPlayersPerGame}
-        disabled={resolvedMaxPlayers == null}
-      />
+      {createError ? <Text style={styles.errorHint}>{createError}</Text> : null}
 
       <Button
         title="Create Game"
@@ -235,8 +283,8 @@ const styles = StyleSheet.create({
   empty: {
     flex: 1,
     backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: spacing.lg,
   },
   emptyTitle: {
@@ -248,7 +296,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textMuted,
     marginBottom: spacing.lg,
-    textAlign: 'center',
+    textAlign: "center",
   },
   label: {
     ...typography.label,
@@ -257,8 +305,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   clubPicker: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },
@@ -277,7 +325,7 @@ const styles = StyleSheet.create({
   clubOptionText: {
     ...typography.caption,
     color: colors.textMuted,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   clubOptionTextActive: {
     color: colors.primary,
@@ -287,11 +335,11 @@ const styles = StyleSheet.create({
   },
   textArea: {
     minHeight: 88,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   playerPicker: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },
@@ -303,7 +351,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    alignItems: 'center',
+    alignItems: "center",
     gap: 2,
   },
   playerOptionActive: {
@@ -324,6 +372,11 @@ const styles = StyleSheet.create({
   customHint: {
     ...typography.caption,
     color: colors.textDim,
+    marginBottom: spacing.sm,
+  },
+  errorHint: {
+    ...typography.caption,
+    color: colors.error,
     marginBottom: spacing.sm,
   },
   submit: {

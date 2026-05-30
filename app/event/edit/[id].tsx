@@ -1,17 +1,17 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { DateTimePickerField } from '../../../components/DateTimePickerField';
-import { LocationPicker } from '../../../components/LocationPicker';
-import { PlayersPerGamePicker } from '../../../components/PlayersPerGamePicker';
-import { Button, Input } from '../../../components/ui';
-import { canEditEvent, hasEventStarted } from '../../../lib/gameEvents';
-import { clampPlayersPerGame, getPlayersPerGame } from '../../../lib/gameFormats';
-import { EventLocation } from '../../../lib/location';
-import { colors, radius, spacing, typography } from '../../../lib/theme';
-import { useClub, useEvent } from '../../../store/hooks';
-import { useAppStore } from '../../../store/useAppStore';
+import { DateTimePickerField } from "../../../components/DateTimePickerField";
+import { LocationPicker } from "../../../components/LocationPicker";
+import { Button, FormScreenSkeleton, Input } from "../../../components/ui";
+import { shouldShowEntitySkeleton } from "../../../lib/entityLoading";
+import { canEditEvent, hasEventStarted } from "../../../lib/gameEvents";
+import { EventLocation } from "../../../lib/location";
+import { colors, radius, spacing, typography } from "../../../lib/theme";
+import { useRefreshControl } from "../../../lib/useRefreshControl";
+import { useClub, useEvent } from "../../../store/hooks";
+import { useAppStore } from "../../../store/useAppStore";
 
 const PLAYER_PRESETS = [10, 20, 30, 40] as const;
 const MIN_PLAYERS = 10;
@@ -35,22 +35,28 @@ export default function EditEventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const event = useEvent(id);
-  const club = useClub(event?.clubId ?? '');
+  const club = useClub(event?.clubId ?? "");
   const currentUserId = useAppStore((state) => state.currentUserId);
   const editEvent = useAppStore((state) => state.editEvent);
+  const events = useAppStore((state) => state.events);
+  const hydrated = useAppStore((state) => state.hydrated);
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [eventLocation, setEventLocation] = useState<EventLocation | null>(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [eventLocation, setEventLocation] = useState<EventLocation | null>(
+    null,
+  );
   const [maxPlayers, setMaxPlayers] = useState<number>(10);
-  const [playersPerGame, setPlayersPerGame] = useState(10);
-  const [customMaxPlayers, setCustomMaxPlayers] = useState('20');
+  const [customMaxPlayers, setCustomMaxPlayers] = useState("20");
   const [useCustomMax, setUseCustomMax] = useState(false);
   const [dateTime, setDateTime] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const { refreshControl } = useRefreshControl();
 
-  const canEdit = event ? canEditEvent(event, currentUserId, club?.adminId) : false;
+  const canEdit = event
+    ? canEditEvent(event, currentUserId, club?.adminId)
+    : false;
   const eventStarted = event ? hasEventStarted(event) : false;
   const joinedCount = event?.participantIds.length ?? 0;
 
@@ -74,8 +80,6 @@ export default function EditEventScreen() {
       setCustomMaxPlayers(String(event.maxPlayers));
     }
 
-    setPlayersPerGame(clampPlayersPerGame(getPlayersPerGame(event), event.maxPlayers));
-
     setInitialized(true);
   }, [event, initialized]);
 
@@ -84,22 +88,18 @@ export default function EditEventScreen() {
     return parseCustomMaxPlayers(customMaxPlayers);
   }, [customMaxPlayers, maxPlayers, useCustomMax]);
 
-  const resolvedPlayersPerGame = useMemo(() => {
-    if (resolvedMaxPlayers == null) return playersPerGame;
-    return clampPlayersPerGame(playersPerGame, resolvedMaxPlayers);
-  }, [playersPerGame, resolvedMaxPlayers]);
-
   const isValidDate = eventStarted || dateTime.getTime() > Date.now();
-  const maxPlayersOk = resolvedMaxPlayers != null && resolvedMaxPlayers >= joinedCount;
+  const maxPlayersOk =
+    resolvedMaxPlayers != null && resolvedMaxPlayers >= joinedCount;
 
   const canSave =
-    title.trim().length >= 3
-    && Boolean(eventLocation?.label.trim())
-    && eventLocation?.latitude != null
-    && eventLocation?.longitude != null
-    && isValidDate
-    && maxPlayersOk
-    && canEdit;
+    title.trim().length >= 3 &&
+    Boolean(eventLocation?.label.trim()) &&
+    eventLocation?.latitude != null &&
+    eventLocation?.longitude != null &&
+    isValidDate &&
+    maxPlayersOk &&
+    canEdit;
 
   const handleSave = async () => {
     if (!event || !eventLocation || resolvedMaxPlayers == null) return;
@@ -107,13 +107,13 @@ export default function EditEventScreen() {
     setLoading(true);
     const saved = await editEvent(event.id, {
       title: title.trim(),
-      description: description.trim() || 'Pickup basketball run. All members welcome!',
+      description:
+        description.trim() || "Pickup basketball run. All members welcome!",
       location: eventLocation.label.trim(),
       latitude: eventLocation.latitude,
       longitude: eventLocation.longitude,
       dateTime: dateTime.toISOString(),
       maxPlayers: resolvedMaxPlayers,
-      playersPerGame: resolvedPlayersPerGame,
     });
     setLoading(false);
 
@@ -123,6 +123,10 @@ export default function EditEventScreen() {
   };
 
   if (!event) {
+    if (shouldShowEntitySkeleton(event, hydrated, events.length === 0)) {
+      return <FormScreenSkeleton fields={6} />;
+    }
+
     return (
       <View style={styles.blocked}>
         <Text style={styles.blockedText}>Game not found.</Text>
@@ -130,14 +134,19 @@ export default function EditEventScreen() {
     );
   }
 
+  if (!initialized) {
+    return <FormScreenSkeleton fields={6} />;
+  }
+
   if (!canEdit) {
     return (
       <>
-        <Stack.Screen options={{ headerTitle: 'Edit Game' }} />
+        <Stack.Screen options={{ headerTitle: "Edit Game" }} />
         <View style={styles.blocked}>
           <Text style={styles.blockedTitle}>Editing locked</Text>
           <Text style={styles.blockedText}>
-            Only the game creator or club admin can edit, and only before the game closes.
+            Only the game creator or club admin can edit, and only before the
+            game closes.
           </Text>
         </View>
       </>
@@ -146,19 +155,26 @@ export default function EditEventScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerTitle: 'Edit Game' }} />
+      <Stack.Screen options={{ headerTitle: "Edit Game" }} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        refreshControl={refreshControl}
+        showsVerticalScrollIndicator={false}
       >
         <Text style={styles.label}>Club</Text>
         <View style={styles.clubReadonly}>
-          <Text style={styles.clubReadonlyText}>{club?.name ?? 'Club'}</Text>
+          <Text style={styles.clubReadonlyText}>{club?.name ?? "Club"}</Text>
         </View>
 
         <Text style={styles.label}>Game Title</Text>
-        <Input placeholder="e.g. Tuesday Night Run" value={title} onChangeText={setTitle} style={styles.field} />
+        <Input
+          placeholder="e.g. Tuesday Night Run"
+          value={title}
+          onChangeText={setTitle}
+          style={styles.field}
+        />
 
         <Text style={styles.label}>When</Text>
         <DateTimePickerField
@@ -167,14 +183,20 @@ export default function EditEventScreen() {
           minimumDate={eventStarted ? undefined : new Date()}
         />
         {!isValidDate ? (
-          <Text style={styles.errorHint}>Schedule must be in the future before tip-off.</Text>
+          <Text style={styles.errorHint}>
+            Schedule must be in the future before tip-off.
+          </Text>
         ) : null}
 
         <Text style={styles.label}>Location</Text>
         <LocationPicker
           value={eventLocation}
           onChange={setEventLocation}
-          placeholder={club ? `Search near ${club.location}` : 'Search courts, gyms, parks...'}
+          placeholder={
+            club
+              ? `Search near ${club.location}`
+              : "Search courts, gyms, parks..."
+          }
         />
 
         <Text style={styles.label}>Description</Text>
@@ -196,12 +218,19 @@ export default function EditEventScreen() {
                 setUseCustomMax(false);
                 setMaxPlayers(count);
               }}
-              style={[styles.playerOption, !useCustomMax && maxPlayers === count && styles.playerOptionActive]}
+              style={[
+                styles.playerOption,
+                !useCustomMax &&
+                  maxPlayers === count &&
+                  styles.playerOptionActive,
+              ]}
             >
               <Text
                 style={[
                   styles.playerOptionValue,
-                  !useCustomMax && maxPlayers === count && styles.playerOptionValueActive,
+                  !useCustomMax &&
+                    maxPlayers === count &&
+                    styles.playerOptionValueActive,
                 ]}
               >
                 {count}
@@ -210,9 +239,19 @@ export default function EditEventScreen() {
           ))}
           <Pressable
             onPress={() => setUseCustomMax(true)}
-            style={[styles.playerOption, useCustomMax && styles.playerOptionActive]}
+            style={[
+              styles.playerOption,
+              useCustomMax && styles.playerOptionActive,
+            ]}
           >
-            <Text style={[styles.playerOptionValue, useCustomMax && styles.playerOptionValueActive]}>Custom</Text>
+            <Text
+              style={[
+                styles.playerOptionValue,
+                useCustomMax && styles.playerOptionValueActive,
+              ]}
+            >
+              Custom
+            </Text>
           </Pressable>
         </View>
 
@@ -233,17 +272,10 @@ export default function EditEventScreen() {
           </View>
         ) : null}
 
-        <Text style={styles.label}>Players Per Court</Text>
-        <PlayersPerGamePicker
-          value={resolvedPlayersPerGame}
-          maxPlayers={resolvedMaxPlayers ?? MAX_PLAYERS}
-          onChange={setPlayersPerGame}
-          disabled={resolvedMaxPlayers == null}
-        />
-
         {!maxPlayersOk ? (
           <Text style={styles.errorHint}>
-            Max players cannot be below the {joinedCount} players already joined.
+            Max players cannot be below the {joinedCount} players already
+            joined.
           </Text>
         ) : null}
 
@@ -271,8 +303,8 @@ const styles = StyleSheet.create({
   blocked: {
     flex: 1,
     backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: spacing.lg,
     gap: spacing.sm,
   },
@@ -283,7 +315,7 @@ const styles = StyleSheet.create({
   blockedText: {
     ...typography.body,
     color: colors.textMuted,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 14,
   },
   label: {
@@ -299,24 +331,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     marginBottom: spacing.sm,
   },
   clubReadonlyText: {
     ...typography.caption,
     color: colors.text,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   field: {
     marginBottom: spacing.sm,
   },
   textArea: {
     minHeight: 88,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   playerPicker: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },
@@ -328,7 +360,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    alignItems: 'center',
+    alignItems: "center",
     gap: 2,
   },
   playerOptionActive: {

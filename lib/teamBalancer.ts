@@ -1,4 +1,4 @@
-import { BalancedTeams, PlayerStats, UserProfile } from './types';
+import { BalancedTeams, PlayerStats, UserProfile } from "./types";
 
 const STAT_WEIGHTS = {
   speed: 1.2,
@@ -51,8 +51,14 @@ export function balanceTeams(players: UserProfile[]): BalancedTeams {
     }
   });
 
-  const ratingA = teamA.reduce((sum, p) => sum + calculatePlayerRating(p.stats), 0);
-  const ratingB = teamB.reduce((sum, p) => sum + calculatePlayerRating(p.stats), 0);
+  const ratingA = teamA.reduce(
+    (sum, p) => sum + calculatePlayerRating(p.stats),
+    0,
+  );
+  const ratingB = teamB.reduce(
+    (sum, p) => sum + calculatePlayerRating(p.stats),
+    0,
+  );
 
   return { teamA, teamB, ratingA, ratingB };
 }
@@ -66,8 +72,8 @@ export function getBalanceLabel(teams: BalancedTeams): string {
   const avg = (teams.ratingA + teams.ratingB) / 2 || 1;
   const percent = (diff / avg) * 100;
 
-  if (percent <= 5) return 'Perfectly balanced';
-  if (percent <= 12) return 'Well balanced';
-  if (percent <= 20) return 'Fair match';
-  return 'Slight mismatch';
+  if (percent <= 5) return "Perfectly balanced";
+  if (percent <= 12) return "Well balanced";
+  if (percent <= 20) return "Fair match";
+  return "Slight mismatch";
 }

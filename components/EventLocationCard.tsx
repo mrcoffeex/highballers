@@ -1,11 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, Text, View } from "react-native";
 
-import { EventLocation } from '../lib/location';
-import { openGoogleMaps } from '../lib/maps';
-import { colors, spacing, typography } from '../lib/theme';
-import { EventMapPreview } from './EventMapPreview';
-import { Button } from './ui';
+import { EventLocation } from "../lib/location";
+import { openGoogleMaps } from "../lib/maps";
+import { colors, spacing, typography } from "../lib/theme";
+import { EventMapPreview } from "./EventMapPreview";
+import { Button } from "./ui";
 
 interface EventLocationCardProps {
   location: EventLocation;
@@ -24,7 +24,9 @@ export function EventLocationCard({ location }: EventLocationCardProps) {
           <Text style={styles.label}>Game location</Text>
         </View>
         <Text style={styles.address}>{location.label}</Text>
-        <Text style={styles.coords}>{location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}</Text>
+        <Text style={styles.coords}>
+          {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
+        </Text>
       </View>
 
       <Button
@@ -46,8 +48,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.xs,
   },
   label: {

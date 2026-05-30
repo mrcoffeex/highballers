@@ -1,37 +1,132 @@
-import * as QueryParams from 'expo-auth-session/build/QueryParams';
-import { makeRedirectUri } from 'expo-auth-session';
-import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
-import { Platform } from 'react-native';
+import * as QueryParams from "expo-auth-session/build/QueryParams";
+import { makeRedirectUri } from "expo-auth-session";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
+import { Platform } from "react-native";
 
-import { getSupabase } from './supabase';
+import { getSupabase } from "./supabase";
 
 WebBrowser.maybeCompleteAuthSession();
 
 const exchangedCodes = new Set<string>();
 
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+export function paramsHaveOAuthPayload(params: SearchParams): boolean {
+  return !!(
+    firstParam(params.code) ||
+    firstParam(params.access_token) ||
+    firstParam(params.error) ||
+    firstParam(params.error_description)
+  );
+}
+
+export function urlHasOAuthPayload(url: string): boolean {
+  return /(?:[?&#])(?:code|access_token|error)=/.test(url);
+}
+
 export function getOAuthRedirectUri() {
+  if (Platform.OS === "web") {
+    if (typeof window !== "undefined" && window.location?.origin) {
+      return `${window.location.origin}/oauth-callback`;
+    }
+
+    const appUrl = process.env.EXPO_PUBLIC_APP_URL?.replace(/\/$/, "");
+    if (appUrl) {
+      return `${appUrl}/oauth-callback`;
+    }
+  }
+
   return makeRedirectUri({
-    scheme: 'highballers',
-    path: 'oauth-callback',
+    scheme: "highballers",
+    path: "oauth-callback",
+    preferLocalhost: true,
   });
 }
 
-export async function getOAuthCallbackUrl() {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return window.location.href;
+export function buildCallbackHrefFromParams(params: SearchParams): string | null {
+  if (!paramsHaveOAuthPayload(params)) return null;
+
+  const search = new URLSearchParams();
+  for (const key of [
+    "code",
+    "access_token",
+    "refresh_token",
+    "error",
+    "error_description",
+    "error_code",
+  ] as const) {
+    const value = firstParam(params[key]);
+    if (value) search.set(key, value);
   }
 
-  return Linking.getInitialURL();
+  const qs = search.toString();
+  if (!qs) return null;
+
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    return `${window.location.origin}/oauth-callback?${qs}`;
+  }
+
+  return Linking.createURL("oauth-callback", {
+    scheme: "highballers",
+    queryParams: Object.fromEntries(search.entries()),
+  });
+}
+
+/** Resolve the OAuth return URL from deep links, router params, or the browser location. */
+export async function resolveOAuthCallbackHref(options: {
+  linkingUrl?: string | null;
+  params?: SearchParams;
+}): Promise<string | null> {
+  const { linkingUrl = null, params = {} } = options;
+
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    const href = window.location.href;
+    if (urlHasOAuthPayload(href)) return href;
+  }
+
+  if (linkingUrl && urlHasOAuthPayload(linkingUrl)) {
+    return linkingUrl;
+  }
+
+  const fromRouterParams = buildCallbackHrefFromParams(params);
+  if (fromRouterParams) return fromRouterParams;
+
+  try {
+    const parsed = await Linking.parseInitialURLAsync();
+    const parsedParams = (parsed.queryParams ?? {}) as SearchParams;
+
+    if (parsedParams && paramsHaveOAuthPayload(parsedParams)) {
+      const built = buildCallbackHrefFromParams(parsedParams);
+      if (built) return built;
+    }
+
+  } catch {
+    // parseInitialURLAsync can fail on some platforms; fall through.
+  }
+
+  const legacy = await Linking.getInitialURL();
+  if (legacy && urlHasOAuthPayload(legacy)) {
+    return legacy;
+  }
+
+  return null;
 }
 
 function parseAuthParams(url: string) {
   return QueryParams.getQueryParams(url);
 }
 
-export async function createSessionFromUrl(url: string): Promise<string | null> {
+export async function createSessionFromUrl(
+  url: string,
+): Promise<string | null> {
   const supabase = getSupabase();
-  if (!supabase) return 'Cloud sync is not configured.';
+  if (!supabase) return "Cloud sync is not configured.";
 
   const { params, errorCode } = parseAuthParams(url);
 
@@ -42,7 +137,7 @@ export async function createSessionFromUrl(url: string): Promise<string | null> 
   if (params.code) {
     if (exchangedCodes.has(params.code)) {
       const { data } = await supabase.auth.getSession();
-      return data.session ? null : 'Sign in session expired. Please try again.';
+      return data.session ? null : "Sign in session expired. Please try again.";
     }
 
     exchangedCodes.add(params.code);
@@ -67,31 +162,34 @@ export async function createSessionFromUrl(url: string): Promise<string | null> 
     return error?.message ?? null;
   }
 
-  return 'No auth code or tokens found in redirect URL.';
+  const { data } = await supabase.auth.getSession();
+  if (data.session) return null;
+
+  return "No auth code or tokens found in redirect URL.";
 }
 
 export async function signInWithGoogle(): Promise<string | null> {
   const supabase = getSupabase();
-  if (!supabase) return 'Cloud sync is not configured.';
+  if (!supabase) return "Cloud sync is not configured.";
 
   const redirectTo = getOAuthRedirectUri();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
+    provider: "google",
     options: {
       redirectTo,
-      skipBrowserRedirect: Platform.OS !== 'web',
+      skipBrowserRedirect: Platform.OS !== "web",
       queryParams: {
-        access_type: 'offline',
-        prompt: 'consent',
+        access_type: "offline",
+        prompt: "consent",
       },
     },
   });
 
   if (error) return error.message;
-  if (!data.url) return 'Unable to start Google sign in.';
+  if (!data.url) return "Unable to start Google sign in.";
 
-  if (Platform.OS === 'web') {
+  if (Platform.OS === "web") {
     window.location.assign(data.url);
     return null;
   }
@@ -100,38 +198,46 @@ export async function signInWithGoogle(): Promise<string | null> {
     showInRecents: true,
   });
 
-  if (result.type === 'success' && result.url) {
-    return createSessionFromUrl(result.url);
+  if (result.type === "success" && result.url) {
+    const sessionError = await createSessionFromUrl(result.url);
+    if (!sessionError) return null;
+
+    const { data } = await supabase.auth.getSession();
+    if (data.session) return null;
+
+    return sessionError;
   }
 
-  if (result.type === 'cancel' || result.type === 'dismiss') {
+  if (result.type === "cancel" || result.type === "dismiss") {
     return null;
   }
 
-  return 'Google sign in was interrupted.';
+  return "Google sign in was interrupted.";
 }
 
-export function getGoogleProfileHints(session: { user?: { user_metadata?: Record<string, unknown> } } | null) {
+export function getGoogleProfileHints(
+  session: { user?: { user_metadata?: Record<string, unknown> } } | null,
+) {
   const metadata = session?.user?.user_metadata;
   if (!metadata) {
-    return { name: '', avatarUrl: undefined as string | undefined };
+    return { name: "", avatarUrl: undefined as string | undefined };
   }
 
   const name =
-    (typeof metadata.full_name === 'string' && metadata.full_name) ||
-    (typeof metadata.name === 'string' && metadata.name) ||
-    '';
+    (typeof metadata.full_name === "string" && metadata.full_name) ||
+    (typeof metadata.name === "string" && metadata.name) ||
+    "";
 
   const avatarUrl =
-    (typeof metadata.avatar_url === 'string' && metadata.avatar_url) ||
-    (typeof metadata.picture === 'string' && metadata.picture) ||
+    (typeof metadata.avatar_url === "string" && metadata.avatar_url) ||
+    (typeof metadata.picture === "string" && metadata.picture) ||
     undefined;
 
   return { name, avatarUrl };
 }
 
 export function clearOAuthCallbackUrl() {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    window.history.replaceState({}, document.title, '/oauth-callback');
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    window.history.replaceState({}, document.title, "/");
   }
 }

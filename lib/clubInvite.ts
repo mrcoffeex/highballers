@@ -1,17 +1,17 @@
-import Constants from 'expo-constants';
-import * as Linking from 'expo-linking';
-import { Platform } from 'react-native';
+import Constants from "expo-constants";
+import * as Linking from "expo-linking";
+import { Platform } from "react-native";
 
-const APP_SCHEME = 'highballers';
+const APP_SCHEME = "highballers";
 
 export function getClubInvitePath(clubId: string) {
   return `/clubs/${clubId}`;
 }
 
 export function getClubInviteUrl(clubId: string) {
-  const configuredOrigin = process.env.EXPO_PUBLIC_APP_URL?.replace(/\/$/, '');
+  const configuredOrigin = process.env.EXPO_PUBLIC_APP_URL?.replace(/\/$/, "");
 
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
     return `${configuredOrigin ?? window.location.origin}${getClubInvitePath(clubId)}`;
   }
 
@@ -28,5 +28,5 @@ export function getClubInviteMessage(clubName: string, clubId: string) {
 }
 
 export function getAppDisplayName() {
-  return Constants.expoConfig?.name ?? 'HighBallers';
+  return Constants.expoConfig?.name ?? "HighBallers";
 }

@@ -1,13 +1,20 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
-import { Club, GameEvent, GameStatRecord, UserProfile } from '../lib/types';
+import {
+  Club,
+  GameEvent,
+  GameStatRecord,
+  SubscriptionTier,
+  UserProfile,
+} from "../lib/types";
+import { getUserTier, isAllStar } from "../lib/subscription";
 import {
   normalizeEventCourts,
   resolveActiveRosterPlayers,
   resolveCourtGames,
   resolveWaitlistPlayers,
-} from '../lib/eventRoster';
-import { useAppStore } from './useAppStore';
+} from "../lib/eventRoster";
+import { useAppStore } from "./useAppStore";
 
 export function useCurrentUser(): UserProfile | null {
   const currentUserId = useAppStore((state) => state.currentUserId);
@@ -17,6 +24,16 @@ export function useCurrentUser(): UserProfile | null {
     () => users.find((user) => user.id === currentUserId) ?? null,
     [users, currentUserId],
   );
+}
+
+export function useSubscriptionTier(): SubscriptionTier {
+  const user = useCurrentUser();
+  return getUserTier(user);
+}
+
+export function useIsAllStar(): boolean {
+  const user = useCurrentUser();
+  return isAllStar(user);
 }
 
 export function useMyClubs(): Club[] {
@@ -36,7 +53,10 @@ export function useUpcomingEvents(): GameEvent[] {
     const now = Date.now();
     return events
       .filter((event) => new Date(event.dateTime).getTime() >= now)
-      .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+      .sort(
+        (a, b) =>
+          new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime(),
+      );
   }, [events]);
 }
 
@@ -45,9 +65,14 @@ export function useClub(clubId: string): Club | undefined {
 }
 
 export function useEvent(eventId: string): GameEvent | undefined {
-  const event = useAppStore((state) => state.events.find((item) => item.id === eventId));
+  const event = useAppStore((state) =>
+    state.events.find((item) => item.id === eventId),
+  );
 
-  return useMemo(() => (event ? normalizeEventCourts(event) : undefined), [event]);
+  return useMemo(
+    () => (event ? normalizeEventCourts(event) : undefined),
+    [event],
+  );
 }
 
 export function useUser(userId: string): UserProfile | undefined {
@@ -55,7 +80,9 @@ export function useUser(userId: string): UserProfile | undefined {
 }
 
 export function useClubJoinRequests(clubId: string) {
-  return useAppStore((state) => state.joinRequests.filter((request) => request.clubId === clubId));
+  return useAppStore((state) =>
+    state.joinRequests.filter((request) => request.clubId === clubId),
+  );
 }
 
 export function useMyJoinRequest(clubId: string) {
@@ -63,12 +90,18 @@ export function useMyJoinRequest(clubId: string) {
   const joinRequests = useAppStore((state) => state.joinRequests);
 
   return useMemo(
-    () => joinRequests.find((request) => request.clubId === clubId && request.userId === currentUserId) ?? null,
+    () =>
+      joinRequests.find(
+        (request) =>
+          request.clubId === clubId && request.userId === currentUserId,
+      ) ?? null,
     [clubId, currentUserId, joinRequests],
   );
 }
 
-export function usePlayerGameHistory(userId: string): Array<GameStatRecord & { event?: GameEvent }> {
+export function usePlayerGameHistory(
+  userId: string,
+): Array<GameStatRecord & { event?: GameEvent }> {
   const gameStatRecords = useAppStore((state) => state.gameStatRecords);
   const events = useAppStore((state) => state.events);
 
@@ -79,7 +112,10 @@ export function usePlayerGameHistory(userId: string): Array<GameStatRecord & { e
         ...record,
         event: events.find((event) => event.id === record.eventId),
       }))
-      .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+      .sort(
+        (a, b) =>
+          new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime(),
+      );
   }, [gameStatRecords, events, userId]);
 }
 
@@ -94,14 +130,20 @@ export function useActiveRoster(
   }, [event, users, courtGameIndex]);
 }
 
-export function useCourtGames(event: GameEvent | undefined, users: UserProfile[]) {
+export function useCourtGames(
+  event: GameEvent | undefined,
+  users: UserProfile[],
+) {
   return useMemo(() => {
     if (!event) return [];
     return resolveCourtGames(event, users);
   }, [event, users]);
 }
 
-export function useEventWaitlist(event: GameEvent | undefined, users: UserProfile[]) {
+export function useEventWaitlist(
+  event: GameEvent | undefined,
+  users: UserProfile[],
+) {
   return useMemo(() => {
     if (!event) return [];
     return resolveWaitlistPlayers(event, users);

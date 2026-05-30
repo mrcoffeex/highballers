@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
-import { useMemo, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
+import { useMemo, useState } from "react";
 import {
   Modal,
   Platform,
@@ -9,18 +9,18 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
+} from "react-native";
+import QRCode from "react-native-qrcode-svg";
 
-import { getClubInviteMessage, getClubInviteUrl } from '../lib/clubInvite';
-import { colors, radius, spacing, typography } from '../lib/theme';
-import { Button } from './ui';
+import { getClubInviteMessage, getClubInviteUrl } from "../lib/clubInvite";
+import { colors, radius, spacing, typography } from "../lib/theme";
+import { Button } from "./ui";
 
 interface ClubInviteModalProps {
   visible: boolean;
   clubId: string;
   clubName: string;
-  visibility: 'open' | 'private';
+  visibility: "open" | "private";
   onClose: () => void;
 }
 
@@ -46,9 +46,13 @@ export function ClubInviteModal({
 
   const handleShare = async () => {
     try {
-      if (Platform.OS === 'web') {
-        if (typeof navigator !== 'undefined' && navigator.share) {
-          await navigator.share({ title: `Join ${clubName}`, text: inviteMessage, url: inviteUrl });
+      if (Platform.OS === "web") {
+        if (typeof navigator !== "undefined" && navigator.share) {
+          await navigator.share({
+            title: `Join ${clubName}`,
+            text: inviteMessage,
+            url: inviteUrl,
+          });
           return;
         }
 
@@ -67,9 +71,17 @@ export function ClubInviteModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+        <Pressable
+          style={styles.sheet}
+          onPress={(event) => event.stopPropagation()}
+        >
           <View style={styles.header}>
             <Text style={styles.title}>Invite Players</Text>
             <Pressable onPress={onClose} hitSlop={12}>
@@ -78,9 +90,9 @@ export function ClubInviteModal({
           </View>
 
           <Text style={styles.subtitle}>
-            {visibility === 'open'
-              ? 'Share this link or QR code. Anyone can join instantly.'
-              : 'Share this link or QR code. New players can request to join.'}
+            {visibility === "open"
+              ? "Share this link or QR code. Anyone can join instantly."
+              : "Share this link or QR code. New players can request to join."}
           </Text>
 
           <View style={styles.qrWrap}>
@@ -102,16 +114,24 @@ export function ClubInviteModal({
 
           <View style={styles.actions}>
             <Button
-              title={copied ? 'Copied!' : 'Copy Link'}
+              title={copied ? "Copied!" : "Copy Link"}
               variant="outline"
               onPress={handleCopy}
-              icon={<Ionicons name="copy-outline" size={18} color={colors.primary} />}
+              icon={
+                <Ionicons
+                  name="copy-outline"
+                  size={18}
+                  color={colors.primary}
+                />
+              }
               style={styles.actionBtn}
             />
             <Button
               title="Share"
               onPress={handleShare}
-              icon={<Ionicons name="share-outline" size={18} color={colors.text} />}
+              icon={
+                <Ionicons name="share-outline" size={18} color={colors.text} />
+              }
               style={styles.actionBtn}
             />
           </View>
@@ -125,7 +145,7 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: colors.overlay,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: spacing.lg,
   },
   sheet: {
@@ -136,9 +156,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: spacing.sm,
   },
   title: {
@@ -151,7 +171,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   qrWrap: {
-    alignSelf: 'center',
+    alignSelf: "center",
     backgroundColor: colors.text,
     padding: spacing.md,
     borderRadius: radius.lg,
@@ -160,7 +180,7 @@ const styles = StyleSheet.create({
   clubName: {
     ...typography.heading,
     color: colors.text,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: spacing.md,
   },
   linkBox: {
@@ -174,10 +194,10 @@ const styles = StyleSheet.create({
   linkText: {
     ...typography.caption,
     color: colors.textMuted,
-    textAlign: 'center',
+    textAlign: "center",
   },
   actions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.sm,
   },
   actionBtn: {

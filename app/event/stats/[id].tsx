@@ -1,26 +1,29 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from "@expo/vector-icons";
+import { Stack, useLocalSearchParams } from "expo-router";
+import { useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { GameStatsRecorder } from '../../../components/GameStatsRecorder';
-import { canManageEventStats } from '../../../lib/gameEvents';
+import { GameStatsRecorder } from "../../../components/GameStatsRecorder";
+import { ScorekeeperSkeleton } from "../../../components/ui";
+import { shouldShowEntitySkeleton } from "../../../lib/entityLoading";
+import { canManageEventStats } from "../../../lib/gameEvents";
 import {
   hasActiveRoster,
   UNASSIGNED_ROSTER_INDEX,
   UNASSIGNED_ROSTER_LABEL,
-} from '../../../lib/eventRoster';
-import { colors, radius, spacing, typography } from '../../../lib/theme';
-import { BoxScoreStats } from '../../../lib/types';
+} from "../../../lib/eventRoster";
+import { colors, radius, spacing, typography } from "../../../lib/theme";
+import { useRefreshControl } from "../../../lib/useRefreshControl";
+import { BoxScoreStats } from "../../../lib/types";
 import {
   useActiveRoster,
   useClub,
   useCourtGames,
   useEvent,
   useEventWaitlist,
-} from '../../../store/hooks';
-import { useAppStore } from '../../../store/useAppStore';
+} from "../../../store/hooks";
+import { useAppStore } from "../../../store/useAppStore";
 
 interface ScorekeeperTab {
   index: number;
@@ -31,14 +34,18 @@ export default function EventStatsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const event = useEvent(id);
-  const club = useClub(event?.clubId ?? '');
+  const club = useClub(event?.clubId ?? "");
   const users = useAppStore((state) => state.users);
   const currentUserId = useAppStore((state) => state.currentUserId);
   const gameStatRecords = useAppStore((state) => state.gameStatRecords);
   const saveEventStats = useAppStore((state) => state.saveEventStats);
+  const events = useAppStore((state) => state.events);
+  const hydrated = useAppStore((state) => state.hydrated);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const [savingStats, setSavingStats] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [savedTabIndex, setSavedTabIndex] = useState<number | null>(null);
+  const { refreshControl } = useRefreshControl();
 
   const courtGames = useCourtGames(event, users);
   const waitlist = useEventWaitlist(event, users);
@@ -50,13 +57,17 @@ export default function EventStatsScreen() {
     }));
 
     if (waitlist.length > 0) {
-      items.push({ index: UNASSIGNED_ROSTER_INDEX, label: UNASSIGNED_ROSTER_LABEL });
+      items.push({
+        index: UNASSIGNED_ROSTER_INDEX,
+        label: UNASSIGNED_ROSTER_LABEL,
+      });
     }
 
     return items;
   }, [courtGames, waitlist.length]);
 
-  const selectedTab = tabs.find((tab) => tab.index === selectedTabIndex) ?? tabs[0];
+  const selectedTab =
+    tabs.find((tab) => tab.index === selectedTabIndex) ?? tabs[0];
   const activeTabIndex = selectedTab?.index ?? 0;
   const isUnassignedTab = activeTabIndex === UNASSIGNED_ROSTER_INDEX;
   const activeRoster = useActiveRoster(event, users, activeTabIndex);
@@ -72,14 +83,26 @@ export default function EventStatsScreen() {
     return map;
   }, [gameStatRecords, id]);
 
-  const canManage = event ? canManageEventStats(event, currentUserId, club?.adminId) : false;
+  const canManage = event
+    ? canManageEventStats(event, currentUserId, club?.adminId)
+    : false;
 
   const handleSave = async (statsByPlayer: Record<string, BoxScoreStats>) => {
     if (!event) return;
     setSavingStats(true);
+    setSaveError(null);
     setSavedTabIndex(null);
     try {
-      await saveEventStats(event.id, statsByPlayer, activeTabIndex);
+      const message = await saveEventStats(
+        event.id,
+        statsByPlayer,
+        activeTabIndex,
+        activeRoster.map((player) => player.id),
+      );
+      if (message) {
+        setSaveError(message);
+        return;
+      }
       setSavedTabIndex(activeTabIndex);
     } finally {
       setSavingStats(false);
@@ -89,9 +112,14 @@ export default function EventStatsScreen() {
   const handleSelectTab = (index: number) => {
     setSelectedTabIndex(index);
     setSavedTabIndex(null);
+    setSaveError(null);
   };
 
   if (!event) {
+    if (shouldShowEntitySkeleton(event, hydrated, events.length === 0)) {
+      return <ScorekeeperSkeleton />;
+    }
+
     return (
       <View style={styles.notFound}>
         <Text style={styles.notFoundText}>Game not found</Text>
@@ -102,12 +130,17 @@ export default function EventStatsScreen() {
   if (!canManage) {
     return (
       <>
-        <Stack.Screen options={{ headerTitle: 'Scorekeeper' }} />
+        <Stack.Screen options={{ headerTitle: "Scorekeeper" }} />
         <View style={[styles.blocked, { paddingBottom: insets.bottom }]}>
-          <Ionicons name="lock-closed-outline" size={40} color={colors.textMuted} />
+          <Ionicons
+            name="lock-closed-outline"
+            size={40}
+            color={colors.textMuted}
+          />
           <Text style={styles.blockedTitle}>Scorekeeper locked</Text>
           <Text style={styles.blockedText}>
-            Stats can only be recorded before the game closes or within 12 hours after tip-off.
+            Stats can only be recorded before the game closes or within 12 hours
+            after tip-off.
           </Text>
         </View>
       </>
@@ -117,12 +150,13 @@ export default function EventStatsScreen() {
   if (!hasActiveRoster(event)) {
     return (
       <>
-        <Stack.Screen options={{ headerTitle: 'Scorekeeper' }} />
+        <Stack.Screen options={{ headerTitle: "Scorekeeper" }} />
         <View style={[styles.blocked, { paddingBottom: insets.bottom }]}>
           <Ionicons name="people-outline" size={40} color={colors.textMuted} />
           <Text style={styles.blockedTitle}>Shuffle courts first</Text>
           <Text style={styles.blockedText}>
-            Shuffle players into courts first. The scorekeeper tracks one court at a time.
+            Shuffle players into courts first. The scorekeeper tracks one court
+            at a time.
           </Text>
         </View>
       </>
@@ -131,7 +165,7 @@ export default function EventStatsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerTitle: 'Scorekeeper' }} />
+      <Stack.Screen options={{ headerTitle: "Scorekeeper" }} />
       <View style={[styles.container, { paddingBottom: insets.bottom }]}>
         {tabs.length > 1 ? (
           <ScrollView
@@ -174,11 +208,17 @@ export default function EventStatsScreen() {
                   </Text>
                   {isUnassigned && waitlist.length > 0 ? (
                     <View style={styles.gameTabCount}>
-                      <Text style={styles.gameTabCountText}>{waitlist.length}</Text>
+                      <Text style={styles.gameTabCountText}>
+                        {waitlist.length}
+                      </Text>
                     </View>
                   ) : null}
                   {saved ? (
-                    <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={14}
+                      color={colors.success}
+                    />
                   ) : null}
                 </Pressable>
               );
@@ -196,6 +236,8 @@ export default function EventStatsScreen() {
             initialStats={eventStats}
             saving={savingStats}
             saved={savedTabIndex === activeTabIndex}
+            saveError={saveError}
+            refreshControl={refreshControl}
             onSave={handleSave}
           />
         </View>
@@ -215,8 +257,8 @@ const styles = StyleSheet.create({
   },
   notFound: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: colors.background,
   },
   notFoundText: {
@@ -224,8 +266,8 @@ const styles = StyleSheet.create({
   },
   blocked: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: colors.background,
     padding: spacing.xl,
     gap: spacing.sm,
@@ -237,7 +279,7 @@ const styles = StyleSheet.create({
   blockedText: {
     ...typography.body,
     color: colors.textMuted,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 14,
   },
   gameTabsScroll: {
@@ -247,15 +289,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   gameTabsBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
   },
   gameTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 4,
     height: 36,
     paddingHorizontal: spacing.md,
@@ -275,7 +317,7 @@ const styles = StyleSheet.create({
   gameTabText: {
     ...typography.caption,
     color: colors.textMuted,
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 13,
   },
   gameTabTextActive: {
@@ -289,14 +331,14 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: radius.full,
     backgroundColor: `${colors.warning}33`,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 4,
   },
   gameTabCountText: {
     ...typography.label,
     color: colors.warning,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });

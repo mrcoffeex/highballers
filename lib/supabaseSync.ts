@@ -1,6 +1,8 @@
-import { getSupabase } from './supabase';
+import { getSupabase } from "./supabase";
 import {
   clubFromRow,
+  clubChatMessageFromRow,
+  ClubChatMessageRow,
   ClubJoinRequestRow,
   ClubMemberRow,
   ClubRow,
@@ -13,21 +15,95 @@ import {
   profileFromRow,
   ProfileRow,
   boxScoreToRow,
-} from './supabaseMappers';
-import { BoxScoreStats, Club, ClubJoinRequest, GameEvent, GameStatRecord, PlayerStats, UserProfile } from './types';
+} from "./supabaseMappers";
+import {
+  BoxScoreStats,
+  Club,
+  ClubChatMessage,
+  ClubChatPreview,
+  ClubJoinRequest,
+  GameEvent,
+  GameStatRecord,
+  PlayerStats,
+  SubscriptionTier,
+  UserProfile,
+} from "./types";
+
+export const CLUB_MEMBERS_PAGE_SIZE = 20;
+export const CLUB_CHAT_PAGE_SIZE = 40;
+
+interface ClubMemberWithProfileRow {
+  user_id: string;
+  profiles: ProfileRow | ProfileRow[] | null;
+}
+
+export function getClubMembersPageFromStore(
+  club: Club,
+  users: UserProfile[],
+  offset: number,
+  limit: number = CLUB_MEMBERS_PAGE_SIZE,
+): { members: UserProfile[]; total: number } {
+  const ordered = club.memberIds
+    .map((memberId) => users.find((user) => user.id === memberId))
+    .filter((user): user is UserProfile => user != null);
+
+  return {
+    members: ordered.slice(offset, offset + limit),
+    total: ordered.length,
+  };
+}
+
+export async function fetchClubMembersPage(
+  clubId: string,
+  offset: number,
+  limit: number = CLUB_MEMBERS_PAGE_SIZE,
+  users: UserProfile[] = [],
+): Promise<{ members: UserProfile[]; total: number }> {
+  const supabase = getSupabase();
+  if (!supabase) return { members: [], total: 0 };
+
+  const { data, error, count } = await supabase
+    .from("club_members")
+    .select("user_id, profiles(*)", { count: "exact" })
+    .eq("club_id", clubId)
+    .order("joined_at", { ascending: true })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw error;
+
+  const members = ((data ?? []) as ClubMemberWithProfileRow[])
+    .map((row) => {
+      const profile = Array.isArray(row.profiles)
+        ? row.profiles[0]
+        : row.profiles;
+      if (profile) return profileFromRow(profile);
+      return users.find((user) => user.id === row.user_id) ?? null;
+    })
+    .filter((profile): profile is UserProfile => profile !== null);
+
+  return { members, total: count ?? 0 };
+}
 
 export async function fetchAllData() {
   const supabase = getSupabase();
   if (!supabase) return null;
 
-  const [profilesRes, clubsRes, membersRes, eventsRes, participantsRes, joinRequestsRes, statsRes] = await Promise.all([
-    supabase.from('profiles').select('*'),
-    supabase.from('clubs').select('*'),
-    supabase.from('club_members').select('club_id, user_id'),
-    supabase.from('events').select('*'),
-    supabase.from('event_participants').select('event_id, user_id'),
-    supabase.from('club_join_requests').select('*'),
-    supabase.from('event_player_stats').select('*'),
+  const [
+    profilesRes,
+    clubsRes,
+    membersRes,
+    eventsRes,
+    participantsRes,
+    joinRequestsRes,
+    statsRes,
+  ] = await Promise.all([
+    supabase.from("profiles").select("*"),
+    supabase.from("clubs").select("*"),
+    supabase.from("club_members").select("club_id, user_id"),
+    supabase.from("events").select("*"),
+    supabase.from("event_participants").select("event_id, user_id"),
+    supabase.from("club_join_requests").select("*"),
+    supabase.from("event_player_stats").select("*"),
   ]);
 
   if (profilesRes.error) throw profilesRes.error;
@@ -37,20 +113,26 @@ export async function fetchAllData() {
   if (participantsRes.error) throw participantsRes.error;
 
   const membersByClub = groupMembers(membersRes.data as ClubMemberRow[]);
-  const participantsByEvent = groupParticipants(participantsRes.data as EventParticipantRow[]);
+  const participantsByEvent = groupParticipants(
+    participantsRes.data as EventParticipantRow[],
+  );
   const gameStatRecords = statsRes.error
     ? []
     : ((statsRes.data ?? []) as EventPlayerStatsRow[]).map(gameStatFromRow);
 
   return {
     users: (profilesRes.data as ProfileRow[]).map(profileFromRow),
-    clubs: (clubsRes.data as ClubRow[]).map((row) => clubFromRow(row, membersByClub.get(row.id) ?? [])),
+    clubs: (clubsRes.data as ClubRow[]).map((row) =>
+      clubFromRow(row, membersByClub.get(row.id) ?? []),
+    ),
     events: (eventsRes.data as EventRow[]).map((row) =>
       eventFromRow(row, participantsByEvent.get(row.id) ?? []),
     ),
     joinRequests: joinRequestsRes.error
       ? []
-      : ((joinRequestsRes.data ?? []) as ClubJoinRequestRow[]).map(joinRequestFromRow),
+      : ((joinRequestsRes.data ?? []) as ClubJoinRequestRow[]).map(
+          joinRequestFromRow,
+        ),
     gameStatRecords,
   };
 }
@@ -79,7 +161,7 @@ export async function upsertProfile(profile: UserProfile) {
   const supabase = getSupabase();
   if (!supabase) return;
 
-  const { error } = await supabase.from('profiles').upsert({
+  const { error } = await supabase.from("profiles").upsert({
     id: profile.id,
     name: profile.name,
     nickname: profile.nickname ?? null,
@@ -89,6 +171,7 @@ export async function upsertProfile(profile: UserProfile) {
     bio: profile.bio ?? null,
     stats: profile.stats,
     joined_at: profile.joinedAt,
+    subscription_tier: profile.subscriptionTier ?? "basic",
   });
 
   if (error) throw error;
@@ -98,15 +181,66 @@ export async function updateProfileStats(userId: string, stats: PlayerStats) {
   const supabase = getSupabase();
   if (!supabase) return;
 
-  const { error } = await supabase.from('profiles').update({ stats }).eq('id', userId);
+  const { error } = await supabase
+    .from("profiles")
+    .update({ stats })
+    .eq("id", userId);
   if (error) throw error;
+}
+
+export async function updateSubscriptionTier(
+  userId: string,
+  tier: SubscriptionTier,
+) {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ subscription_tier: tier })
+    .eq("id", userId);
+  if (error) throw error;
+}
+
+export interface AllStarPurchasePayload {
+  productId: string;
+  transactionId: string;
+  purchaseToken: string | null;
+  platform: string;
+  transactionDate: number;
+  restored?: boolean;
+}
+
+export async function syncAllStarPurchase(
+  payload: AllStarPurchasePayload,
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) {
+    throw new Error("Sign in to activate your All-Star subscription.");
+  }
+
+  const { data, error } = await supabase.functions.invoke(
+    "verify-all-star-purchase",
+    { body: payload },
+  );
+
+  if (error) throw error;
+  if (data && typeof data === "object" && "error" in data && data.error) {
+    throw new Error(String(data.error));
+  }
 }
 
 export async function savePushToken(userId: string, pushToken: string) {
   const supabase = getSupabase();
   if (!supabase) return;
 
-  const { error } = await supabase.from('profiles').update({ push_token: pushToken }).eq('id', userId);
+  const { error } = await supabase
+    .from("profiles")
+    .update({ push_token: pushToken })
+    .eq("id", userId);
   if (error) throw error;
 }
 
@@ -114,7 +248,7 @@ export async function insertClub(club: Club) {
   const supabase = getSupabase();
   if (!supabase) return;
 
-  const { error: clubError } = await supabase.from('clubs').insert({
+  const { error: clubError } = await supabase.from("clubs").insert({
     id: club.id,
     name: club.name,
     description: club.description,
@@ -127,10 +261,17 @@ export async function insertClub(club: Club) {
   });
   if (clubError) throw clubError;
 
-  const { error: memberError } = await supabase.from('club_members').insert(
-    club.memberIds.map((userId) => ({ club_id: club.id, user_id: userId })),
-  );
+  const { error: memberError } = await supabase
+    .from("club_members")
+    .insert(
+      club.memberIds.map((userId) => ({ club_id: club.id, user_id: userId })),
+    );
   if (memberError) throw memberError;
+
+  const { error: chatError } = await supabase
+    .from("club_chats")
+    .insert({ club_id: club.id });
+  if (chatError && chatError.code !== "23505") throw chatError;
 }
 
 export async function updateClub(club: Club) {
@@ -138,7 +279,7 @@ export async function updateClub(club: Club) {
   if (!supabase) return;
 
   const { error } = await supabase
-    .from('clubs')
+    .from("clubs")
     .update({
       name: club.name,
       description: club.description,
@@ -147,7 +288,7 @@ export async function updateClub(club: Club) {
       icon_url: club.iconUrl ?? null,
       visibility: club.visibility,
     })
-    .eq('id', club.id);
+    .eq("id", club.id);
 
   if (error) throw error;
 }
@@ -156,8 +297,10 @@ export async function joinClubRemote(clubId: string, userId: string) {
   const supabase = getSupabase();
   if (!supabase) return;
 
-  const { error } = await supabase.from('club_members').insert({ club_id: clubId, user_id: userId });
-  if (error && error.code !== '23505') throw error;
+  const { error } = await supabase
+    .from("club_members")
+    .insert({ club_id: clubId, user_id: userId });
+  if (error && error.code !== "23505") throw error;
 }
 
 export async function leaveClubRemote(clubId: string, userId: string) {
@@ -165,19 +308,53 @@ export async function leaveClubRemote(clubId: string, userId: string) {
   if (!supabase) return;
 
   const { error } = await supabase
-    .from('club_members')
+    .from("club_members")
     .delete()
-    .eq('club_id', clubId)
-    .eq('user_id', userId);
+    .eq("club_id", clubId)
+    .eq("user_id", userId);
 
   if (error) throw error;
 }
 
-export async function insertEvent(event: GameEvent) {
-  const supabase = getSupabase();
-  if (!supabase) return;
+function isMissingColumnError(error: unknown, column: string): boolean {
+  const message = String(
+    error && typeof error === "object" && "message" in error
+      ? (error as { message?: string }).message
+      : error,
+  ).toLowerCase();
 
-  const { error: eventError } = await supabase.from('events').insert({
+  return (
+    message.includes(column.toLowerCase()) &&
+    (message.includes("column") || message.includes("schema cache"))
+  );
+}
+
+const OPTIONAL_EVENT_INSERT_COLUMNS = [
+  "players_per_game",
+  "court_games",
+  "finished_at",
+  "latitude",
+  "longitude",
+  "team_a",
+  "team_b",
+] as const;
+
+async function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("Cloud sync timed out")), ms);
+  });
+
+  try {
+    return await Promise.race([Promise.resolve(promise), timeout]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+function buildEventInsertPayload(event: GameEvent): Record<string, unknown> {
+  return {
     id: event.id,
     club_id: event.clubId,
     title: event.title,
@@ -194,39 +371,101 @@ export async function insertEvent(event: GameEvent) {
     team_b: event.courtGames?.[0]?.teamB ?? null,
     court_games: event.courtGames ?? null,
     finished_at: event.finishedAt ?? null,
-  });
-  if (eventError) throw eventError;
+  };
+}
+
+function buildEventUpdatePayload(
+  event: GameEvent,
+  includePlayersPerGame: boolean,
+) {
+  const payload: Record<string, unknown> = {
+    title: event.title,
+    description: event.description,
+    location: event.location,
+    latitude: event.latitude ?? null,
+    longitude: event.longitude ?? null,
+    date_time: event.dateTime,
+    max_players: event.maxPlayers,
+    shuffled: event.shuffled,
+    team_a: event.courtGames?.[0]?.teamA ?? null,
+    team_b: event.courtGames?.[0]?.teamB ?? null,
+    court_games: event.courtGames ?? null,
+    finished_at: event.finishedAt ?? null,
+  };
+
+  if (includePlayersPerGame) {
+    payload.players_per_game = event.playersPerGame ?? null;
+  }
+
+  return payload;
+}
+
+export async function insertEvent(event: GameEvent) {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const payload = buildEventInsertPayload(event);
+
+  while (true) {
+    const { error: eventError } = await withTimeout(
+      supabase.from("events").insert(payload),
+      12_000,
+    );
+
+    if (!eventError) break;
+
+    const missingColumn = OPTIONAL_EVENT_INSERT_COLUMNS.find(
+      (column) => column in payload && isMissingColumnError(eventError, column),
+    );
+
+    if (missingColumn) {
+      delete payload[missingColumn];
+      continue;
+    }
+
+    throw eventError;
+  }
 
   if (event.participantIds.length > 0) {
-    const { error: participantError } = await supabase.from('event_participants').insert(
-      event.participantIds.map((userId) => ({ event_id: event.id, user_id: userId })),
+    const { error: participantError } = await withTimeout(
+      supabase
+        .from("event_participants")
+        .insert(
+          event.participantIds.map((userId) => ({
+            event_id: event.id,
+            user_id: userId,
+          })),
+        ),
+      12_000,
     );
+
     if (participantError) throw participantError;
   }
+
+  await supabase.functions
+    .invoke("notify-club-new-game", {
+      body: { eventId: event.id },
+    })
+    .catch(() => undefined);
 }
 
 export async function updateEvent(event: GameEvent) {
   const supabase = getSupabase();
   if (!supabase) return;
 
-  const { error } = await supabase
-    .from('events')
-    .update({
-      title: event.title,
-      description: event.description,
-      location: event.location,
-      latitude: event.latitude ?? null,
-      longitude: event.longitude ?? null,
-      date_time: event.dateTime,
-      max_players: event.maxPlayers,
-      players_per_game: event.playersPerGame ?? null,
-      shuffled: event.shuffled,
-      team_a: event.courtGames?.[0]?.teamA ?? null,
-      team_b: event.courtGames?.[0]?.teamB ?? null,
-      court_games: event.courtGames ?? null,
-      finished_at: event.finishedAt ?? null,
-    })
-    .eq('id', event.id);
+  let includePlayersPerGame = true;
+  let { error } = await supabase
+    .from("events")
+    .update(buildEventUpdatePayload(event, includePlayersPerGame))
+    .eq("id", event.id);
+
+  if (error && isMissingColumnError(error, "players_per_game")) {
+    includePlayersPerGame = false;
+    ({ error } = await supabase
+      .from("events")
+      .update(buildEventUpdatePayload(event, includePlayersPerGame))
+      .eq("id", event.id));
+  }
 
   if (error) throw error;
 }
@@ -235,21 +474,24 @@ export async function insertJoinRequest(request: ClubJoinRequest) {
   const supabase = getSupabase();
   if (!supabase) return;
 
-  const { error } = await supabase.from('club_join_requests').insert({
+  const { error } = await supabase.from("club_join_requests").insert({
     id: request.id,
     club_id: request.clubId,
     user_id: request.userId,
     created_at: request.createdAt,
   });
 
-  if (error && error.code !== '23505') throw error;
+  if (error && error.code !== "23505") throw error;
 }
 
 export async function deleteJoinRequest(requestId: string) {
   const supabase = getSupabase();
   if (!supabase) return;
 
-  const { error } = await supabase.from('club_join_requests').delete().eq('id', requestId);
+  const { error } = await supabase
+    .from("club_join_requests")
+    .delete()
+    .eq("id", requestId);
   if (error) throw error;
 }
 
@@ -258,10 +500,10 @@ export async function joinEventRemote(eventId: string, userId: string) {
   if (!supabase) return;
 
   const { error } = await supabase
-    .from('event_participants')
+    .from("event_participants")
     .insert({ event_id: eventId, user_id: userId });
 
-  if (error && error.code !== '23505') throw error;
+  if (error && error.code !== "23505") throw error;
 }
 
 export async function leaveEventRemote(eventId: string, userId: string) {
@@ -269,10 +511,10 @@ export async function leaveEventRemote(eventId: string, userId: string) {
   if (!supabase) return;
 
   const { error } = await supabase
-    .from('event_participants')
+    .from("event_participants")
     .delete()
-    .eq('event_id', eventId)
-    .eq('user_id', userId);
+    .eq("event_id", eventId)
+    .eq("user_id", userId);
 
   if (error) throw error;
 }
@@ -281,20 +523,168 @@ export async function upsertEventPlayerStats(records: GameStatRecord[]) {
   const supabase = getSupabase();
   if (!supabase || records.length === 0) return;
 
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) {
+    throw new Error("Not signed in. Sign in again to save box scores.");
+  }
+
   const rows = records.map((record) =>
-    boxScoreToRow(record.eventId, record.userId, record.stats, record.id),
+    boxScoreToRow(
+      record.eventId,
+      record.userId,
+      record.stats,
+      record.recordedAt,
+    ),
   );
 
-  const { error } = await supabase.from('event_player_stats').upsert(rows, { onConflict: 'event_id,user_id' });
-  if (error) throw error;
+  const { error: batchError } = await withTimeout(
+    supabase
+      .from("event_player_stats")
+      .upsert(rows, { onConflict: "event_id,user_id" }),
+    12_000,
+  );
+
+  if (!batchError) return;
+
+  for (const row of rows) {
+    const { error } = await withTimeout(
+      supabase
+        .from("event_player_stats")
+        .upsert(row, { onConflict: "event_id,user_id" }),
+      12_000,
+    );
+    if (error) throw error;
+  }
 }
 
 export async function finishEventRemote(eventId: string, finishedAt: string) {
   const supabase = getSupabase();
   if (!supabase) return;
 
-  const { error } = await supabase.from('events').update({ finished_at: finishedAt }).eq('id', eventId);
+  const { error } = await supabase
+    .from("events")
+    .update({ finished_at: finishedAt })
+    .eq("id", eventId);
   if (error) throw error;
+}
+
+export async function fetchClubChatMessagesPage(
+  clubId: string,
+  limit: number = CLUB_CHAT_PAGE_SIZE,
+  before?: string,
+): Promise<ClubChatMessage[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  let query = supabase
+    .from("club_chat_messages")
+    .select("*")
+    .eq("club_id", clubId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (before) {
+    query = query.lt("created_at", before);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return ((data ?? []) as ClubChatMessageRow[])
+    .map(clubChatMessageFromRow)
+    .reverse();
+}
+
+export async function fetchChatPreviews(
+  clubIds: string[],
+): Promise<ClubChatPreview[]> {
+  const supabase = getSupabase();
+  if (!supabase || clubIds.length === 0)
+    return clubIds.map((clubId) => ({ clubId }));
+
+  const { data, error } = await supabase
+    .from("club_chat_messages")
+    .select("*")
+    .in("club_id", clubIds)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  const latestByClub = new Map<string, ClubChatMessage>();
+  for (const row of (data ?? []) as ClubChatMessageRow[]) {
+    if (!latestByClub.has(row.club_id)) {
+      latestByClub.set(row.club_id, clubChatMessageFromRow(row));
+    }
+  }
+
+  return clubIds.map((clubId) => ({
+    clubId,
+    lastMessage: latestByClub.get(clubId),
+  }));
+}
+
+export async function sendClubChatMessage(
+  clubId: string,
+  userId: string,
+  body: string,
+): Promise<ClubChatMessage> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Chat is unavailable offline.");
+
+  const trimmed = body.trim();
+  if (!trimmed) throw new Error("Message cannot be empty.");
+
+  const { data, error } = await supabase
+    .from("club_chat_messages")
+    .insert({
+      club_id: clubId,
+      user_id: userId,
+      body: trimmed,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+
+  const message = clubChatMessageFromRow(data as ClubChatMessageRow);
+
+  await supabase.functions
+    .invoke("notify-club-chat", {
+      body: { messageId: message.id },
+    })
+    .catch(() => undefined);
+
+  return message;
+}
+
+export function subscribeToClubChat(
+  clubId: string,
+  onMessage: (message: ClubChatMessage) => void,
+) {
+  const supabase = getSupabase();
+  if (!supabase) return () => {};
+
+  const channel = supabase
+    .channel(`club-chat-${clubId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "club_chat_messages",
+        filter: `club_id=eq.${clubId}`,
+      },
+      (payload) => {
+        onMessage(clubChatMessageFromRow(payload.new as ClubChatMessageRow));
+      },
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 export function subscribeToChanges(onChange: () => void) {
@@ -302,14 +692,47 @@ export function subscribeToChanges(onChange: () => void) {
   if (!supabase) return () => {};
 
   const channel = supabase
-    .channel('highballers-sync')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'clubs' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_members' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_join_requests' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'event_participants' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'event_player_stats' }, onChange)
+    .channel("highballers-sync")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "profiles" },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "clubs" },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "club_members" },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "club_chat_messages" },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "club_join_requests" },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "events" },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "event_participants" },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "event_player_stats" },
+      onChange,
+    )
     .subscribe();
 
   return () => {

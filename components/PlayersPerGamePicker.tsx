@@ -1,11 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
   clampPlayersPerGame,
   formatGameSizeLabel,
   getAvailablePlayersPerGamePresets,
-} from '../lib/gameFormats';
-import { colors, radius, spacing, typography } from '../lib/theme';
+} from "../lib/gameFormats";
+import { colors, radius, spacing, typography } from "../lib/theme";
 
 interface PlayersPerGamePickerProps {
   value: number;
@@ -39,10 +39,17 @@ export function PlayersPerGamePicker({
                 disabled && styles.optionDisabled,
               ]}
             >
-              <Text style={[styles.optionValue, selected && styles.optionValueActive]}>
+              <Text
+                style={[
+                  styles.optionValue,
+                  selected && styles.optionValueActive,
+                ]}
+              >
                 {formatGameSizeLabel(preset)}
               </Text>
-              <Text style={[styles.optionMeta, selected && styles.optionMetaActive]}>
+              <Text
+                style={[styles.optionMeta, selected && styles.optionMetaActive]}
+              >
                 {preset} players
               </Text>
             </Pressable>
@@ -61,8 +68,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   picker: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
   },
   option: {
@@ -73,7 +80,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    alignItems: 'center',
+    alignItems: "center",
     gap: 2,
   },
   optionActive: {
@@ -102,5 +109,7 @@ const styles = StyleSheet.create({
   hint: {
     ...typography.caption,
     color: colors.textDim,
+    marginBottom: spacing.sm,
+    textAlign: "center",
   },
 });

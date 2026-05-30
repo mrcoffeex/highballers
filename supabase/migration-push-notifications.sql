@@ -1,0 +1,11 @@
+-- Push notification edge functions (deploy separately):
+--
+--   supabase functions deploy notify-club-chat
+--   supabase functions deploy notify-club-new-game
+--   supabase secrets set EXPO_ACCESS_TOKEN=<your-expo-access-token>
+--
+-- Client invokes:
+--   notify-club-chat   after club_chat_messages insert
+--   notify-club-new-game after events insert
+--
+-- Requires profiles.push_token (saved on app launch via registerForPushNotifications).

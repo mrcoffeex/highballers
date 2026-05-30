@@ -1,8 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Platform } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-import { getSupabasePublishableKey, getSupabaseUrl, isSupabaseEnabled } from './config';
+import {
+  getSupabasePublishableKey,
+  getSupabaseUrl,
+  isSupabaseEnabled,
+} from "./config";
 
 let client: SupabaseClient | null = null;
 
@@ -15,7 +18,8 @@ export function getSupabase(): SupabaseClient | null {
         storage: AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: Platform.OS === 'web',
+        // OAuth is handled explicitly in lib/googleAuth (oauth-callback / WebBrowser).
+        detectSessionInUrl: false,
       },
     });
   }

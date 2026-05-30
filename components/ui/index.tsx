@@ -1,7 +1,6 @@
-import { Image } from 'expo-image';
-import { ReactNode } from 'react';
+import { Image } from "expo-image";
+import { ReactNode } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   PressableProps,
   StyleSheet,
@@ -10,22 +9,23 @@ import {
   TextInputProps,
   View,
   ViewStyle,
-} from 'react-native';
+} from "react-native";
 
-import { colors, radius, shadows, spacing, typography } from '../../lib/theme';
+import { colors, radius, shadows, spacing, typography } from "../../lib/theme";
+import { SkeletonButtonLabel } from "./Skeleton";
 
 interface ButtonProps extends PressableProps {
   title: string;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: "primary" | "secondary" | "outline" | "ghost";
+  size?: "sm" | "md" | "lg";
   loading?: boolean;
   icon?: ReactNode;
 }
 
 export function Button({
   title,
-  variant = 'primary',
-  size = 'md',
+  variant = "primary",
+  size = "md",
   loading,
   icon,
   disabled,
@@ -48,11 +48,17 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' || variant === 'ghost' ? colors.primary : colors.text} />
+        <SkeletonButtonLabel size={size} />
       ) : (
         <>
           {icon}
-          <Text style={[styles.text, styles[`text_${variant}`], icon ? styles.textWithIcon : undefined]}>
+          <Text
+            style={[
+              styles.text,
+              styles[`text_${variant}`],
+              icon ? styles.textWithIcon : undefined,
+            ]}
+          >
             {title}
           </Text>
         </>
@@ -82,7 +88,11 @@ export function Card({ children, style, onPress }: CardProps) {
     return (
       <Pressable
         onPress={onPress}
-        style={({ pressed }) => [styles.card, pressed && styles.cardPressed, style]}
+        style={({ pressed }) => [
+          styles.card,
+          pressed && styles.cardPressed,
+          style,
+        ]}
       >
         {children}
       </Pressable>
@@ -99,7 +109,12 @@ interface BadgeProps {
 
 export function Badge({ label, color = colors.primary }: BadgeProps) {
   return (
-    <View style={[styles.badge, { backgroundColor: `${color}22`, borderColor: `${color}55` }]}>
+    <View
+      style={[
+        styles.badge,
+        { backgroundColor: `${color}22`, borderColor: `${color}55` },
+      ]}
+    >
       <Text style={[styles.badgeText, { color }]}>{label}</Text>
     </View>
   );
@@ -114,9 +129,9 @@ interface AvatarProps {
 
 export function Avatar({ name, color, size = 48, imageUrl }: AvatarProps) {
   const initials = name
-    .split(' ')
+    .split(" ")
     .map((part) => part[0])
-    .join('')
+    .join("")
     .slice(0, 2)
     .toUpperCase();
 
@@ -131,8 +146,20 @@ export function Avatar({ name, color, size = 48, imageUrl }: AvatarProps) {
   }
 
   return (
-    <View style={[styles.avatar, { backgroundColor: color, width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={[styles.avatarText, { fontSize: size * 0.35 }]}>{initials}</Text>
+    <View
+      style={[
+        styles.avatar,
+        {
+          backgroundColor: color,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+        },
+      ]}
+    >
+      <Text style={[styles.avatarText, { fontSize: size * 0.35 }]}>
+        {initials}
+      </Text>
     </View>
   );
 }
@@ -148,7 +175,9 @@ export function SectionHeader({ title, subtitle, action }: SectionHeaderProps) {
     <View style={styles.sectionHeader}>
       <View style={styles.sectionHeaderText}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
+        {subtitle ? (
+          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        ) : null}
       </View>
       {action}
     </View>
@@ -173,9 +202,9 @@ export function EmptyState({ icon, title, description }: EmptyStateProps) {
 
 const styles = StyleSheet.create({
   base: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: radius.md,
     gap: spacing.sm,
   },
@@ -186,12 +215,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   outline: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1.5,
     borderColor: colors.cardBorder,
   },
   ghost: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   size_sm: {
     paddingHorizontal: spacing.md,
@@ -258,24 +287,24 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: radius.full,
     borderWidth: 1,
-    alignSelf: 'flex-start',
+    alignSelf: "center",
   },
   badgeText: {
     ...typography.label,
     fontSize: 11,
   },
   avatar: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarText: {
     color: colors.text,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: spacing.md,
   },
   sectionHeaderText: {
@@ -291,7 +320,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   emptyState: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: spacing.xxl,
     paddingHorizontal: spacing.lg,
   },
@@ -300,19 +329,21 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: spacing.md,
   },
   emptyTitle: {
     ...typography.heading,
     color: colors.text,
     marginBottom: spacing.sm,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyDescription: {
     ...typography.body,
     color: colors.textMuted,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
+
+export * from "./Skeleton";

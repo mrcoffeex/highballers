@@ -1,16 +1,25 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Session } from '@supabase/supabase-js';
-import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
-import { v4 as uuidv4 } from 'uuid';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Session } from "@supabase/supabase-js";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { v4 as uuidv4 } from "uuid";
 
-import { signInWithGoogle as startGoogleSignIn } from '../lib/googleAuth';
-import { isSupabaseEnabled } from '../lib/config';
-import { cancelGameReminder, registerForPushNotifications, scheduleGameReminder } from '../lib/notifications';
-import { AVATAR_COLORS, SEED_CLUBS, SEED_EVENTS, SEED_PLAYERS } from '../lib/seedData';
-import { getGoogleProfileHints } from '../lib/googleAuth';
-import { uploadAvatar, uploadClubLogo } from '../lib/storage';
-import { getSupabase } from '../lib/supabase';
+import { signInWithGoogle as startGoogleSignIn } from "../lib/googleAuth";
+import { isSupabaseEnabled } from "../lib/config";
+import {
+  cancelGameReminder,
+  registerForPushNotifications,
+  scheduleGameReminder,
+} from "../lib/notifications";
+import {
+  AVATAR_COLORS,
+  SEED_CLUBS,
+  SEED_EVENTS,
+  SEED_PLAYERS,
+} from "../lib/seedData";
+import { getGoogleProfileHints } from "../lib/googleAuth";
+import { uploadAvatar, uploadClubLogo } from "../lib/storage";
+import { getSupabase } from "../lib/supabase";
 import {
   deleteJoinRequest,
   fetchAllData,
@@ -28,27 +37,49 @@ import {
   updateProfileStats,
   upsertEventPlayerStats,
   upsertProfile,
-} from '../lib/supabaseSync';
-import { formatSyncError } from '../lib/syncErrors';
-import { clampPlayersPerGame, getPlayersPerGame } from '../lib/gameFormats';
-import { isEventOptionsLocked, hasEventStarted, canManageEvent } from '../lib/gameEvents';
+} from "../lib/supabaseSync";
+import { formatSyncError } from "../lib/syncErrors";
+import {
+  assertFeatureAccess,
+  canAddClubMember,
+  canCreateClub,
+  canJoinClub,
+  canJoinEvent,
+  countMyClubs,
+  getUserTier,
+  isAllStar,
+  SubscriptionError,
+} from "../lib/subscription";
+import { clearRemoteCache } from "../lib/remoteCache";
+import { clearTabFetchSession } from "../lib/useCachedFetch";
+import { clampPlayersPerGame, getPlayersPerGame } from "../lib/gameFormats";
+import {
+  isEventOptionsLocked,
+  hasEventStarted,
+  canManageEvent,
+} from "../lib/gameEvents";
 import {
   buildCourtGames,
   canShuffleEvent,
   getCourtGameRosterIds,
-} from '../lib/eventRoster';
+  normalizeEventCourts,
+  removePlayerFromCourtGames,
+  sanitizeCourtGames,
+} from "../lib/eventRoster";
 import {
   BoxScoreStats,
   Club,
   ClubJoinRequest,
+  CourtGame,
   DEFAULT_STATS,
   EMPTY_BOX_SCORE,
   GameEvent,
   GameStatRecord,
   PlayerStats,
   Position,
+  SubscriptionTier,
   UserProfile,
-} from '../lib/types';
+} from "../lib/types";
 
 interface AppState {
   hydrated: boolean;
@@ -73,9 +104,16 @@ interface AppState {
   refreshFromServer: () => Promise<void>;
   startSync: () => () => void;
 
-  completeOnboarding: (profile: Omit<UserProfile, 'id' | 'joinedAt'>, avatarUri?: string) => Promise<void>;
-  updateProfile: (updates: Partial<UserProfile>, avatarUri?: string) => Promise<void>;
+  completeOnboarding: (
+    profile: Omit<UserProfile, "id" | "joinedAt">,
+    avatarUri?: string,
+  ) => Promise<void>;
+  updateProfile: (
+    updates: Partial<UserProfile>,
+    avatarUri?: string,
+  ) => Promise<void>;
   updateStats: (stats: PlayerStats) => Promise<void>;
+  upgradeToAllStar: () => Promise<void>;
 
   joinClub: (clubId: string) => Promise<void>;
   requestToJoinClub: (clubId: string) => Promise<void>;
@@ -84,36 +122,43 @@ interface AppState {
   denyJoinRequest: (requestId: string) => Promise<void>;
   leaveClub: (clubId: string) => Promise<void>;
   createClub: (
-    club: Omit<Club, 'id' | 'createdAt' | 'memberIds' | 'adminId'>,
+    club: Omit<Club, "id" | "createdAt" | "memberIds" | "adminId">,
     logoUri?: string,
   ) => Promise<string>;
 
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
   createEvent: (
-    event: Omit<GameEvent, 'id' | 'participantIds' | 'shuffled' | 'createdBy' | 'courtGames'>,
+    event: Omit<
+      GameEvent,
+      "id" | "participantIds" | "shuffled" | "createdBy" | "courtGames"
+    >,
   ) => Promise<string>;
   editEvent: (
     eventId: string,
     updates: Pick<
       GameEvent,
-      | 'title'
-      | 'description'
-      | 'location'
-      | 'latitude'
-      | 'longitude'
-      | 'dateTime'
-      | 'maxPlayers'
-      | 'playersPerGame'
-    >,
+      | "title"
+      | "description"
+      | "location"
+      | "latitude"
+      | "longitude"
+      | "dateTime"
+      | "maxPlayers"
+    > & { playersPerGame?: number },
   ) => Promise<boolean>;
   shuffleTeams: (eventId: string, playersPerGame?: number) => Promise<void>;
+  saveEventCourts: (
+    eventId: string,
+    courtGames: CourtGame[],
+  ) => Promise<boolean>;
   finishEvent: (eventId: string) => Promise<void>;
   saveEventStats: (
     eventId: string,
     statsByPlayer: Record<string, BoxScoreStats>,
     courtGameIndex?: number,
-  ) => Promise<void>;
+    playerIds?: string[],
+  ) => Promise<string | null>;
 
   getCurrentUser: () => UserProfile | null;
   getUserById: (id: string) => UserProfile | undefined;
@@ -124,17 +169,35 @@ interface AppState {
   getPlayerGameHistory: (userId: string) => GameStatRecord[];
 }
 
-async function resolveAvatarUrl(userId: string, avatarUri?: string, existingUrl?: string) {
+async function resolveAvatarUrl(
+  userId: string,
+  avatarUri?: string,
+  existingUrl?: string,
+) {
   if (!avatarUri || avatarUri === existingUrl) return existingUrl;
   return uploadAvatar(userId, avatarUri);
 }
 
-async function resolveClubLogoUrl(clubId: string, logoUri?: string, existingUrl?: string) {
+async function resolveClubLogoUrl(
+  clubId: string,
+  logoUri?: string,
+  existingUrl?: string,
+) {
   if (!logoUri || logoUri === existingUrl) return existingUrl;
   return uploadClubLogo(clubId, logoUri);
 }
 
 let authListenerRegistered = false;
+
+function getCurrentUser(get: () => AppState): UserProfile | null {
+  const { currentUserId, users } = get();
+  if (!currentUserId) return null;
+  return users.find((user) => user.id === currentUserId) ?? null;
+}
+
+function getCurrentUserTier(get: () => AppState) {
+  return getUserTier(getCurrentUser(get));
+}
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -166,19 +229,25 @@ export const useAppStore = create<AppState>()(
         }
 
         const { data } = await supabase.auth.getSession();
-        set({ session: data.session, authReady: true });
+        set({ session: data.session });
 
         if (data.session?.user) {
           await get().syncSessionFromSupabase();
         }
+
+        set({ authReady: true });
 
         if (!authListenerRegistered) {
           authListenerRegistered = true;
           supabase.auth.onAuthStateChange(async (_event, session) => {
             set({ session });
             if (session?.user) {
-              await get().refreshFromServer().catch(() => undefined);
-              const profile = get().users.find((user) => user.id === session.user.id);
+              await get()
+                .refreshFromServer()
+                .catch(() => undefined);
+              const profile = get().users.find(
+                (user) => user.id === session.user.id,
+              );
               set({
                 currentUserId: session.user.id,
                 onboardingComplete: Boolean(profile),
@@ -188,12 +257,12 @@ export const useAppStore = create<AppState>()(
               set({
                 currentUserId: null,
                 onboardingComplete: false,
-              users: isSupabaseEnabled ? [] : SEED_PLAYERS,
-              clubs: isSupabaseEnabled ? [] : SEED_CLUBS,
-              events: isSupabaseEnabled ? [] : SEED_EVENTS,
-              joinRequests: [],
-              gameStatRecords: [],
-            });
+                users: isSupabaseEnabled ? [] : SEED_PLAYERS,
+                clubs: isSupabaseEnabled ? [] : SEED_CLUBS,
+                events: isSupabaseEnabled ? [] : SEED_EVENTS,
+                joinRequests: [],
+                gameStatRecords: [],
+              });
             }
           });
         }
@@ -207,13 +276,19 @@ export const useAppStore = create<AppState>()(
         set({ session: data.session, authReady: true });
 
         if (data.session?.user) {
-          await get().refreshFromServer().catch(() => undefined);
-          const profile = get().users.find((user) => user.id === data.session!.user.id);
+          await get()
+            .refreshFromServer()
+            .catch(() => undefined);
+          const profile = get().users.find(
+            (user) => user.id === data.session!.user.id,
+          );
           set({
             currentUserId: data.session.user.id,
             onboardingComplete: Boolean(profile),
           });
-          await registerForPushNotifications(data.session.user.id).catch(() => undefined);
+          await registerForPushNotifications(data.session.user.id).catch(
+            () => undefined,
+          );
         }
 
         return data.session;
@@ -221,15 +296,18 @@ export const useAppStore = create<AppState>()(
 
       signIn: async (email, password) => {
         const supabase = getSupabase();
-        if (!supabase) return 'Cloud sync is not configured.';
+        if (!supabase) return "Cloud sync is not configured.";
 
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
         return error?.message ?? null;
       },
 
       signUp: async (email, password) => {
         const supabase = getSupabase();
-        if (!supabase) return 'Cloud sync is not configured.';
+        if (!supabase) return "Cloud sync is not configured.";
 
         const { error } = await supabase.auth.signUp({ email, password });
         return error?.message ?? null;
@@ -240,6 +318,8 @@ export const useAppStore = create<AppState>()(
       signOut: async () => {
         const supabase = getSupabase();
         await supabase?.auth.signOut();
+        clearRemoteCache();
+        clearTabFetchSession();
         set({
           session: null,
           currentUserId: null,
@@ -278,7 +358,9 @@ export const useAppStore = create<AppState>()(
         const debouncedRefresh = () => {
           if (timeout) clearTimeout(timeout);
           timeout = setTimeout(() => {
-            get().refreshFromServer().catch(() => undefined);
+            get()
+              .refreshFromServer()
+              .catch(() => undefined);
           }, 400);
         };
 
@@ -302,6 +384,7 @@ export const useAppStore = create<AppState>()(
           id,
           avatarUrl,
           joinedAt: new Date().toISOString(),
+          subscriptionTier: "basic",
         };
 
         if (isSupabaseEnabled) {
@@ -316,7 +399,9 @@ export const useAppStore = create<AppState>()(
         });
 
         if (isSupabaseEnabled) {
-          await get().refreshFromServer().catch(() => undefined);
+          await get()
+            .refreshFromServer()
+            .catch(() => undefined);
         }
       },
 
@@ -329,12 +414,18 @@ export const useAppStore = create<AppState>()(
 
         let avatarUrl = updates.avatarUrl ?? current.avatarUrl;
         if (avatarUri) {
-          avatarUrl = await resolveAvatarUrl(currentUserId, avatarUri, avatarUrl);
+          avatarUrl = await resolveAvatarUrl(
+            currentUserId,
+            avatarUri,
+            avatarUrl,
+          );
         }
 
         const updated = { ...current, ...updates, avatarUrl };
         set({
-          users: users.map((user) => (user.id === currentUserId ? updated : user)),
+          users: users.map((user) =>
+            user.id === currentUserId ? updated : user,
+          ),
         });
 
         if (isSupabaseEnabled) {
@@ -347,7 +438,9 @@ export const useAppStore = create<AppState>()(
         if (!currentUserId) return;
 
         set({
-          users: users.map((user) => (user.id === currentUserId ? { ...user, stats } : user)),
+          users: users.map((user) =>
+            user.id === currentUserId ? { ...user, stats } : user,
+          ),
         });
 
         if (isSupabaseEnabled) {
@@ -355,12 +448,39 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      upgradeToAllStar: async () => {
+        const { currentUserId, users } = get();
+        if (!currentUserId) return;
+
+        const current = users.find((user) => user.id === currentUserId);
+        if (!current || isAllStar(current)) return;
+
+        const updated: UserProfile = {
+          ...current,
+          subscriptionTier: "all_star",
+        };
+        set({
+          users: users.map((user) =>
+            user.id === currentUserId ? updated : user,
+          ),
+        });
+      },
+
       joinClub: async (clubId) => {
-        const { currentUserId, clubs } = get();
+        const { currentUserId, clubs, users } = get();
         if (!currentUserId) return;
 
         const club = clubs.find((item) => item.id === clubId);
-        if (!club || club.visibility !== 'open') return;
+        if (!club || club.visibility !== "open") return;
+
+        const user = getCurrentUser(get);
+        const tier = getUserTier(user);
+        const memberClubCount = countMyClubs(clubs, currentUserId);
+        const admin = users.find((item) => item.id === club.adminId) ?? null;
+        const joinCheck = canJoinClub(tier, memberClubCount, club, admin);
+        if (!joinCheck.ok) {
+          throw new SubscriptionError(joinCheck.reason!);
+        }
 
         set({
           clubs: clubs.map((item) =>
@@ -379,10 +499,17 @@ export const useAppStore = create<AppState>()(
         const { currentUserId, clubs, joinRequests } = get();
         if (!currentUserId) return;
 
+        assertFeatureAccess(getCurrentUserTier(get), "private_clubs");
+
         const club = clubs.find((item) => item.id === clubId);
-        if (!club || club.visibility !== 'private') return;
+        if (!club || club.visibility !== "private") return;
         if (club.memberIds.includes(currentUserId)) return;
-        if (joinRequests.some((request) => request.clubId === clubId && request.userId === currentUserId)) {
+        if (
+          joinRequests.some(
+            (request) =>
+              request.clubId === clubId && request.userId === currentUserId,
+          )
+        ) {
           return;
         }
 
@@ -409,7 +536,9 @@ export const useAppStore = create<AppState>()(
         );
         if (!request) return;
 
-        set({ joinRequests: joinRequests.filter((item) => item.id !== request.id) });
+        set({
+          joinRequests: joinRequests.filter((item) => item.id !== request.id),
+        });
 
         if (isSupabaseEnabled) {
           await deleteJoinRequest(request.id);
@@ -417,16 +546,25 @@ export const useAppStore = create<AppState>()(
       },
 
       approveJoinRequest: async (requestId) => {
-        const { currentUserId, clubs, joinRequests } = get();
+        const { currentUserId, clubs, joinRequests, users } = get();
         const request = joinRequests.find((item) => item.id === requestId);
         if (!request) return;
 
         const club = clubs.find((item) => item.id === request.clubId);
         if (!club || club.adminId !== currentUserId) return;
 
+        assertFeatureAccess(getCurrentUserTier(get), "approve_join_requests");
+
+        const admin = users.find((item) => item.id === club.adminId) ?? null;
+        const memberCheck = canAddClubMember(admin, club);
+        if (!memberCheck.ok) {
+          throw new SubscriptionError(memberCheck.reason!);
+        }
+
         set({
           clubs: clubs.map((item) =>
-            item.id === request.clubId && !item.memberIds.includes(request.userId)
+            item.id === request.clubId &&
+            !item.memberIds.includes(request.userId)
               ? { ...item, memberIds: [...item.memberIds, request.userId] }
               : item,
           ),
@@ -447,7 +585,9 @@ export const useAppStore = create<AppState>()(
         const club = clubs.find((item) => item.id === request.clubId);
         if (!club || club.adminId !== currentUserId) return;
 
-        set({ joinRequests: joinRequests.filter((item) => item.id !== requestId) });
+        set({
+          joinRequests: joinRequests.filter((item) => item.id !== requestId),
+        });
 
         if (isSupabaseEnabled) {
           await deleteJoinRequest(requestId);
@@ -461,7 +601,12 @@ export const useAppStore = create<AppState>()(
         set({
           clubs: clubs.map((club) =>
             club.id === clubId
-              ? { ...club, memberIds: club.memberIds.filter((id) => id !== currentUserId) }
+              ? {
+                  ...club,
+                  memberIds: club.memberIds.filter(
+                    (id) => id !== currentUserId,
+                  ),
+                }
               : club,
           ),
         });
@@ -475,7 +620,19 @@ export const useAppStore = create<AppState>()(
         const { currentUserId, clubs, session } = get();
         const userId = session?.user?.id ?? currentUserId;
         if (!userId) {
-          throw new Error('Sign in to create a club.');
+          throw new Error("Sign in to create a club.");
+        }
+
+        const user = get().users.find((item) => item.id === userId) ?? null;
+        const tier = getUserTier(user);
+        const memberClubCount = countMyClubs(clubs, userId);
+        const createCheck = canCreateClub(tier, memberClubCount);
+        if (!createCheck.ok) {
+          throw new SubscriptionError(createCheck.reason!);
+        }
+
+        if (clubData.visibility === "private") {
+          assertFeatureAccess(tier, "private_clubs");
         }
 
         const id = uuidv4();
@@ -491,6 +648,7 @@ export const useAppStore = create<AppState>()(
 
         const newClub: Club = {
           ...clubData,
+          visibility: tier === "basic" ? "open" : clubData.visibility,
           iconUrl,
           id,
           memberIds: [userId],
@@ -505,7 +663,9 @@ export const useAppStore = create<AppState>()(
             await insertClub(newClub);
           } catch (error) {
             set({ clubs: get().clubs.filter((club) => club.id !== id) });
-            throw new Error(formatSyncError(error, 'Could not save club to the cloud.'));
+            throw new Error(
+              formatSyncError(error, "Could not save club to the cloud."),
+            );
           }
 
           await get().refreshFromServer();
@@ -521,6 +681,11 @@ export const useAppStore = create<AppState>()(
         const target = events.find((event) => event.id === eventId);
         if (!target || isEventOptionsLocked(target)) return;
 
+        const joinCheck = canJoinEvent(getCurrentUserTier(get), target);
+        if (!joinCheck.ok) {
+          throw new SubscriptionError(joinCheck.reason!);
+        }
+
         let joinedEvent: GameEvent | undefined;
 
         set({
@@ -532,15 +697,17 @@ export const useAppStore = create<AppState>()(
             joinedEvent = {
               ...event,
               participantIds: [...event.participantIds, currentUserId],
-              shuffled: false,
-              courtGames: undefined,
             };
             return joinedEvent;
           }),
         });
 
         if (joinedEvent) {
-          await scheduleGameReminder(joinedEvent.id, joinedEvent.title, joinedEvent.dateTime);
+          await scheduleGameReminder(
+            joinedEvent.id,
+            joinedEvent.title,
+            joinedEvent.dateTime,
+          );
         }
 
         if (isSupabaseEnabled) {
@@ -561,11 +728,20 @@ export const useAppStore = create<AppState>()(
           events: events.map((event) => {
             if (event.id !== eventId) return event;
 
+            const participantIds = event.participantIds.filter(
+              (id) => id !== currentUserId,
+            );
+            const courtGames = removePlayerFromCourtGames(
+              event.courtGames,
+              currentUserId,
+              participantIds,
+            );
+
             return {
               ...event,
-              participantIds: event.participantIds.filter((id) => id !== currentUserId),
-              shuffled: false,
-              courtGames: undefined,
+              participantIds,
+              courtGames,
+              shuffled: Boolean(courtGames?.length),
             };
           }),
         });
@@ -581,7 +757,9 @@ export const useAppStore = create<AppState>()(
 
       createEvent: async (eventData) => {
         const { currentUserId, events } = get();
-        if (!currentUserId) return '';
+        if (!currentUserId) return "";
+
+        assertFeatureAccess(getCurrentUserTier(get), "create_event");
 
         const id = uuidv4();
         const newEvent: GameEvent = {
@@ -593,11 +771,17 @@ export const useAppStore = create<AppState>()(
         };
 
         set({ events: [...events, newEvent] });
-        await scheduleGameReminder(newEvent.id, newEvent.title, newEvent.dateTime);
+
+        void scheduleGameReminder(
+          newEvent.id,
+          newEvent.title,
+          newEvent.dateTime,
+        ).catch(() => undefined);
 
         if (isSupabaseEnabled) {
-          await insertEvent(newEvent);
-          await get().refreshFromServer();
+          void insertEvent(newEvent)
+            .then(() => get().refreshFromServer())
+            .catch(() => undefined);
         }
 
         return id;
@@ -610,6 +794,8 @@ export const useAppStore = create<AppState>()(
 
         const club = clubs.find((item) => item.id === event.clubId);
         if (!canManageEvent(event, currentUserId, club?.adminId)) return false;
+
+        assertFeatureAccess(getCurrentUserTier(get), "create_event");
 
         if (updates.maxPlayers < event.participantIds.length) return false;
 
@@ -633,15 +819,22 @@ export const useAppStore = create<AppState>()(
         }
 
         const scheduleChanged =
-          updatedEvent.dateTime !== event.dateTime || updatedEvent.title !== event.title;
+          updatedEvent.dateTime !== event.dateTime ||
+          updatedEvent.title !== event.title;
 
         set({
-          events: events.map((item) => (item.id === eventId ? updatedEvent : item)),
+          events: events.map((item) =>
+            item.id === eventId ? updatedEvent : item,
+          ),
         });
 
         if (scheduleChanged) {
           await cancelGameReminder(eventId);
-          await scheduleGameReminder(updatedEvent.id, updatedEvent.title, updatedEvent.dateTime);
+          await scheduleGameReminder(
+            updatedEvent.id,
+            updatedEvent.title,
+            updatedEvent.dateTime,
+          );
         }
 
         if (isSupabaseEnabled) {
@@ -655,6 +848,8 @@ export const useAppStore = create<AppState>()(
         const { events, users } = get();
         const event = events.find((item) => item.id === eventId);
         if (!event || isEventOptionsLocked(event)) return;
+
+        assertFeatureAccess(getCurrentUserTier(get), "shuffle_teams");
 
         const rosterSize = clampPlayersPerGame(
           playersPerGame ?? getPlayersPerGame(event),
@@ -675,29 +870,70 @@ export const useAppStore = create<AppState>()(
         };
 
         set({
-          events: events.map((item) => (item.id === eventId ? updatedEvent : item)),
+          events: events.map((item) =>
+            item.id === eventId ? updatedEvent : item,
+          ),
         });
 
         if (isSupabaseEnabled) {
-          await updateEvent(updatedEvent);
+          void updateEvent(updatedEvent).catch(() => undefined);
         }
+      },
+
+      saveEventCourts: async (eventId, courtGames) => {
+        const { events, currentUserId, clubs } = get();
+        const event = events.find((item) => item.id === eventId);
+        if (!event || isEventOptionsLocked(event)) return false;
+
+        const club = clubs.find((item) => item.id === event.clubId);
+        if (!canManageEvent(event, currentUserId, club?.adminId)) return false;
+
+        assertFeatureAccess(getCurrentUserTier(get), "edit_courts");
+
+        const sanitized = sanitizeCourtGames(courtGames, event.participantIds);
+        const updatedEvent: GameEvent = {
+          ...event,
+          courtGames: sanitized.length > 0 ? sanitized : undefined,
+          shuffled: sanitized.length > 0,
+        };
+
+        set({
+          events: events.map((item) =>
+            item.id === eventId ? updatedEvent : item,
+          ),
+        });
+
+        if (isSupabaseEnabled) {
+          try {
+            await updateEvent(updatedEvent);
+          } catch {
+            return false;
+          }
+        }
+
+        return true;
       },
 
       finishEvent: async (eventId) => {
         const { events, currentUserId, clubs } = get();
         const event = events.find((item) => item.id === eventId);
-        if (!event || isEventOptionsLocked(event) || !hasEventStarted(event)) return;
+        if (!event || isEventOptionsLocked(event) || !hasEventStarted(event))
+          return;
 
         const club = clubs.find((item) => item.id === event.clubId);
         const canFinish =
           currentUserId === event.createdBy || currentUserId === club?.adminId;
         if (!canFinish) return;
 
+        assertFeatureAccess(getCurrentUserTier(get), "scorekeeper");
+
         const finishedAt = new Date().toISOString();
         const updatedEvent: GameEvent = { ...event, finishedAt };
 
         set({
-          events: events.map((item) => (item.id === eventId ? updatedEvent : item)),
+          events: events.map((item) =>
+            item.id === eventId ? updatedEvent : item,
+          ),
         });
 
         if (isSupabaseEnabled) {
@@ -705,18 +941,46 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      saveEventStats: async (eventId, statsByPlayer, courtGameIndex = 0) => {
-        const { events, currentUserId, clubs, gameStatRecords } = get();
-        const event = events.find((item) => item.id === eventId);
-        if (!event || isEventOptionsLocked(event)) return;
+      saveEventStats: async (
+        eventId,
+        statsByPlayer,
+        courtGameIndex = 0,
+        playerIds,
+      ) => {
+        const { events, currentUserId, clubs, gameStatRecords, users } = get();
+        const rawEvent = events.find((item) => item.id === eventId);
+        if (!rawEvent) return "Game not found.";
+        if (isEventOptionsLocked(rawEvent)) {
+          return "This game is closed. Stats can no longer be saved.";
+        }
 
+        const event = normalizeEventCourts(rawEvent);
         const club = clubs.find((item) => item.id === event.clubId);
         const canSave =
           currentUserId === event.createdBy || currentUserId === club?.adminId;
-        if (!canSave) return;
+        if (!canSave) {
+          return "Only the game creator or club admin can save stats.";
+        }
 
-        const rosterIds = getCourtGameRosterIds(event, courtGameIndex);
-        if (rosterIds.length === 0) return;
+        try {
+          assertFeatureAccess(getCurrentUserTier(get), "scorekeeper");
+        } catch (error) {
+          return error instanceof SubscriptionError
+            ? error.message
+            : "Scorekeeper is not available on your plan.";
+        }
+
+        const courtRosterIds = getCourtGameRosterIds(event, courtGameIndex);
+        const rosterIds = (
+          playerIds?.length ? playerIds : courtRosterIds
+        ).filter((userId) => users.some((user) => user.id === userId));
+
+        if (rosterIds.length === 0) {
+          if (playerIds?.length || courtRosterIds.length > 0) {
+            return "Player profiles are still loading. Pull to refresh and try again.";
+          }
+          return "No players on this court to save.";
+        }
 
         const now = new Date().toISOString();
         const existingByUser = new Map(
@@ -728,7 +992,8 @@ export const useAppStore = create<AppState>()(
         const updatedRecords: GameStatRecord[] = [];
 
         for (const userId of rosterIds) {
-          const stats = statsByPlayer[userId] ?? existingByUser.get(userId)?.stats ?? { ...EMPTY_BOX_SCORE };
+          const stats = statsByPlayer[userId] ??
+            existingByUser.get(userId)?.stats ?? { ...EMPTY_BOX_SCORE };
           const existing = existingByUser.get(userId);
 
           updatedRecords.push({
@@ -746,15 +1011,27 @@ export const useAppStore = create<AppState>()(
           });
         }
 
-        const updatedUserIds = new Set(updatedRecords.map((record) => record.userId));
+        const updatedUserIds = new Set(
+          updatedRecords.map((record) => record.userId),
+        );
         const otherRecords = gameStatRecords.filter(
-          (record) => record.eventId !== eventId || !updatedUserIds.has(record.userId),
+          (record) =>
+            record.eventId !== eventId || !updatedUserIds.has(record.userId),
         );
         set({ gameStatRecords: [...otherRecords, ...updatedRecords] });
 
         if (isSupabaseEnabled) {
-          await upsertEventPlayerStats(updatedRecords);
+          try {
+            await upsertEventPlayerStats(updatedRecords);
+          } catch (error) {
+            return formatSyncError(
+              error,
+              "Could not save box score. Try again.",
+            );
+          }
         }
+
+        return null;
       },
 
       getCurrentUser: () => {
@@ -778,17 +1055,24 @@ export const useAppStore = create<AppState>()(
         const now = Date.now();
         return get()
           .events.filter((event) => new Date(event.dateTime).getTime() >= now)
-          .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+          .sort(
+            (a, b) =>
+              new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime(),
+          );
       },
 
       getPlayerGameHistory: (userId) => {
         return get()
           .gameStatRecords.filter((record) => record.userId === userId)
-          .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+          .sort(
+            (a, b) =>
+              new Date(b.recordedAt).getTime() -
+              new Date(a.recordedAt).getTime(),
+          );
       },
     }),
     {
-      name: 'highballers-storage',
+      name: "highballers-storage",
       storage: createJSONStorage(() => AsyncStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);
@@ -806,13 +1090,17 @@ export const useAppStore = create<AppState>()(
   ),
 );
 
-export function createDefaultProfile(name: string, position: Position): Omit<UserProfile, 'id' | 'joinedAt'> {
+export function createDefaultProfile(
+  name: string,
+  position: Position,
+): Omit<UserProfile, "id" | "joinedAt"> {
   return {
     name,
     position,
-    avatarColor: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
+    avatarColor:
+      AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
     stats: { ...DEFAULT_STATS },
-    bio: '',
+    bio: "",
   };
 }
 

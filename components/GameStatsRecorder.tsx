@@ -1,23 +1,24 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-} from 'react-native';
+  type ScrollViewProps,
+} from "react-native";
 
-import { Avatar, Button } from './ui';
-import { UNASSIGNED_ROSTER_LABEL } from '../lib/eventRoster';
-import { colors, radius, spacing, typography } from '../lib/theme';
+import { Avatar, Button } from "./ui";
+import { UNASSIGNED_ROSTER_LABEL } from "../lib/eventRoster";
+import { colors, radius, spacing, typography } from "../lib/theme";
 import {
   BOX_SCORE_FIELDS,
   BOX_SCORE_LABELS,
   BoxScoreStats,
   EMPTY_BOX_SCORE,
   UserProfile,
-} from '../lib/types';
+} from "../lib/types";
 
 interface GameStatsRecorderProps {
   participants: UserProfile[];
@@ -27,18 +28,20 @@ interface GameStatsRecorderProps {
   initialStats: Record<string, BoxScoreStats>;
   saving?: boolean;
   saved?: boolean;
-  onSave: (statsByPlayer: Record<string, BoxScoreStats>) => void;
+  saveError?: string | null;
+  refreshControl?: ScrollViewProps["refreshControl"];
+  onSave: (statsByPlayer: Record<string, BoxScoreStats>) => void | Promise<void>;
 }
 
 const STAT_META: Record<
   keyof BoxScoreStats,
   { icon: keyof typeof Ionicons.glyphMap; color: string }
 > = {
-  points: { icon: 'basketball', color: colors.primary },
-  rebounds: { icon: 'arrow-up-circle', color: colors.accent },
-  assists: { icon: 'git-network-outline', color: colors.success },
-  blocks: { icon: 'shield-checkmark', color: colors.secondary },
-  steals: { icon: 'flash', color: colors.warning },
+  points: { icon: "basketball", color: colors.primary },
+  rebounds: { icon: "arrow-up-circle", color: colors.accent },
+  assists: { icon: "git-network-outline", color: colors.success },
+  blocks: { icon: "shield-checkmark", color: colors.secondary },
+  steals: { icon: "flash", color: colors.warning },
 };
 
 function clampStat(value: number): number {
@@ -46,33 +49,59 @@ function clampStat(value: number): number {
   return Math.min(99, Math.round(value));
 }
 
+const SECONDARY_STAT_FIELDS = BOX_SCORE_FIELDS.filter(
+  (field) => field !== "points",
+);
+
 function StatPad({
   field,
   value,
+  featured,
   onIncrement,
   onDecrement,
 }: {
   field: keyof BoxScoreStats;
   value: number;
+  featured?: boolean;
   onIncrement: () => void;
   onDecrement: () => void;
 }) {
   const meta = STAT_META[field];
 
   return (
-    <View style={[styles.statPad, { borderColor: `${meta.color}44` }]}>
-      <View style={styles.statPadHeader}>
-        <View style={[styles.statIconWrap, { backgroundColor: `${meta.color}22` }]}>
-          <Ionicons name={meta.icon} size={18} color={meta.color} />
+    <View
+      style={[
+        styles.statPad,
+        featured ? styles.statPadFeatured : styles.statPadCompact,
+        { borderColor: `${meta.color}44` },
+      ]}
+    >
+      <View
+        style={[styles.statPadHeader, featured && styles.statPadHeaderFeatured]}
+      >
+        <View
+          style={[styles.statIconWrap, { backgroundColor: `${meta.color}22` }]}
+        >
+          <Ionicons
+            name={meta.icon}
+            size={featured ? 20 : 18}
+            color={meta.color}
+          />
         </View>
-        <Text style={[styles.statLabel, { color: meta.color }]}>{BOX_SCORE_LABELS[field]}</Text>
+        <Text style={[styles.statLabel, { color: meta.color }]}>
+          {BOX_SCORE_LABELS[field]}
+        </Text>
       </View>
 
-      <Text style={styles.statValue}>{value}</Text>
+      <Text style={[styles.statValue, featured && styles.statValueFeatured]}>
+        {value}
+      </Text>
 
-      <View style={styles.statControls}>
+      <View
+        style={[styles.statControls, featured && styles.statControlsFeatured]}
+      >
         <Pressable
-          style={styles.statBtn}
+          style={[styles.statBtn, featured && styles.statBtnFeatured]}
           onPress={onDecrement}
           hitSlop={6}
           accessibilityLabel={`Decrease ${BOX_SCORE_LABELS[field]}`}
@@ -80,7 +109,12 @@ function StatPad({
           <Ionicons name="remove" size={20} color={colors.textMuted} />
         </Pressable>
         <Pressable
-          style={[styles.statBtn, styles.statBtnPrimary, { backgroundColor: `${meta.color}33` }]}
+          style={[
+            styles.statBtn,
+            styles.statBtnPrimary,
+            featured && styles.statBtnFeatured,
+            { backgroundColor: `${meta.color}33` },
+          ]}
           onPress={onIncrement}
           hitSlop={6}
           accessibilityLabel={`Increase ${BOX_SCORE_LABELS[field]}`}
@@ -100,6 +134,8 @@ export function GameStatsRecorder({
   initialStats,
   saving,
   saved,
+  saveError,
+  refreshControl,
   onSave,
 }: GameStatsRecorderProps) {
   const roster = useMemo(() => {
@@ -112,21 +148,35 @@ export function GameStatsRecorder({
   const [activeIndex, setActiveIndex] = useState(0);
   const [draft, setDraft] = useState<Record<string, BoxScoreStats>>({});
 
+  const rosterKey = useMemo(
+    () => roster.map((player) => player.id).join(","),
+    [roster],
+  );
+
   useEffect(() => {
+    if (saving) return;
+
     const next: Record<string, BoxScoreStats> = {};
     for (const player of roster) {
       next[player.id] = initialStats[player.id] ?? { ...EMPTY_BOX_SCORE };
     }
     setDraft(next);
+  }, [roster, rosterKey, initialStats, saving]);
+
+  useEffect(() => {
     setActiveIndex(0);
-  }, [roster, initialStats]);
+  }, [roster]);
 
   const activePlayer = roster[activeIndex];
-  const activeStats = activePlayer ? draft[activePlayer.id] ?? EMPTY_BOX_SCORE : EMPTY_BOX_SCORE;
-  const activeTeamLabel = teamA?.some((player) => player.id === activePlayer?.id)
-    ? 'Team A'
+  const activeStats = activePlayer
+    ? (draft[activePlayer.id] ?? EMPTY_BOX_SCORE)
+    : EMPTY_BOX_SCORE;
+  const activeTeamLabel = teamA?.some(
+    (player) => player.id === activePlayer?.id,
+  )
+    ? "Team A"
     : teamB?.some((player) => player.id === activePlayer?.id)
-      ? 'Team B'
+      ? "Team B"
       : null;
 
   const isUnassignedRoster = courtLabel === UNASSIGNED_ROSTER_LABEL;
@@ -135,14 +185,21 @@ export function GameStatsRecorder({
   const totals = useMemo(() => {
     return BOX_SCORE_FIELDS.reduce(
       (acc, field) => {
-        acc[field] = roster.reduce((sum, player) => sum + (draft[player.id]?.[field] ?? 0), 0);
+        acc[field] = roster.reduce(
+          (sum, player) => sum + (draft[player.id]?.[field] ?? 0),
+          0,
+        );
         return acc;
       },
       { ...EMPTY_BOX_SCORE },
     );
   }, [draft, roster]);
 
-  const updateStat = (playerId: string, field: keyof BoxScoreStats, delta: number) => {
+  const updateStat = (
+    playerId: string,
+    field: keyof BoxScoreStats,
+    delta: number,
+  ) => {
     setDraft((current) => {
       const currentStats = current[playerId] ?? { ...EMPTY_BOX_SCORE };
       return {
@@ -202,27 +259,36 @@ export function GameStatsRecorder({
     startIndex: number,
   ) => (
     <View style={styles.teamRow}>
-      <View style={[styles.teamBadge, { backgroundColor: `${teamColor}18`, borderColor: `${teamColor}55` }]}>
-        <Text style={[styles.teamBadgeShort, { color: teamColor }]}>{shortLabel}</Text>
-        <Text style={[styles.teamBadgeLabel, { color: teamColor }]} numberOfLines={1}>
+      <View
+        style={[
+          styles.teamBadge,
+          { backgroundColor: `${teamColor}18`, borderColor: `${teamColor}55` },
+        ]}
+      >
+        <Text style={[styles.teamBadgeShort, { color: teamColor }]}>
+          {shortLabel}
+        </Text>
+        <Text
+          style={[styles.teamBadgeLabel, { color: teamColor }]}
+          numberOfLines={1}
+        >
           {label}
         </Text>
       </View>
-      <ScrollView
-        horizontal
-        style={styles.teamScroll}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.avatarStrip}
-      >
-        {players.map((player, index) => renderPlayerChip(player, startIndex + index, teamColor))}
-      </ScrollView>
+      <View style={styles.avatarGrid}>
+        {players.map((player, index) =>
+          renderPlayerChip(player, startIndex + index, teamColor),
+        )}
+      </View>
     </View>
   );
 
   if (roster.length === 0) {
     return (
       <View style={styles.emptyWrap}>
-        <Text style={styles.emptyText}>No players on this court. Re-shuffle teams and try again.</Text>
+        <Text style={styles.emptyText}>
+          No players on this court. Re-shuffle teams and try again.
+        </Text>
       </View>
     );
   }
@@ -232,26 +298,32 @@ export function GameStatsRecorder({
       <View style={styles.playerPicker}>
         {teamA?.length && teamB?.length ? (
           <>
-            {renderTeamRow('Team A', 'A', teamA, colors.teamA, 0)}
+            {renderTeamRow("Team A", "A", teamA, colors.teamA, 0)}
             <View style={styles.teamDivider} />
-            {renderTeamRow('Team B', 'B', teamB, colors.teamB, teamA.length)}
+            {renderTeamRow("Team B", "B", teamB, colors.teamB, teamA.length)}
           </>
         ) : (
           <View style={styles.singleTeamRow}>
             {isUnassignedRoster ? (
-              <View style={[styles.unassignedBadge, { borderColor: `${colors.warning}55` }]}>
-                <Ionicons name="person-outline" size={14} color={colors.warning} />
-                <Text style={styles.unassignedBadgeText}>Not on court</Text>
+              <View
+                style={[
+                  styles.unassignedBadge,
+                  { borderColor: `${colors.warning}55` },
+                ]}
+              >
+                <Ionicons
+                  name="person-outline"
+                  size={14}
+                  color={colors.warning}
+                />
+                <Text style={styles.unassignedBadgeText}>Substitute</Text>
               </View>
             ) : null}
-            <ScrollView
-              horizontal
-              style={[styles.teamScroll, styles.teamScrollFlex]}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.avatarStrip}
-            >
-              {roster.map((player, index) => renderPlayerChip(player, index, rosterAccent))}
-            </ScrollView>
+            <View style={styles.avatarGrid}>
+              {roster.map((player, index) =>
+                renderPlayerChip(player, index, rosterAccent),
+              )}
+            </View>
           </View>
         )}
       </View>
@@ -262,9 +334,13 @@ export function GameStatsRecorder({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator
         nestedScrollEnabled
+        refreshControl={refreshControl}
       >
         <View style={styles.activePlayerBar}>
-          <Pressable style={styles.navBtn} onPress={() => goToPlayer(activeIndex - 1)}>
+          <Pressable
+            style={styles.navBtn}
+            onPress={() => goToPlayer(activeIndex - 1)}
+          >
             <Ionicons name="chevron-back" size={20} color={colors.text} />
           </Pressable>
 
@@ -279,8 +355,10 @@ export function GameStatsRecorder({
                   },
                 ]}
               >
-                <Text style={[styles.activeTeamPillText, { color: colors.warning }]}>
-                  Unassigned
+                <Text
+                  style={[styles.activeTeamPillText, { color: colors.warning }]}
+                >
+                  Substitutes
                 </Text>
               </View>
             ) : activeTeamLabel ? (
@@ -288,32 +366,42 @@ export function GameStatsRecorder({
                 style={[
                   styles.activeTeamPill,
                   {
-                    backgroundColor: `${activeTeamLabel === 'Team A' ? colors.teamA : colors.teamB}22`,
-                    borderColor: `${activeTeamLabel === 'Team A' ? colors.teamA : colors.teamB}66`,
+                    backgroundColor: `${activeTeamLabel === "Team A" ? colors.teamA : colors.teamB}22`,
+                    borderColor: `${activeTeamLabel === "Team A" ? colors.teamA : colors.teamB}66`,
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.activeTeamPillText,
-                    { color: activeTeamLabel === 'Team A' ? colors.teamA : colors.teamB },
+                    {
+                      color:
+                        activeTeamLabel === "Team A"
+                          ? colors.teamA
+                          : colors.teamB,
+                    },
                   ]}
                 >
                   {activeTeamLabel}
                 </Text>
               </View>
             ) : null}
-            {courtLabel ? <Text style={styles.activeMeta}>{courtLabel}</Text> : null}
+            {courtLabel ? (
+              <Text style={styles.activeMeta}>{courtLabel}</Text>
+            ) : null}
             <Text style={styles.activeName} numberOfLines={1}>
               {activePlayer?.name}
             </Text>
             <Text style={styles.activeSub}>
               {activeIndex + 1} of {roster.length}
-              {activePlayer?.position ? ` · ${activePlayer.position}` : ''}
+              {activePlayer?.position ? ` · ${activePlayer.position}` : ""}
             </Text>
           </View>
 
-          <Pressable style={styles.navBtn} onPress={() => goToPlayer(activeIndex + 1)}>
+          <Pressable
+            style={styles.navBtn}
+            onPress={() => goToPlayer(activeIndex + 1)}
+          >
             <Ionicons name="chevron-forward" size={20} color={colors.text} />
           </Pressable>
         </View>
@@ -321,7 +409,9 @@ export function GameStatsRecorder({
         <View style={styles.quickLine}>
           {BOX_SCORE_FIELDS.map((field) => (
             <View key={field} style={styles.quickItem}>
-              <Text style={[styles.quickKey, { color: STAT_META[field].color }]}>
+              <Text
+                style={[styles.quickKey, { color: STAT_META[field].color }]}
+              >
                 {BOX_SCORE_LABELS[field]}
               </Text>
               <Text style={styles.quickVal}>{activeStats[field]}</Text>
@@ -330,15 +420,34 @@ export function GameStatsRecorder({
         </View>
 
         <View style={styles.padGrid}>
-          {BOX_SCORE_FIELDS.map((field) => (
-            <StatPad
-              key={field}
-              field={field}
-              value={activeStats[field]}
-              onIncrement={() => activePlayer && updateStat(activePlayer.id, field, 1)}
-              onDecrement={() => activePlayer && updateStat(activePlayer.id, field, -1)}
-            />
-          ))}
+          <StatPad
+            field="points"
+            featured
+            value={activeStats.points}
+            onIncrement={() =>
+              activePlayer && updateStat(activePlayer.id, "points", 1)
+            }
+            onDecrement={() =>
+              activePlayer && updateStat(activePlayer.id, "points", -1)
+            }
+          />
+
+          <View style={styles.secondaryGrid}>
+            {SECONDARY_STAT_FIELDS.map((field) => (
+              <View key={field} style={styles.secondaryGridCell}>
+                <StatPad
+                  field={field}
+                  value={activeStats[field]}
+                  onIncrement={() =>
+                    activePlayer && updateStat(activePlayer.id, field, 1)
+                  }
+                  onDecrement={() =>
+                    activePlayer && updateStat(activePlayer.id, field, -1)
+                  }
+                />
+              </View>
+            ))}
+          </View>
         </View>
       </ScrollView>
 
@@ -352,11 +461,23 @@ export function GameStatsRecorder({
           ))}
         </View>
 
+        {saveError ? <Text style={styles.saveError}>{saveError}</Text> : null}
+
         <Button
-          title={saved ? 'Saved!' : courtLabel ? `Save ${courtLabel}` : 'Save Box Score'}
+          title={
+            saved
+              ? "Saved!"
+              : courtLabel
+                ? `Save ${courtLabel}`
+                : "Save Box Score"
+          }
           loading={saving}
-          onPress={() => onSave(draft)}
-          icon={<Ionicons name="checkmark-done" size={18} color={colors.text} />}
+          onPress={() => {
+            void onSave(draft);
+          }}
+          icon={
+            <Ionicons name="checkmark-done" size={18} color={colors.text} />
+          }
         />
       </View>
     </View>
@@ -370,14 +491,14 @@ const styles = StyleSheet.create({
   },
   emptyWrap: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: spacing.lg,
   },
   emptyText: {
     ...typography.body,
     color: colors.textMuted,
-    textAlign: 'center',
+    textAlign: "center",
   },
   playerPicker: {
     flexGrow: 0,
@@ -389,9 +510,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   teamRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 48,
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: spacing.sm,
   },
   teamDivider: {
@@ -400,14 +520,13 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xs,
   },
   singleTeamRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 48,
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: spacing.sm,
   },
   unassignedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
@@ -425,13 +544,13 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: radius.sm,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 2,
   },
   teamBadgeShort: {
     ...typography.label,
-    fontWeight: '800',
+    fontWeight: "800",
     fontSize: 13,
     lineHeight: 14,
   },
@@ -441,37 +560,31 @@ const styles = StyleSheet.create({
     lineHeight: 10,
     marginTop: 1,
   },
-  teamScroll: {
+  avatarGrid: {
     flex: 1,
-    height: 44,
-  },
-  teamScrollFlex: {
-    flex: 1,
-  },
-  avatarStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
-    paddingRight: spacing.sm,
+    paddingVertical: 2,
   },
   avatarChip: {
     width: 44,
     height: 44,
     borderRadius: radius.full,
     borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'visible',
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
   },
   ptsBadge: {
-    position: 'absolute',
+    position: "absolute",
     bottom: -4,
     right: -4,
     minWidth: 16,
     height: 16,
     borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 3,
     borderWidth: 1.5,
     borderColor: colors.background,
@@ -479,7 +592,7 @@ const styles = StyleSheet.create({
   ptsBadgeText: {
     color: colors.text,
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: "800",
     lineHeight: 11,
   },
   scrollArea: {
@@ -492,8 +605,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   activePlayerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -505,12 +618,12 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: radius.full,
     backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   activePlayerCenter: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: spacing.xs,
   },
   activeMeta: {
@@ -529,12 +642,12 @@ const styles = StyleSheet.create({
   activeTeamPillText: {
     ...typography.label,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   activeName: {
     ...typography.body,
     color: colors.text,
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 16,
   },
   activeSub: {
@@ -544,18 +657,17 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   quickLine: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
     backgroundColor: colors.card,
     borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
     paddingVertical: spacing.sm,
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
   quickItem: {
-    alignItems: 'center',
-    minWidth: 44,
+    flex: 1,
+    alignItems: "center",
   },
   quickKey: {
     ...typography.label,
@@ -564,62 +676,92 @@ const styles = StyleSheet.create({
   quickVal: {
     ...typography.body,
     color: colors.text,
-    fontWeight: '800',
+    fontWeight: "800",
     fontSize: 16,
     lineHeight: 20,
   },
   padGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
   },
+  secondaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginHorizontal: -spacing.xs / 2,
+  },
+  secondaryGridCell: {
+    width: "50%",
+    paddingHorizontal: spacing.xs / 2,
+    paddingBottom: spacing.xs,
+  },
   statPad: {
-    width: '47%',
     borderRadius: radius.md,
     backgroundColor: colors.card,
     borderWidth: 1,
     padding: spacing.sm,
     gap: spacing.xs,
   },
+  statPadFeatured: {
+    minHeight: 112,
+  },
+  statPadCompact: {
+    flex: 1,
+    minHeight: 132,
+  },
   statPadHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.xs,
+  },
+  statPadHeaderFeatured: {
+    justifyContent: "center",
   },
   statIconWrap: {
     width: 28,
     height: 28,
     borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   statLabel: {
     ...typography.label,
     fontSize: 11,
   },
   statValue: {
-    fontSize: 36,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: "800",
     color: colors.text,
-    lineHeight: 40,
-    textAlign: 'center',
+    lineHeight: 36,
+    textAlign: "center",
+  },
+  statValueFeatured: {
+    fontSize: 44,
+    lineHeight: 48,
   },
   statControls: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.xs,
+    marginTop: "auto",
+  },
+  statControlsFeatured: {
+    maxWidth: 220,
+    alignSelf: "center",
+    width: "100%",
   },
   statBtn: {
     flex: 1,
     height: 40,
     borderRadius: radius.sm,
     backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
+  statBtnFeatured: {
+    height: 44,
+  },
   statBtnPrimary: {
-    borderColor: 'transparent',
+    borderColor: "transparent",
   },
   footer: {
     flexGrow: 0,
@@ -630,13 +772,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     gap: spacing.sm,
   },
+  saveError: {
+    ...typography.caption,
+    color: colors.error,
+    textAlign: "center",
+  },
   totalsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
     paddingHorizontal: spacing.xs,
   },
   totalItem: {
-    alignItems: 'center',
+    flex: 1,
+    alignItems: "center",
     gap: 2,
   },
   totalKey: {
@@ -647,6 +794,6 @@ const styles = StyleSheet.create({
   totalVal: {
     ...typography.caption,
     color: colors.textMuted,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });

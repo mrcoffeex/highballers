@@ -1,9 +1,9 @@
-import { Stack } from 'expo-router';
+import { Stack } from "expo-router";
 
-import { colors } from '../../../lib/theme';
+import { colors } from "../../../lib/theme";
 
 export const unstable_settings = {
-  initialRouteName: 'index',
+  initialRouteName: "index",
 };
 
 export default function ClubsLayout() {
@@ -11,26 +11,17 @@ export default function ClubsLayout() {
     <Stack
       screenOptions={{
         contentStyle: { backgroundColor: colors.background },
-        animation: 'slide_from_right',
+        animation: "slide_from_right",
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="[id]"
-        options={{
-          headerShown: true,
-          headerTitle: '',
-          headerBackTitle: 'Back',
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-        }}
-      />
+      <Stack.Screen name="[id]" options={{ headerShown: false }} />
       <Stack.Screen
         name="create"
         options={{
           headerShown: true,
-          headerTitle: 'New Club',
-          headerBackTitle: 'Back',
+          headerTitle: "New Club",
+          headerBackTitle: "Back",
           headerTintColor: colors.primary,
           headerStyle: { backgroundColor: colors.background },
           headerTitleStyle: { color: colors.text },

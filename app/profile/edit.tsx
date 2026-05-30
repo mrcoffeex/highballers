@@ -1,33 +1,45 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { ImagePickerField } from '../../components/ImagePickerField';
-import { StatSlider } from '../../components/StatSlider';
-import { Button, Input } from '../../components/ui';
-import { AVATAR_COLORS } from '../../lib/seedData';
-import { colors, radius, spacing, typography } from '../../lib/theme';
-import { POSITIONS, Position } from '../../lib/types';
-import { useCurrentUser } from '../../store/hooks';
-import { useAppStore } from '../../store/useAppStore';
+import { ImagePickerField } from "../../components/ImagePickerField";
+import { StatSlider } from "../../components/StatSlider";
+import { Button, FormScreenSkeleton, Input } from "../../components/ui";
+import { shouldShowEntitySkeleton } from "../../lib/entityLoading";
+import { AVATAR_COLORS } from "../../lib/seedData";
+import { colors, radius, spacing, typography } from "../../lib/theme";
+import { useRefreshControl } from "../../lib/useRefreshControl";
+import { POSITIONS, Position } from "../../lib/types";
+import { useCurrentUser } from "../../store/hooks";
+import { useAppStore } from "../../store/useAppStore";
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const user = useCurrentUser();
   const updateProfile = useAppStore((state) => state.updateProfile);
   const updateStats = useAppStore((state) => state.updateStats);
+  const users = useAppStore((state) => state.users);
+  const hydrated = useAppStore((state) => state.hydrated);
 
-  const [name, setName] = useState(user?.name ?? '');
-  const [nickname, setNickname] = useState(user?.nickname ?? '');
-  const [position, setPosition] = useState<Position>(user?.position ?? 'SG');
-  const [bio, setBio] = useState(user?.bio ?? '');
-  const [avatarColor, setAvatarColor] = useState(user?.avatarColor ?? AVATAR_COLORS[0]);
+  const [name, setName] = useState(user?.name ?? "");
+  const [nickname, setNickname] = useState(user?.nickname ?? "");
+  const [position, setPosition] = useState<Position>(user?.position ?? "SG");
+  const [bio, setBio] = useState(user?.bio ?? "");
+  const [avatarColor, setAvatarColor] = useState(
+    user?.avatarColor ?? AVATAR_COLORS[0],
+  );
   const [stats, setStats] = useState(user?.stats);
-  const [avatarUri, setAvatarUri] = useState<string | undefined>(user?.avatarUrl);
+  const [avatarUri, setAvatarUri] = useState<string | undefined>(
+    user?.avatarUrl,
+  );
   const [loading, setLoading] = useState(false);
+  const { refreshControl } = useRefreshControl();
 
   if (!user || !stats) {
+    if (shouldShowEntitySkeleton(user, hydrated, users.length === 0)) {
+      return <FormScreenSkeleton fields={6} />;
+    }
     return null;
   }
 
@@ -49,7 +61,12 @@ export default function EditProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={refreshControl}
+      showsVerticalScrollIndicator={false}
+    >
       <ImagePickerField
         label="Profile Photo"
         imageUri={avatarUri}
@@ -62,7 +79,12 @@ export default function EditProfileScreen() {
       <Input value={name} onChangeText={setName} style={styles.field} />
 
       <Text style={styles.label}>Nickname</Text>
-      <Input value={nickname} onChangeText={setNickname} placeholder="Optional" style={styles.field} />
+      <Input
+        value={nickname}
+        onChangeText={setNickname}
+        placeholder="Optional"
+        style={styles.field}
+      />
 
       <Text style={styles.label}>Bio</Text>
       <Input
@@ -80,9 +102,19 @@ export default function EditProfileScreen() {
           <Pressable
             key={pos}
             onPress={() => setPosition(pos)}
-            style={[styles.positionChip, position === pos && styles.positionChipActive]}
+            style={[
+              styles.positionChip,
+              position === pos && styles.positionChipActive,
+            ]}
           >
-            <Text style={[styles.positionText, position === pos && styles.positionTextActive]}>{pos}</Text>
+            <Text
+              style={[
+                styles.positionText,
+                position === pos && styles.positionTextActive,
+              ]}
+            >
+              {pos}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -107,15 +139,55 @@ export default function EditProfileScreen() {
       </View>
 
       <Text style={styles.sectionTitle}>Physical Stats</Text>
-      <StatSlider label="Height" value={stats.height} onChange={(height) => setStats({ ...stats, height })} min={150} max={220} unit="cm" />
-      <StatSlider label="Weight" value={stats.weight} onChange={(weight) => setStats({ ...stats, weight })} min={50} max={130} unit="kg" />
-      <StatSlider label="Speed" value={stats.speed} onChange={(speed) => setStats({ ...stats, speed })} />
-      <StatSlider label="Strength" value={stats.strength} onChange={(strength) => setStats({ ...stats, strength })} />
-      <StatSlider label="Shooting" value={stats.shooting} onChange={(shooting) => setStats({ ...stats, shooting })} />
-      <StatSlider label="Defense" value={stats.defense} onChange={(defense) => setStats({ ...stats, defense })} />
-      <StatSlider label="Stamina" value={stats.stamina} onChange={(stamina) => setStats({ ...stats, stamina })} />
+      <StatSlider
+        label="Height"
+        value={stats.height}
+        onChange={(height) => setStats({ ...stats, height })}
+        min={150}
+        max={220}
+        unit="cm"
+      />
+      <StatSlider
+        label="Weight"
+        value={stats.weight}
+        onChange={(weight) => setStats({ ...stats, weight })}
+        min={50}
+        max={130}
+        unit="kg"
+      />
+      <StatSlider
+        label="Speed"
+        value={stats.speed}
+        onChange={(speed) => setStats({ ...stats, speed })}
+      />
+      <StatSlider
+        label="Strength"
+        value={stats.strength}
+        onChange={(strength) => setStats({ ...stats, strength })}
+      />
+      <StatSlider
+        label="Shooting"
+        value={stats.shooting}
+        onChange={(shooting) => setStats({ ...stats, shooting })}
+      />
+      <StatSlider
+        label="Defense"
+        value={stats.defense}
+        onChange={(defense) => setStats({ ...stats, defense })}
+      />
+      <StatSlider
+        label="Stamina"
+        value={stats.stamina}
+        onChange={(stamina) => setStats({ ...stats, stamina })}
+      />
 
-      <Button title="Save Changes" onPress={handleSave} loading={loading} size="lg" style={styles.submit} />
+      <Button
+        title="Save Changes"
+        onPress={handleSave}
+        loading={loading}
+        size="lg"
+        style={styles.submit}
+      />
     </ScrollView>
   );
 }
@@ -140,11 +212,11 @@ const styles = StyleSheet.create({
   },
   textArea: {
     minHeight: 72,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   positionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
@@ -163,14 +235,14 @@ const styles = StyleSheet.create({
   positionText: {
     ...typography.caption,
     color: colors.textMuted,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   positionTextActive: {
     color: colors.primary,
   },
   colorRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
@@ -178,8 +250,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   colorSwatchActive: {
     borderWidth: 3,

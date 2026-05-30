@@ -1,4 +1,6 @@
-export type Position = 'PG' | 'SG' | 'SF' | 'PF' | 'C';
+export type Position = "PG" | "SG" | "SF" | "PF" | "C";
+
+export type SubscriptionTier = "basic" | "all_star";
 
 export interface PlayerStats {
   height: number;
@@ -36,9 +38,10 @@ export interface UserProfile {
   stats: PlayerStats;
   bio?: string;
   joinedAt: string;
+  subscriptionTier?: SubscriptionTier;
 }
 
-export type ClubVisibility = 'open' | 'private';
+export type ClubVisibility = "open" | "private";
 
 export interface ClubJoinRequest {
   id: string;
@@ -58,6 +61,19 @@ export interface Club {
   iconUrl?: string;
   visibility: ClubVisibility;
   createdAt: string;
+}
+
+export interface ClubChatMessage {
+  id: string;
+  clubId: string;
+  userId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface ClubChatPreview {
+  clubId: string;
+  lastMessage?: ClubChatMessage;
 }
 
 export interface CourtGame {
@@ -91,14 +107,14 @@ export interface BalancedTeams {
   ratingB: number;
 }
 
-export const POSITIONS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C'];
+export const POSITIONS: Position[] = ["PG", "SG", "SF", "PF", "C"];
 
 export const POSITION_LABELS: Record<Position, string> = {
-  PG: 'Point Guard',
-  SG: 'Shooting Guard',
-  SF: 'Small Forward',
-  PF: 'Power Forward',
-  C: 'Center',
+  PG: "Point Guard",
+  SG: "Shooting Guard",
+  SF: "Small Forward",
+  PF: "Power Forward",
+  C: "Center",
 };
 
 export const DEFAULT_STATS: PlayerStats = {
@@ -120,17 +136,17 @@ export const EMPTY_BOX_SCORE: BoxScoreStats = {
 };
 
 export const BOX_SCORE_FIELDS: (keyof BoxScoreStats)[] = [
-  'points',
-  'rebounds',
-  'assists',
-  'blocks',
-  'steals',
+  "points",
+  "rebounds",
+  "assists",
+  "blocks",
+  "steals",
 ];
 
 export const BOX_SCORE_LABELS: Record<keyof BoxScoreStats, string> = {
-  points: 'PTS',
-  rebounds: 'REB',
-  assists: 'AST',
-  blocks: 'BLK',
-  steals: 'STL',
+  points: "PTS",
+  rebounds: "REB",
+  assists: "AST",
+  blocks: "BLK",
+  steals: "STL",
 };

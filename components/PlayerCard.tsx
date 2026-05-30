@@ -1,23 +1,36 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from "react-native";
 
-import { calculatePlayerRating } from '../lib/teamBalancer';
-import { colors, radius, spacing, typography } from '../lib/theme';
-import { POSITION_LABELS, UserProfile } from '../lib/types';
-import { Avatar, Badge, Card } from './ui';
+import { calculatePlayerRating } from "../lib/teamBalancer";
+import { colors, radius, spacing, typography } from "../lib/theme";
+import { POSITION_LABELS, UserProfile } from "../lib/types";
+import { Avatar, Badge, Card } from "./ui";
 
 interface PlayerCardProps {
   player: UserProfile;
   compact?: boolean;
   showRating?: boolean;
+  badge?: { label: string; color?: string };
+  onPress?: () => void;
 }
 
-export function PlayerCard({ player, compact, showRating = true }: PlayerCardProps) {
+export function PlayerCard({
+  player,
+  compact,
+  showRating = true,
+  badge,
+  onPress,
+}: PlayerCardProps) {
   const rating = calculatePlayerRating(player.stats);
 
   return (
-    <Card style={compact ? styles.compactCard : undefined}>
+    <Card style={compact ? styles.compactCard : undefined} onPress={onPress}>
       <View style={styles.row}>
-        <Avatar name={player.name} color={player.avatarColor} size={compact ? 40 : 52} imageUrl={player.avatarUrl} />
+        <Avatar
+          name={player.name}
+          color={player.avatarColor}
+          size={compact ? 40 : 52}
+          imageUrl={player.avatarUrl}
+        />
         <View style={styles.info}>
           <Text style={styles.name}>{player.nickname ?? player.name}</Text>
           {!compact && player.nickname ? (
@@ -25,6 +38,12 @@ export function PlayerCard({ player, compact, showRating = true }: PlayerCardPro
           ) : null}
           <View style={styles.meta}>
             <Badge label={player.position} color={colors.primary} />
+            {badge ? (
+              <Badge
+                label={badge.label}
+                color={badge.color ?? colors.warning}
+              />
+            ) : null}
             {!compact && showRating ? (
               <Text style={styles.rating}>OVR {rating}</Text>
             ) : null}
@@ -47,10 +66,11 @@ export function PlayerCard({ player, compact, showRating = true }: PlayerCardPro
 const styles = StyleSheet.create({
   compactCard: {
     padding: spacing.sm + 4,
+    marginBottom: spacing.sm,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
   },
   info: {
@@ -66,19 +86,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   meta: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
   rating: {
     ...typography.caption,
     color: colors.secondary,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   compactRating: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     minWidth: 44,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,

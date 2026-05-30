@@ -1,12 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { StyleSheet, Text, View } from "react-native";
 
-import { calculatePlayerRating, getBalanceLabel } from '../lib/teamBalancer';
-import { colors, radius, spacing, typography } from '../lib/theme';
-import { UserProfile } from '../lib/types';
-import { Avatar } from './ui';
+import { calculatePlayerRating, getBalanceLabel } from "../lib/teamBalancer";
+import { colors, radius, spacing, typography } from "../lib/theme";
+import { UserProfile } from "../lib/types";
+import { Avatar } from "./ui";
 
 interface TeamShuffleViewProps {
   teamA: UserProfile[];
@@ -15,7 +15,12 @@ interface TeamShuffleViewProps {
   ratingB: number;
 }
 
-export function TeamShuffleView({ teamA, teamB, ratingA, ratingB }: TeamShuffleViewProps) {
+export function TeamShuffleView({
+  teamA,
+  teamB,
+  ratingA,
+  ratingB,
+}: TeamShuffleViewProps) {
   const balanceLabel = getBalanceLabel({ teamA, teamB, ratingA, ratingB });
 
   return (
@@ -26,11 +31,21 @@ export function TeamShuffleView({ teamA, teamB, ratingA, ratingB }: TeamShuffleV
       </View>
 
       <View style={styles.teamsRow}>
-        <TeamColumn label="Team A" color={colors.teamA} players={teamA} rating={ratingA} />
+        <TeamColumn
+          label="Team A"
+          color={colors.teamA}
+          players={teamA}
+          rating={ratingA}
+        />
         <View style={styles.vsContainer}>
           <Text style={styles.vs}>VS</Text>
         </View>
-        <TeamColumn label="Team B" color={colors.teamB} players={teamB} rating={ratingB} />
+        <TeamColumn
+          label="Team B"
+          color={colors.teamB}
+          players={teamB}
+          rating={ratingB}
+        />
       </View>
     </View>
   );
@@ -82,9 +97,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   balanceBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: spacing.sm,
     backgroundColor: `${colors.secondary}15`,
     paddingVertical: spacing.sm,
@@ -96,24 +111,24 @@ const styles = StyleSheet.create({
   balanceText: {
     ...typography.caption,
     color: colors.secondary,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   teamsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.sm,
   },
   teamColumn: {
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
   teamHeader: {
     padding: spacing.sm + 2,
     borderBottomWidth: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
   teamLabel: {
     ...typography.label,
@@ -125,8 +140,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   vsContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 2,
   },
   vs: {
@@ -135,8 +150,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   playerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
     padding: spacing.sm + 2,
     borderBottomWidth: 1,
@@ -148,7 +163,7 @@ const styles = StyleSheet.create({
   playerName: {
     ...typography.caption,
     color: colors.text,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   playerMeta: {
     fontSize: 11,
@@ -158,7 +173,7 @@ const styles = StyleSheet.create({
   emptyTeam: {
     ...typography.caption,
     color: colors.textDim,
-    textAlign: 'center',
+    textAlign: "center",
     padding: spacing.lg,
   },
 });
