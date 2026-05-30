@@ -1,6 +1,6 @@
 {
   "expo": {
-    "owner": "Kent John Gocotano",
+    "owner": "kentjohngo",
     "name": "HighBallers",
     "slug": "highballers",
     "version": "1.0.0",
@@ -9,7 +9,6 @@
     "scheme": "highballers",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0A0E14",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.highballers.app",
@@ -40,6 +39,7 @@
       "allStarProductId": "com.highballers.app.all_star_monthly"
     },
     "plugins": [
+      "expo-font",
       "expo-router",
       "expo-image",
       [
