@@ -4,8 +4,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { ConfirmModal } from "../../../../components/ConfirmModal";
 import { ClubIcon } from "../../../../components/ClubIcon";
 import { PlayerCard } from "../../../../components/PlayerCard";
+import {
+  SwipeableMemberRow,
+  type SwipeableMethods,
+} from "../../../../components/SwipeableMemberRow";
 import {
   Badge,
   Button,
@@ -24,11 +29,12 @@ import {
   getClubMembersPageFromStore,
 } from "../../../../lib/supabaseSync";
 import { getRemoteCache, setRemoteCache } from "../../../../lib/remoteCache";
+import { formatSyncError } from "../../../../lib/syncErrors";
 import { colors, radius, spacing, typography } from "../../../../lib/theme";
 import { useTabBarPadding } from "../../../../lib/tabBar";
 import { useRefreshControl } from "../../../../lib/useRefreshControl";
 import { Club, UserProfile } from "../../../../lib/types";
-import { useClub } from "../../../../store/hooks";
+import { useClub, useClubBans } from "../../../../store/hooks";
 import { useAppStore } from "../../../../store/useAppStore";
 
 function matchesSearch(player: UserProfile, query: string) {
@@ -81,8 +87,22 @@ export default function ClubMembersScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [moderation, setModeration] = useState<{
+    userId: string;
+    name: string;
+    action: "kick" | "ban" | "unban";
+  } | null>(null);
+  const [moderating, setModerating] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const kickMember = useAppStore((state) => state.kickMember);
+  const banMember = useAppStore((state) => state.banMember);
+  const unbanMember = useAppStore((state) => state.unbanMember);
+  const clubBans = useClubBans(clubId ?? "");
   const endReachedGuard = useRef(false);
+  const initialLoadKeyRef = useRef<string | null>(null);
+  const openSwipeRef = useRef<SwipeableMethods | null>(null);
   const bottomPadding = useTabBarPadding(spacing.lg);
+  const memberIdsKey = club?.memberIds.join(",") ?? "";
 
   const adminMember = useMemo(
     () =>
@@ -90,51 +110,67 @@ export default function ClubMembersScreen() {
     [club, users],
   );
 
-  const loadFromStore = useCallback(
-    (offset: number, append: boolean) => {
-      if (!club) return null;
-
-      const result = getClubMembersPageFromStore(
-        club,
-        users,
-        offset,
-        CLUB_MEMBERS_PAGE_SIZE,
-      );
-      setTotal(result.total);
+  const applyMemberPage = useCallback(
+    (
+      pageMembers: UserProfile[],
+      pageTotal: number,
+      append: boolean,
+    ) => {
+      setTotal(pageTotal);
       setMembers((prev) => {
         const nextMembers = append
-          ? mergeMemberPages(prev, result.members)
-          : result.members;
+          ? mergeMemberPages(prev, pageMembers)
+          : pageMembers;
         if (cacheKey) {
           setRemoteCache(cacheKey, {
             members: nextMembers,
-            total: result.total,
+            total: pageTotal,
           });
         }
         return nextMembers;
       });
-      return result;
     },
-    [cacheKey, club, users],
+    [cacheKey],
   );
 
   const loadPage = useCallback(
-    async (offset: number, append: boolean, silent = false) => {
-      if (!clubId || !club) return;
+    async (
+      offset: number,
+      append: boolean,
+      options?: { silent?: boolean; forceSpinner?: boolean },
+    ) => {
+      const silent = options?.silent ?? false;
+      const forceSpinner = options?.forceSpinner ?? false;
+      const currentClub = clubId
+        ? useAppStore.getState().clubs.find((item) => item.id === clubId)
+        : undefined;
+
+      if (!clubId || !currentClub) {
+        if (!append) setLoading(false);
+        return;
+      }
+
+      const currentUsers = useAppStore.getState().users;
 
       try {
         setError(null);
         if (append) {
           setLoadingMore(true);
         } else if (
-          !silent &&
+          (forceSpinner || !silent) &&
           !getRemoteCache<{ members: UserProfile[]; total: number }>(cacheKey)
         ) {
           setLoading(true);
         }
 
         if (!isSupabaseEnabled) {
-          loadFromStore(offset, append);
+          const storeResult = getClubMembersPageFromStore(
+            currentClub,
+            currentUsers,
+            offset,
+            CLUB_MEMBERS_PAGE_SIZE,
+          );
+          applyMemberPage(storeResult.members, storeResult.total, append);
           return;
         }
 
@@ -142,32 +178,34 @@ export default function ClubMembersScreen() {
           clubId,
           offset,
           CLUB_MEMBERS_PAGE_SIZE,
-          users,
+          currentUsers,
         );
         const shouldFallback =
-          !append && result.members.length === 0 && club.memberIds.length > 0;
+          !append &&
+          result.members.length === 0 &&
+          currentClub.memberIds.length > 0;
 
         if (shouldFallback) {
-          loadFromStore(offset, false);
+          const storeResult = getClubMembersPageFromStore(
+            currentClub,
+            currentUsers,
+            offset,
+            CLUB_MEMBERS_PAGE_SIZE,
+          );
+          applyMemberPage(storeResult.members, storeResult.total, false);
           return;
         }
 
-        setTotal(result.total);
-        setMembers((prev) => {
-          const nextMembers = append
-            ? mergeMemberPages(prev, result.members)
-            : result.members;
-          if (cacheKey) {
-            setRemoteCache(cacheKey, {
-              members: nextMembers,
-              total: result.total,
-            });
-          }
-          return nextMembers;
-        });
+        applyMemberPage(result.members, result.total, append);
       } catch {
-        if (club.memberIds.length > 0) {
-          loadFromStore(offset, append);
+        if (currentClub.memberIds.length > 0) {
+          const storeResult = getClubMembersPageFromStore(
+            currentClub,
+            currentUsers,
+            offset,
+            CLUB_MEMBERS_PAGE_SIZE,
+          );
+          applyMemberPage(storeResult.members, storeResult.total, append);
         } else {
           setError("Could not load members right now.");
         }
@@ -177,18 +215,107 @@ export default function ClubMembersScreen() {
         endReachedGuard.current = false;
       }
     },
-    [cacheKey, club, clubId, loadFromStore, users],
+    [applyMemberPage, cacheKey, clubId],
   );
 
   useEffect(() => {
-    if (!clubId || !club) return;
-    const hasCache = Boolean(
-      getRemoteCache<{ members: UserProfile[]; total: number }>(cacheKey),
-    );
-    loadPage(0, false, hasCache);
-  }, [cacheKey, club, clubId, loadPage]);
+    initialLoadKeyRef.current = null;
+    const cached = cacheKey
+      ? getRemoteCache<{ members: UserProfile[]; total: number }>(cacheKey)
+      : undefined;
+    setMembers(cached?.members ?? []);
+    setTotal(cached?.total ?? 0);
+    setLoading(!cached);
+    setError(null);
+  }, [cacheKey, clubId]);
 
-  const reloadMembers = useCallback(() => loadPage(0, false, true), [loadPage]);
+  useEffect(() => {
+    if (!clubId) {
+      setLoading(false);
+      return;
+    }
+
+    const currentClub = useAppStore
+      .getState()
+      .clubs.find((item) => item.id === clubId);
+    if (!currentClub) {
+      setLoading(false);
+      return;
+    }
+
+    const currentUsers = useAppStore.getState().users;
+    const cached = getRemoteCache<{ members: UserProfile[]; total: number }>(
+      cacheKey,
+    );
+    let primedFromStore = false;
+
+    if (cached) {
+      setMembers(cached.members);
+      setTotal(cached.total);
+      setLoading(false);
+    } else {
+      const fromStore = getClubMembersPageFromStore(
+        currentClub,
+        currentUsers,
+        0,
+        CLUB_MEMBERS_PAGE_SIZE,
+      );
+      if (fromStore.members.length > 0) {
+        setMembers(fromStore.members);
+        setTotal(fromStore.total);
+        setRemoteCache(cacheKey, {
+          members: fromStore.members,
+          total: fromStore.total,
+        });
+        setLoading(false);
+        primedFromStore = true;
+      } else if (currentClub.memberIds.length === 0) {
+        setLoading(false);
+      }
+    }
+
+    const loadKey = `${clubId}:${memberIdsKey}`;
+    if (initialLoadKeyRef.current === loadKey) return;
+    initialLoadKeyRef.current = loadKey;
+
+    void loadPage(0, false, {
+      silent: Boolean(cached) || primedFromStore,
+    });
+  }, [cacheKey, clubId, loadPage, memberIdsKey]);
+
+  useEffect(() => {
+    if (!clubId || !club || loading) return;
+    if (members.length >= club.memberIds.length) return;
+
+    const fromStore = getClubMembersPageFromStore(
+      club,
+      users,
+      0,
+      CLUB_MEMBERS_PAGE_SIZE,
+    );
+    if (fromStore.members.length <= members.length) return;
+
+    setMembers(fromStore.members);
+    setTotal(fromStore.total);
+    setLoading(false);
+    setRemoteCache(cacheKey, {
+      members: fromStore.members,
+      total: fromStore.total,
+    });
+  }, [
+    cacheKey,
+    club,
+    clubId,
+    loading,
+    memberIdsKey,
+    members.length,
+    users,
+  ]);
+
+  const reloadMembers = useCallback(
+    () => loadPage(0, false, { silent: true, forceSpinner: true }),
+    [loadPage],
+  );
   const { refreshControl } = useRefreshControl(reloadMembers);
 
   const memberTotal = total > 0 ? total : (club?.memberIds.length ?? 0);
@@ -216,6 +343,45 @@ export default function ClubMembersScreen() {
   const showAdmin = adminMember && matchesSearch(adminMember, searchQuery);
   const visibleCount = (showAdmin ? 1 : 0) + filteredMembers.length;
   const isSearching = searchQuery.trim().length > 0;
+  const isAdmin = club?.adminId === currentUserId;
+
+  const bannedPlayers = useMemo(
+    () =>
+      clubBans
+        .map((ban) => users.find((user) => user.id === ban.userId))
+        .filter((player): player is UserProfile => Boolean(player)),
+    [clubBans, users],
+  );
+
+  const handleConfirmModeration = async () => {
+    if (!moderation || !clubId) return;
+
+    setModerating(true);
+    setActionError(null);
+
+    try {
+      if (moderation.action === "kick") {
+        await kickMember(clubId, moderation.userId);
+        setMembers((current) =>
+          current.filter((member) => member.id !== moderation.userId),
+        );
+      } else if (moderation.action === "ban") {
+        await banMember(clubId, moderation.userId);
+        setMembers((current) =>
+          current.filter((member) => member.id !== moderation.userId),
+        );
+      } else {
+        await unbanMember(clubId, moderation.userId);
+      }
+      setModeration(null);
+    } catch (error) {
+      setActionError(
+        formatSyncError(error, "Could not update this member. Try again."),
+      );
+    } finally {
+      setModerating(false);
+    }
+  };
 
   const getMemberBadge = (memberId: string) => {
     if (memberId === club?.adminId) {
@@ -284,11 +450,34 @@ export default function ClubMembersScreen() {
           keyboardShouldPersistTaps="handled"
           refreshControl={refreshControl}
           renderItem={({ item }) => (
-            <PlayerCard
+            <MemberRow
               player={item}
-              compact
               badge={getMemberBadge(item.id)}
+              showAdminActions={isAdmin}
               onPress={() => router.push(`/player/${item.id}`)}
+              onKick={() =>
+                setModeration({
+                  userId: item.id,
+                  name: item.nickname ?? item.name,
+                  action: "kick",
+                })
+              }
+              onBan={() =>
+                setModeration({
+                  userId: item.id,
+                  name: item.nickname ?? item.name,
+                  action: "ban",
+                })
+              }
+              onSwipeOpen={(methods) => {
+                if (
+                  openSwipeRef.current &&
+                  openSwipeRef.current !== methods
+                ) {
+                  openSwipeRef.current.close();
+                }
+                openSwipeRef.current = methods;
+              }}
             />
           )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -318,7 +507,7 @@ export default function ClubMembersScreen() {
                     title="Try again"
                     size="sm"
                     variant="outline"
-                    onPress={() => loadPage(0, false)}
+                    onPress={() => loadPage(0, false, { forceSpinner: true })}
                   />
                 </Card>
               ) : null}
@@ -339,6 +528,37 @@ export default function ClubMembersScreen() {
                   autoCorrect={false}
                 />
               </View>
+
+              {isAdmin && bannedPlayers.length > 0 ? (
+                <View style={styles.section}>
+                  <Text style={styles.sectionLabel}>Banned players</Text>
+                  {bannedPlayers.map((player) => (
+                    <View key={player.id} style={styles.memberBlock}>
+                      <PlayerCard
+                        player={player}
+                        compact
+                        badge={{ label: "Banned", color: colors.error }}
+                        onPress={() => router.push(`/player/${player.id}`)}
+                      />
+                      <View style={styles.adminActions}>
+                        <Button
+                          title="Unban"
+                          size="sm"
+                          variant="outline"
+                          onPress={() =>
+                            setModeration({
+                              userId: player.id,
+                              name: player.nickname ?? player.name,
+                              action: "unban",
+                            })
+                          }
+                        />
+                      </View>
+                    </View>
+                  ))}
+                  <View style={styles.sectionDivider} />
+                </View>
+              ) : null}
 
               {showAdmin ? (
                 <View style={styles.section}>
@@ -403,7 +623,76 @@ export default function ClubMembersScreen() {
           }
         />
       )}
+
+      <ConfirmModal
+        visible={moderation != null}
+        title={
+          moderation?.action === "kick"
+            ? "Kick member?"
+            : moderation?.action === "ban"
+              ? "Ban member?"
+              : "Unban player?"
+        }
+        message={
+          moderation?.action === "kick"
+            ? `${moderation.name} will be removed from the club but can join again later.`
+            : moderation?.action === "ban"
+              ? `${moderation?.name} will be removed and cannot rejoin or request access.`
+              : `${moderation?.name} can join this club again.`
+        }
+        confirmLabel={
+          moderation?.action === "kick"
+            ? "Kick"
+            : moderation?.action === "ban"
+              ? "Ban"
+              : "Unban"
+        }
+        loading={moderating}
+        onConfirm={() => {
+          void handleConfirmModeration();
+        }}
+        onClose={() => {
+          if (!moderating) {
+            setModeration(null);
+            setActionError(null);
+          }
+        }}
+      />
+      {actionError ? (
+        <View style={styles.actionErrorWrap}>
+          <Text style={styles.actionErrorText}>{actionError}</Text>
+        </View>
+      ) : null}
     </LinearGradient>
+  );
+}
+
+function MemberRow({
+  player,
+  badge,
+  showAdminActions,
+  onPress,
+  onKick,
+  onBan,
+  onSwipeOpen,
+}: {
+  player: UserProfile;
+  badge?: { label: string; color?: string };
+  showAdminActions: boolean;
+  onPress?: () => void;
+  onKick: () => void;
+  onBan: () => void;
+  onSwipeOpen?: (methods: SwipeableMethods) => void;
+}) {
+  return (
+    <SwipeableMemberRow
+      enabled={showAdminActions}
+      onKick={onKick}
+      onBan={onBan}
+      onSwipeOpen={onSwipeOpen}
+    >
+      <PlayerCard player={player} compact badge={badge} onPress={onPress} />
+    </SwipeableMemberRow>
   );
 }
 
@@ -552,6 +841,30 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: spacing.sm,
+  },
+  memberBlock: {
+    marginBottom: spacing.sm,
+  },
+  adminActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  actionErrorWrap: {
+    position: "absolute",
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.lg,
+    backgroundColor: `${colors.error}22`,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: `${colors.error}55`,
+    padding: spacing.md,
+  },
+  actionErrorText: {
+    ...typography.caption,
+    color: colors.error,
+    textAlign: "center",
   },
   errorCard: {
     marginBottom: spacing.md,

@@ -1,7 +1,9 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { EventMemberPicker } from "../../components/EventMemberPicker";
 import { DateTimePickerField } from "../../components/DateTimePickerField";
 import { LocationPicker } from "../../components/LocationPicker";
 import { Button, Input } from "../../components/ui";
@@ -9,6 +11,7 @@ import { useUpgradePrompt } from "../../lib/useUpgradePrompt";
 import { searchPlaces } from "../../lib/geocoding";
 import { EventLocation } from "../../lib/location";
 import { colors, radius, spacing, typography } from "../../lib/theme";
+import { EventVisibility } from "../../lib/types";
 import { getDefaultGameDateTime, useAppStore } from "../../store/useAppStore";
 import { useMyClubs } from "../../store/hooks";
 
@@ -30,6 +33,8 @@ export default function CreateEventScreen() {
   const router = useRouter();
   const { clubId: paramClubId } = useLocalSearchParams<{ clubId?: string }>();
   const myClubs = useMyClubs();
+  const users = useAppStore((state) => state.users);
+  const currentUserId = useAppStore((state) => state.currentUserId);
   const createEvent = useAppStore((state) => state.createEvent);
   const { handleSubscriptionError } = useUpgradePrompt();
 
@@ -43,6 +48,8 @@ export default function CreateEventScreen() {
   const [customMaxPlayers, setCustomMaxPlayers] = useState("20");
   const [useCustomMax, setUseCustomMax] = useState(false);
   const [dateTime, setDateTime] = useState(getDefaultGameDateTime());
+  const [visibility, setVisibility] = useState<EventVisibility>("open");
+  const [invitedMemberIds, setInvitedMemberIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -56,7 +63,17 @@ export default function CreateEventScreen() {
     return parseCustomMaxPlayers(customMaxPlayers);
   }, [customMaxPlayers, maxPlayers, useCustomMax]);
 
+  const clubMembers = useMemo(() => {
+    if (!selectedClub || !currentUserId) return [];
+    return selectedClub.memberIds
+      .filter((memberId) => memberId !== currentUserId)
+      .map((memberId) => users.find((user) => user.id === memberId))
+      .filter((member): member is NonNullable<typeof member> => Boolean(member));
+  }, [currentUserId, selectedClub, users]);
+
   const isFutureDate = dateTime.getTime() > Date.now();
+  const hasPrivateInvites =
+    visibility !== "private" || invitedMemberIds.length > 0;
   const canCreate =
     title.trim().length >= 3 &&
     Boolean(eventLocation?.label.trim()) &&
@@ -64,7 +81,20 @@ export default function CreateEventScreen() {
     eventLocation?.longitude != null &&
     clubId &&
     isFutureDate &&
-    resolvedMaxPlayers != null;
+    resolvedMaxPlayers != null &&
+    hasPrivateInvites;
+
+  const toggleInvite = (memberId: string) => {
+    setInvitedMemberIds((current) =>
+      current.includes(memberId)
+        ? current.filter((id) => id !== memberId)
+        : [...current, memberId],
+    );
+  };
+
+  useEffect(() => {
+    setInvitedMemberIds([]);
+  }, [clubId, visibility]);
 
   useEffect(() => {
     if (!selectedClub) return;
@@ -88,9 +118,15 @@ export default function CreateEventScreen() {
       try {
         const id = await createEvent({
           clubId,
+          visibility,
+          invitedMemberIds:
+            visibility === "private" ? invitedMemberIds : undefined,
           title: title.trim(),
           description:
-            description.trim() || "Pickup basketball run. All members welcome!",
+            description.trim() ||
+            (visibility === "private"
+              ? "Private run for invited members."
+              : "Pickup basketball run. All members welcome!"),
           location: eventLocation.label.trim(),
           latitude: eventLocation.latitude,
           longitude: eventLocation.longitude,
@@ -158,6 +194,70 @@ export default function CreateEventScreen() {
           </Pressable>
         ))}
       </View>
+
+      <Text style={styles.label}>Game Type</Text>
+      <View style={styles.typeRow}>
+        <Pressable
+          onPress={() => setVisibility("open")}
+          style={[
+            styles.typeCard,
+            visibility === "open" && styles.typeCardActive,
+          ]}
+        >
+          <Ionicons
+            name="globe-outline"
+            size={22}
+            color={visibility === "open" ? colors.primary : colors.textMuted}
+          />
+          <Text
+            style={[
+              styles.typeTitle,
+              visibility === "open" && styles.typeTitleActive,
+            ]}
+          >
+            Open Game
+          </Text>
+          <Text style={styles.typeDesc}>Any club member can join</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setVisibility("private")}
+          style={[
+            styles.typeCard,
+            visibility === "private" && styles.typeCardActive,
+          ]}
+        >
+          <Ionicons
+            name="lock-closed-outline"
+            size={22}
+            color={
+              visibility === "private" ? colors.primary : colors.textMuted
+            }
+          />
+          <Text
+            style={[
+              styles.typeTitle,
+              visibility === "private" && styles.typeTitleActive,
+            ]}
+          >
+            Private Game
+          </Text>
+          <Text style={styles.typeDesc}>Pick who can join</Text>
+        </Pressable>
+      </View>
+
+      {visibility === "private" ? (
+        <>
+          <Text style={styles.label}>Invite Members</Text>
+          <Text style={styles.inviteHint}>
+            Select at least one club member. You are added automatically.
+          </Text>
+          <EventMemberPicker
+            members={clubMembers}
+            selectedIds={invitedMemberIds}
+            onToggle={toggleInvite}
+          />
+        </>
+      ) : null}
 
       <Text style={styles.label}>Game Title</Text>
       <Input
@@ -329,6 +429,41 @@ const styles = StyleSheet.create({
   },
   clubOptionTextActive: {
     color: colors.primary,
+  },
+  typeRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  typeCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  typeCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}12`,
+  },
+  typeTitle: {
+    ...typography.heading,
+    color: colors.textMuted,
+    fontSize: 15,
+  },
+  typeTitleActive: {
+    color: colors.primary,
+  },
+  typeDesc: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  inviteHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
   },
   field: {
     marginBottom: spacing.sm,

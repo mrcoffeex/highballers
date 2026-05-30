@@ -1,5 +1,5 @@
 -- Join all 20 Dav Sur dummy players into the "G Mga Par" event.
--- Run in Supabase SQL Editor after seed-dav-sur-dummy-players.sql.
+-- Run in Supabase SQL Editor after 20250115120000_dav-sur-dummy-players.sql.
 -- Matches event title case-insensitively (e.g. "G Mga Par", "g mga par").
 
 do $$

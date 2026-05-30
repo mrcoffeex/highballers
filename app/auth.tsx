@@ -31,9 +31,7 @@ export default function AuthScreen() {
   const signIn = useAppStore((state) => state.signIn);
   const signUp = useAppStore((state) => state.signUp);
   const signInWithGoogle = useAppStore((state) => state.signInWithGoogle);
-  const syncSessionFromSupabase = useAppStore(
-    (state) => state.syncSessionFromSupabase,
-  );
+  const finishOAuthSignIn = useAppStore((state) => state.finishOAuthSignIn);
 
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
   const [email, setEmail] = useState("");
@@ -109,7 +107,7 @@ export default function AuthScreen() {
 
     // Web navigates away to Google; mobile completes inline below.
     if (Platform.OS !== "web") {
-      await syncSessionFromSupabase();
+      await finishOAuthSignIn();
       setGoogleLoading(false);
       if (requiresLegalConsent) {
         await setAcceptedLegalVersion();

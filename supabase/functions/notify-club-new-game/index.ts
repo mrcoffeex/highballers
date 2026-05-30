@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
 
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("id, club_id, title, location, date_time, created_by")
+      .select("id, club_id, title, location, date_time, created_by, visibility")
       .eq("id", eventId)
       .maybeSingle();
 
@@ -63,25 +63,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    const [{ data: club }, { data: creator }, { data: members }] =
-      await Promise.all([
-        supabase
-          .from("clubs")
-          .select("name")
-          .eq("id", event.club_id)
-          .maybeSingle(),
-        supabase
-          .from("profiles")
-          .select("name, nickname")
-          .eq("id", event.created_by)
-          .maybeSingle(),
-        supabase
-          .from("club_members")
-          .select("user_id")
-          .eq("club_id", event.club_id),
-      ]);
+    const [{ data: club }, { data: creator }, memberSource] = await Promise.all([
+      supabase
+        .from("clubs")
+        .select("name")
+        .eq("id", event.club_id)
+        .maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("name, nickname")
+        .eq("id", event.created_by)
+        .maybeSingle(),
+      event.visibility === "private"
+        ? supabase
+            .from("event_invites")
+            .select("user_id")
+            .eq("event_id", event.id)
+        : supabase
+            .from("club_members")
+            .select("user_id")
+            .eq("club_id", event.club_id),
+    ]);
 
-    const memberIds = (members ?? [])
+    const memberIds = (memberSource.data ?? [])
       .map((row) => row.user_id as string)
       .filter((userId) => userId !== event.created_by);
 

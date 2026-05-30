@@ -4,7 +4,10 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { v4 as uuidv4 } from "uuid";
 
-import { signInWithGoogle as startGoogleSignIn } from "../lib/googleAuth";
+import {
+  resetOAuthExchangeState,
+  signInWithGoogle as startGoogleSignIn,
+} from "../lib/googleAuth";
 import { isSupabaseEnabled } from "../lib/config";
 import {
   cancelGameReminder,
@@ -21,8 +24,11 @@ import { getGoogleProfileHints } from "../lib/googleAuth";
 import { uploadAvatar, uploadClubLogo } from "../lib/storage";
 import { getSupabase } from "../lib/supabase";
 import {
+  deleteClubBan,
   deleteJoinRequest,
   fetchAllData,
+  insertClubBan,
+  deleteEventRemote,
   finishEventRemote,
   insertClub,
   insertEvent,
@@ -34,11 +40,14 @@ import {
   subscribeToChanges,
   updateClub,
   updateEvent,
+  updateEventCourts,
   updateProfileStats,
   upsertEventPlayerStats,
   upsertProfile,
 } from "../lib/supabaseSync";
 import { formatSyncError } from "../lib/syncErrors";
+import { isUserBannedFromClub } from "../lib/clubBans";
+import { canUserJoinEvent } from "../lib/eventAccess";
 import {
   assertFeatureAccess,
   canAddClubMember,
@@ -64,11 +73,13 @@ import {
   getCourtGameRosterIds,
   normalizeEventCourts,
   removePlayerFromCourtGames,
+  isActiveCourtGame,
   sanitizeCourtGames,
 } from "../lib/eventRoster";
 import {
   BoxScoreStats,
   Club,
+  ClubBan,
   ClubJoinRequest,
   CourtGame,
   DEFAULT_STATS,
@@ -81,6 +92,62 @@ import {
   UserProfile,
 } from "../lib/types";
 
+function buildMemberRemovalUpdate(
+  clubs: Club[],
+  events: GameEvent[],
+  joinRequests: ClubJoinRequest[],
+  clubBans: ClubBan[],
+  clubId: string,
+  userId: string,
+  ban?: ClubBan,
+) {
+  const pendingRequests = joinRequests.filter(
+    (request) => request.clubId === clubId && request.userId === userId,
+  );
+
+  return {
+    clubs: clubs.map((club) =>
+      club.id === clubId
+        ? {
+            ...club,
+            memberIds: club.memberIds.filter((memberId) => memberId !== userId),
+          }
+        : club,
+    ),
+    events: events.map((event) => {
+      if (event.clubId !== clubId || !event.participantIds.includes(userId)) {
+        return event;
+      }
+
+      const participantIds = event.participantIds.filter((id) => id !== userId);
+      const courtGames = removePlayerFromCourtGames(
+        event.courtGames,
+        userId,
+        participantIds,
+      );
+
+      return {
+        ...event,
+        participantIds,
+        courtGames,
+        shuffled: Boolean(courtGames?.length),
+      };
+    }),
+    joinRequests: joinRequests.filter(
+      (request) => request.clubId !== clubId || request.userId !== userId,
+    ),
+    clubBans: ban
+      ? [
+          ...clubBans.filter(
+            (entry) => !(entry.clubId === clubId && entry.userId === userId),
+          ),
+          ban,
+        ]
+      : clubBans,
+    pendingRequests,
+  };
+}
+
 interface AppState {
   hydrated: boolean;
   authReady: boolean;
@@ -92,6 +159,7 @@ interface AppState {
   clubs: Club[];
   events: GameEvent[];
   joinRequests: ClubJoinRequest[];
+  clubBans: ClubBan[];
   gameStatRecords: GameStatRecord[];
 
   setHydrated: (value: boolean) => void;
@@ -100,6 +168,7 @@ interface AppState {
   signUp: (email: string, password: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
   syncSessionFromSupabase: () => Promise<Session | null>;
+  finishOAuthSignIn: () => Promise<Session | null>;
   signOut: () => Promise<void>;
   refreshFromServer: () => Promise<void>;
   startSync: () => () => void;
@@ -121,10 +190,17 @@ interface AppState {
   approveJoinRequest: (requestId: string) => Promise<void>;
   denyJoinRequest: (requestId: string) => Promise<void>;
   leaveClub: (clubId: string) => Promise<void>;
+  kickMember: (clubId: string, userId: string) => Promise<void>;
+  banMember: (clubId: string, userId: string) => Promise<void>;
+  unbanMember: (clubId: string, userId: string) => Promise<void>;
   createClub: (
     club: Omit<Club, "id" | "createdAt" | "memberIds" | "adminId">,
     logoUri?: string,
   ) => Promise<string>;
+  updateClubVisibility: (
+    clubId: string,
+    visibility: Club["visibility"],
+  ) => Promise<void>;
 
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
@@ -153,6 +229,7 @@ interface AppState {
     courtGames: CourtGame[],
   ) => Promise<boolean>;
   finishEvent: (eventId: string) => Promise<void>;
+  cancelEvent: (eventId: string) => Promise<void>;
   saveEventStats: (
     eventId: string,
     statsByPlayer: Record<string, BoxScoreStats>,
@@ -212,6 +289,7 @@ export const useAppStore = create<AppState>()(
       clubs: isSupabaseEnabled ? [] : SEED_CLUBS,
       events: isSupabaseEnabled ? [] : SEED_EVENTS,
       joinRequests: [],
+      clubBans: [],
       gameStatRecords: [],
 
       setHydrated: (value) => set({ hydrated: value }),
@@ -261,6 +339,7 @@ export const useAppStore = create<AppState>()(
                 clubs: isSupabaseEnabled ? [] : SEED_CLUBS,
                 events: isSupabaseEnabled ? [] : SEED_EVENTS,
                 joinRequests: [],
+                clubBans: [],
                 gameStatRecords: [],
               });
             }
@@ -294,6 +373,44 @@ export const useAppStore = create<AppState>()(
         return data.session;
       },
 
+      finishOAuthSignIn: async () => {
+        const supabase = getSupabase();
+        if (!supabase) return null;
+
+        const { data } = await supabase.auth.getSession();
+        if (!data.session?.user) return null;
+
+        set({
+          session: data.session,
+          authReady: true,
+          currentUserId: data.session.user.id,
+        });
+
+        const profile = get().users.find(
+          (user) => user.id === data.session!.user.id,
+        );
+        set({ onboardingComplete: Boolean(profile) });
+
+        void get()
+          .refreshFromServer()
+          .then(() => {
+            const refreshedProfile = get().users.find(
+              (user) => user.id === data.session!.user.id,
+            );
+            set({
+              currentUserId: data.session!.user.id,
+              onboardingComplete: Boolean(refreshedProfile),
+            });
+          })
+          .catch(() => undefined);
+
+        void registerForPushNotifications(data.session.user.id).catch(
+          () => undefined,
+        );
+
+        return data.session;
+      },
+
       signIn: async (email, password) => {
         const supabase = getSupabase();
         if (!supabase) return "Cloud sync is not configured.";
@@ -318,6 +435,7 @@ export const useAppStore = create<AppState>()(
       signOut: async () => {
         const supabase = getSupabase();
         await supabase?.auth.signOut();
+        resetOAuthExchangeState();
         clearRemoteCache();
         clearTabFetchSession();
         set({
@@ -328,6 +446,7 @@ export const useAppStore = create<AppState>()(
           clubs: isSupabaseEnabled ? [] : SEED_CLUBS,
           events: isSupabaseEnabled ? [] : SEED_EVENTS,
           joinRequests: [],
+          clubBans: [],
           gameStatRecords: [],
         });
       },
@@ -344,6 +463,7 @@ export const useAppStore = create<AppState>()(
             clubs: data.clubs,
             events: data.events,
             joinRequests: data.joinRequests,
+            clubBans: data.clubBans,
             gameStatRecords: data.gameStatRecords,
           });
         } catch {
@@ -467,11 +587,15 @@ export const useAppStore = create<AppState>()(
       },
 
       joinClub: async (clubId) => {
-        const { currentUserId, clubs, users } = get();
+        const { currentUserId, clubs, users, clubBans } = get();
         if (!currentUserId) return;
 
         const club = clubs.find((item) => item.id === clubId);
         if (!club || club.visibility !== "open") return;
+
+        if (isUserBannedFromClub(clubId, currentUserId, clubBans)) {
+          throw new Error("You are banned from this club.");
+        }
 
         const user = getCurrentUser(get);
         const tier = getUserTier(user);
@@ -496,13 +620,16 @@ export const useAppStore = create<AppState>()(
       },
 
       requestToJoinClub: async (clubId) => {
-        const { currentUserId, clubs, joinRequests } = get();
+        const { currentUserId, clubs, joinRequests, clubBans } = get();
         if (!currentUserId) return;
 
         assertFeatureAccess(getCurrentUserTier(get), "private_clubs");
 
         const club = clubs.find((item) => item.id === clubId);
         if (!club || club.visibility !== "private") return;
+        if (isUserBannedFromClub(clubId, currentUserId, clubBans)) {
+          throw new Error("You are banned from this club.");
+        }
         if (club.memberIds.includes(currentUserId)) return;
         if (
           joinRequests.some(
@@ -546,12 +673,22 @@ export const useAppStore = create<AppState>()(
       },
 
       approveJoinRequest: async (requestId) => {
-        const { currentUserId, clubs, joinRequests, users } = get();
+        const { currentUserId, clubs, joinRequests, users, clubBans } = get();
         const request = joinRequests.find((item) => item.id === requestId);
         if (!request) return;
 
         const club = clubs.find((item) => item.id === request.clubId);
         if (!club || club.adminId !== currentUserId) return;
+
+        if (isUserBannedFromClub(request.clubId, request.userId, clubBans)) {
+          set({
+            joinRequests: joinRequests.filter((item) => item.id !== requestId),
+          });
+          if (isSupabaseEnabled) {
+            await deleteJoinRequest(requestId);
+          }
+          return;
+        }
 
         assertFeatureAccess(getCurrentUserTier(get), "approve_join_requests");
 
@@ -595,24 +732,106 @@ export const useAppStore = create<AppState>()(
       },
 
       leaveClub: async (clubId) => {
-        const { currentUserId, clubs } = get();
+        const { currentUserId, clubs, events, joinRequests, clubBans } = get();
         if (!currentUserId) return;
 
+        set(
+          buildMemberRemovalUpdate(
+            clubs,
+            events,
+            joinRequests,
+            clubBans,
+            clubId,
+            currentUserId,
+          ),
+        );
+
+        if (isSupabaseEnabled) {
+          await leaveClubRemote(clubId, currentUserId);
+        }
+      },
+
+      kickMember: async (clubId, userId) => {
+        const { currentUserId, clubs, events, joinRequests, clubBans } = get();
+        const club = clubs.find((item) => item.id === clubId);
+        if (!club || club.adminId !== currentUserId) {
+          throw new Error("Only the club admin can remove members.");
+        }
+        if (userId === club.adminId) {
+          throw new Error("The club admin cannot be removed.");
+        }
+        if (!club.memberIds.includes(userId)) return;
+
+        const { pendingRequests, ...removalUpdate } = buildMemberRemovalUpdate(
+          clubs,
+          events,
+          joinRequests,
+          clubBans,
+          clubId,
+          userId,
+        );
+        set(removalUpdate);
+
+        if (isSupabaseEnabled) {
+          await leaveClubRemote(clubId, userId);
+          for (const request of pendingRequests) {
+            await deleteJoinRequest(request.id);
+          }
+        }
+      },
+
+      banMember: async (clubId, userId) => {
+        const { currentUserId, clubs, events, joinRequests, clubBans } = get();
+        const club = clubs.find((item) => item.id === clubId);
+        if (!club || club.adminId !== currentUserId) {
+          throw new Error("Only the club admin can ban members.");
+        }
+        if (userId === club.adminId) {
+          throw new Error("The club admin cannot be banned.");
+        }
+
+        const ban: ClubBan = {
+          clubId,
+          userId,
+          bannedBy: currentUserId ?? "",
+          createdAt: new Date().toISOString(),
+        };
+
+        const { pendingRequests, ...removalUpdate } = buildMemberRemovalUpdate(
+          clubs,
+          events,
+          joinRequests,
+          clubBans,
+          clubId,
+          userId,
+          ban,
+        );
+        set(removalUpdate);
+
+        if (isSupabaseEnabled) {
+          await leaveClubRemote(clubId, userId);
+          await insertClubBan(ban);
+          for (const request of pendingRequests) {
+            await deleteJoinRequest(request.id);
+          }
+        }
+      },
+
+      unbanMember: async (clubId, userId) => {
+        const { currentUserId, clubs, clubBans } = get();
+        const club = clubs.find((item) => item.id === clubId);
+        if (!club || club.adminId !== currentUserId) {
+          throw new Error("Only the club admin can unban members.");
+        }
+
         set({
-          clubs: clubs.map((club) =>
-            club.id === clubId
-              ? {
-                  ...club,
-                  memberIds: club.memberIds.filter(
-                    (id) => id !== currentUserId,
-                  ),
-                }
-              : club,
+          clubBans: clubBans.filter(
+            (ban) => !(ban.clubId === clubId && ban.userId === userId),
           ),
         });
 
         if (isSupabaseEnabled) {
-          await leaveClubRemote(clubId, currentUserId);
+          await deleteClubBan(clubId, userId);
         }
       },
 
@@ -674,6 +893,54 @@ export const useAppStore = create<AppState>()(
         return id;
       },
 
+      updateClubVisibility: async (clubId, visibility) => {
+        const { currentUserId, clubs } = get();
+        if (!currentUserId) {
+          throw new Error("Sign in to update club settings.");
+        }
+
+        const club = clubs.find((item) => item.id === clubId);
+        if (!club || club.adminId !== currentUserId) {
+          throw new Error("Only the club admin can change visibility.");
+        }
+
+        if (club.visibility === visibility) return;
+
+        const tier = getCurrentUserTier(get);
+        if (visibility === "private") {
+          assertFeatureAccess(tier, "private_clubs");
+        }
+
+        const previousVisibility = club.visibility;
+        const updatedClub: Club = { ...club, visibility };
+
+        set({
+          clubs: clubs.map((item) =>
+            item.id === clubId ? updatedClub : item,
+          ),
+        });
+
+        if (isSupabaseEnabled) {
+          try {
+            await updateClub(updatedClub);
+          } catch (error) {
+            set({
+              clubs: get().clubs.map((item) =>
+                item.id === clubId
+                  ? { ...item, visibility: previousVisibility }
+                  : item,
+              ),
+            });
+            throw new Error(
+              formatSyncError(
+                error,
+                "Could not update club visibility. Try again.",
+              ),
+            );
+          }
+        }
+      },
+
       joinEvent: async (eventId) => {
         const { currentUserId, events } = get();
         if (!currentUserId) return;
@@ -684,6 +951,11 @@ export const useAppStore = create<AppState>()(
         const joinCheck = canJoinEvent(getCurrentUserTier(get), target);
         if (!joinCheck.ok) {
           throw new SubscriptionError(joinCheck.reason!);
+        }
+
+        const accessCheck = canUserJoinEvent(currentUserId, target);
+        if (!accessCheck.ok) {
+          throw new Error(accessCheck.reason);
         }
 
         let joinedEvent: GameEvent | undefined;
@@ -762,9 +1034,19 @@ export const useAppStore = create<AppState>()(
         assertFeatureAccess(getCurrentUserTier(get), "create_event");
 
         const id = uuidv4();
+        const visibility = eventData.visibility ?? "open";
+        const invitedMemberIds =
+          visibility === "private"
+            ? (eventData.invitedMemberIds ?? []).filter(
+                (memberId) => memberId !== currentUserId,
+              )
+            : undefined;
+
         const newEvent: GameEvent = {
           ...eventData,
           id,
+          visibility,
+          invitedMemberIds,
           participantIds: [currentUserId],
           shuffled: false,
           createdBy: currentUserId,
@@ -883,18 +1165,28 @@ export const useAppStore = create<AppState>()(
       saveEventCourts: async (eventId, courtGames) => {
         const { events, currentUserId, clubs } = get();
         const event = events.find((item) => item.id === eventId);
-        if (!event || isEventOptionsLocked(event)) return false;
+        if (!event || isEventOptionsLocked(event)) {
+          throw new Error("This game is closed for court edits.");
+        }
 
         const club = clubs.find((item) => item.id === event.clubId);
-        if (!canManageEvent(event, currentUserId, club?.adminId)) return false;
+        if (!canManageEvent(event, currentUserId, club?.adminId)) {
+          throw new Error(
+            "Only the game creator or club admin can save court assignments.",
+          );
+        }
 
         assertFeatureAccess(getCurrentUserTier(get), "edit_courts");
 
         const sanitized = sanitizeCourtGames(courtGames, event.participantIds);
+        const playersPerGame = getPlayersPerGame(event);
+        const hasFullCourts = sanitized.some((game) =>
+          isActiveCourtGame(game, playersPerGame),
+        );
         const updatedEvent: GameEvent = {
           ...event,
           courtGames: sanitized.length > 0 ? sanitized : undefined,
-          shuffled: sanitized.length > 0,
+          shuffled: hasFullCourts,
         };
 
         set({
@@ -905,9 +1197,14 @@ export const useAppStore = create<AppState>()(
 
         if (isSupabaseEnabled) {
           try {
-            await updateEvent(updatedEvent);
-          } catch {
-            return false;
+            await updateEventCourts(updatedEvent);
+          } catch (error) {
+            set({
+              events: events.map((item) =>
+                item.id === eventId ? event : item,
+              ),
+            });
+            throw error;
           }
         }
 
@@ -938,6 +1235,50 @@ export const useAppStore = create<AppState>()(
 
         if (isSupabaseEnabled) {
           await finishEventRemote(eventId, finishedAt);
+        }
+      },
+
+      cancelEvent: async (eventId) => {
+        const { events, currentUserId, clubs, gameStatRecords } = get();
+        const event = events.find((item) => item.id === eventId);
+        if (!event) {
+          throw new Error("Game not found.");
+        }
+        if (event.finishedAt) {
+          throw new Error("Finished games cannot be cancelled.");
+        }
+
+        const club = clubs.find((item) => item.id === event.clubId);
+        if (!canManageEvent(event, currentUserId, club?.adminId)) {
+          throw new Error(
+            "Only the club admin or game creator can cancel this game.",
+          );
+        }
+
+        const previousEvents = events;
+        const previousStats = gameStatRecords;
+
+        set({
+          events: events.filter((item) => item.id !== eventId),
+          gameStatRecords: gameStatRecords.filter(
+            (record) => record.eventId !== eventId,
+          ),
+        });
+
+        await cancelGameReminder(eventId);
+
+        if (isSupabaseEnabled) {
+          try {
+            await deleteEventRemote(eventId);
+          } catch (error) {
+            set({
+              events: previousEvents,
+              gameStatRecords: previousStats,
+            });
+            throw new Error(
+              formatSyncError(error, "Could not cancel this game. Try again."),
+            );
+          }
         }
       },
 
@@ -1084,6 +1425,7 @@ export const useAppStore = create<AppState>()(
         clubs: state.clubs,
         events: state.events,
         joinRequests: state.joinRequests,
+        clubBans: state.clubBans,
         gameStatRecords: state.gameStatRecords,
       }),
     },

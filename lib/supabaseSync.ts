@@ -10,6 +10,7 @@ import {
   EventParticipantRow,
   EventPlayerStatsRow,
   EventRow,
+  clubBanFromRow,
   gameStatFromRow,
   joinRequestFromRow,
   profileFromRow,
@@ -21,7 +22,9 @@ import {
   Club,
   ClubChatMessage,
   ClubChatPreview,
+  ClubBan,
   ClubJoinRequest,
+  CourtGame,
   GameEvent,
   GameStatRecord,
   PlayerStats,
@@ -94,7 +97,9 @@ export async function fetchAllData() {
     membersRes,
     eventsRes,
     participantsRes,
+    invitesRes,
     joinRequestsRes,
+    bansRes,
     statsRes,
   ] = await Promise.all([
     supabase.from("profiles").select("*"),
@@ -102,7 +107,9 @@ export async function fetchAllData() {
     supabase.from("club_members").select("club_id, user_id"),
     supabase.from("events").select("*"),
     supabase.from("event_participants").select("event_id, user_id"),
+    supabase.from("event_invites").select("event_id, user_id"),
     supabase.from("club_join_requests").select("*"),
+    supabase.from("club_bans").select("*"),
     supabase.from("event_player_stats").select("*"),
   ]);
 
@@ -116,6 +123,9 @@ export async function fetchAllData() {
   const participantsByEvent = groupParticipants(
     participantsRes.data as EventParticipantRow[],
   );
+  const invitesByEvent = groupEventInvites(
+    invitesRes.error ? [] : (invitesRes.data ?? []),
+  );
   const gameStatRecords = statsRes.error
     ? []
     : ((statsRes.data ?? []) as EventPlayerStatsRow[]).map(gameStatFromRow);
@@ -126,12 +136,21 @@ export async function fetchAllData() {
       clubFromRow(row, membersByClub.get(row.id) ?? []),
     ),
     events: (eventsRes.data as EventRow[]).map((row) =>
-      eventFromRow(row, participantsByEvent.get(row.id) ?? []),
+      eventFromRow(
+        row,
+        participantsByEvent.get(row.id) ?? [],
+        invitesByEvent.get(row.id),
+      ),
     ),
     joinRequests: joinRequestsRes.error
       ? []
       : ((joinRequestsRes.data ?? []) as ClubJoinRequestRow[]).map(
           joinRequestFromRow,
+        ),
+    clubBans: bansRes.error
+      ? []
+      : ((bansRes.data ?? []) as { club_id: string; user_id: string; banned_by: string | null; created_at: string }[]).map(
+          clubBanFromRow,
         ),
     gameStatRecords,
   };
@@ -148,6 +167,16 @@ function groupMembers(rows: ClubMemberRow[]) {
 }
 
 function groupParticipants(rows: EventParticipantRow[]) {
+  const map = new Map<string, string[]>();
+  for (const row of rows) {
+    const list = map.get(row.event_id) ?? [];
+    list.push(row.user_id);
+    map.set(row.event_id, list);
+  }
+  return map;
+}
+
+function groupEventInvites(rows: { event_id: string; user_id: string }[]) {
   const map = new Map<string, string[]>();
   for (const row of rows) {
     const list = map.get(row.event_id) ?? [];
@@ -316,6 +345,33 @@ export async function leaveClubRemote(clubId: string, userId: string) {
   if (error) throw error;
 }
 
+export async function insertClubBan(ban: ClubBan) {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { error } = await supabase.from("club_bans").insert({
+    club_id: ban.clubId,
+    user_id: ban.userId,
+    banned_by: ban.bannedBy,
+    created_at: ban.createdAt,
+  });
+
+  if (error && error.code !== "23505") throw error;
+}
+
+export async function deleteClubBan(clubId: string, userId: string) {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from("club_bans")
+    .delete()
+    .eq("club_id", clubId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
 function isMissingColumnError(error: unknown, column: string): boolean {
   const message = String(
     error && typeof error === "object" && "message" in error
@@ -329,7 +385,7 @@ function isMissingColumnError(error: unknown, column: string): boolean {
   );
 }
 
-const OPTIONAL_EVENT_INSERT_COLUMNS = [
+const OPTIONAL_EVENT_COLUMNS = [
   "players_per_game",
   "court_games",
   "finished_at",
@@ -337,7 +393,10 @@ const OPTIONAL_EVENT_INSERT_COLUMNS = [
   "longitude",
   "team_a",
   "team_b",
+  "visibility",
 ] as const;
+
+const OPTIONAL_EVENT_INSERT_COLUMNS = OPTIONAL_EVENT_COLUMNS;
 
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -369,16 +428,24 @@ function buildEventInsertPayload(event: GameEvent): Record<string, unknown> {
     shuffled: event.shuffled,
     team_a: event.courtGames?.[0]?.teamA ?? null,
     team_b: event.courtGames?.[0]?.teamB ?? null,
-    court_games: event.courtGames ?? null,
+    court_games: serializeCourtGamesForDb(event.courtGames),
     finished_at: event.finishedAt ?? null,
+    visibility: event.visibility ?? "open",
   };
 }
 
-function buildEventUpdatePayload(
-  event: GameEvent,
-  includePlayersPerGame: boolean,
-) {
-  const payload: Record<string, unknown> = {
+function serializeCourtGamesForDb(
+  courtGames: CourtGame[] | undefined,
+): Array<{ teamA: string[]; teamB: string[] }> | null {
+  if (!courtGames?.length) return null;
+  return courtGames.map((game) => ({
+    teamA: [...game.teamA],
+    teamB: [...game.teamB],
+  }));
+}
+
+function buildEventUpdatePayload(event: GameEvent) {
+  return {
     title: event.title,
     description: event.description,
     location: event.location,
@@ -386,18 +453,13 @@ function buildEventUpdatePayload(
     longitude: event.longitude ?? null,
     date_time: event.dateTime,
     max_players: event.maxPlayers,
+    players_per_game: event.playersPerGame ?? null,
     shuffled: event.shuffled,
     team_a: event.courtGames?.[0]?.teamA ?? null,
     team_b: event.courtGames?.[0]?.teamB ?? null,
-    court_games: event.courtGames ?? null,
+    court_games: serializeCourtGamesForDb(event.courtGames),
     finished_at: event.finishedAt ?? null,
-  };
-
-  if (includePlayersPerGame) {
-    payload.players_per_game = event.playersPerGame ?? null;
-  }
-
-  return payload;
+  } satisfies Record<string, unknown>;
 }
 
 export async function insertEvent(event: GameEvent) {
@@ -442,6 +504,23 @@ export async function insertEvent(event: GameEvent) {
     if (participantError) throw participantError;
   }
 
+  const inviteIds = (event.invitedMemberIds ?? []).filter(
+    (userId) => userId !== event.createdBy,
+  );
+  if (inviteIds.length > 0) {
+    const { error: inviteError } = await withTimeout(
+      supabase.from("event_invites").insert(
+        inviteIds.map((userId) => ({
+          event_id: event.id,
+          user_id: userId,
+        })),
+      ),
+      12_000,
+    );
+
+    if (inviteError && inviteError.code !== "23505") throw inviteError;
+  }
+
   await supabase.functions
     .invoke("notify-club-new-game", {
       body: { eventId: event.id },
@@ -449,25 +528,78 @@ export async function insertEvent(event: GameEvent) {
     .catch(() => undefined);
 }
 
-export async function updateEvent(event: GameEvent) {
+async function ensureSupabaseSession() {
   const supabase = getSupabase();
-  if (!supabase) return;
-
-  let includePlayersPerGame = true;
-  let { error } = await supabase
-    .from("events")
-    .update(buildEventUpdatePayload(event, includePlayersPerGame))
-    .eq("id", event.id);
-
-  if (error && isMissingColumnError(error, "players_per_game")) {
-    includePlayersPerGame = false;
-    ({ error } = await supabase
-      .from("events")
-      .update(buildEventUpdatePayload(event, includePlayersPerGame))
-      .eq("id", event.id));
+  if (!supabase) {
+    throw new Error("Cloud sync is not configured.");
   }
 
+  const {
+    data: { session },
+    error,
+  } = await withTimeout(supabase.auth.getSession(), 8_000);
+
   if (error) throw error;
+  if (!session) {
+    throw new Error("Not signed in. Sign in again to save changes.");
+  }
+
+  return supabase;
+}
+
+async function runEventUpdate(
+  eventId: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  const supabase = await ensureSupabaseSession();
+
+  let attempts = 0;
+  const maxAttempts = OPTIONAL_EVENT_COLUMNS.length + 2;
+
+  while (attempts < maxAttempts) {
+    attempts += 1;
+    const { error } = await withTimeout(
+      supabase
+        .from("events")
+        .update(payload)
+        .eq("id", eventId)
+        .select("id"),
+      12_000,
+    );
+
+    if (!error) return;
+
+    const missingColumn = OPTIONAL_EVENT_COLUMNS.find(
+      (column) => column in payload && isMissingColumnError(error, column),
+    );
+
+    if (missingColumn) {
+      delete payload[missingColumn];
+      continue;
+    }
+
+    throw error;
+  }
+
+  throw new Error("Could not update event (schema retry limit).");
+}
+
+export async function updateEventCourts(
+  event: Pick<GameEvent, "id" | "shuffled" | "courtGames" | "playersPerGame">,
+) {
+  const payload: Record<string, unknown> = {
+    shuffled: event.shuffled,
+    court_games: serializeCourtGamesForDb(event.courtGames),
+    team_a: event.courtGames?.[0]?.teamA ?? null,
+    team_b: event.courtGames?.[0]?.teamB ?? null,
+    players_per_game: event.playersPerGame ?? null,
+  };
+
+  await runEventUpdate(event.id, payload);
+}
+
+export async function updateEvent(event: GameEvent) {
+  await runEventUpdate(event.id, { ...buildEventUpdatePayload(event) });
 }
 
 export async function insertJoinRequest(request: ClubJoinRequest) {
@@ -567,6 +699,17 @@ export async function finishEventRemote(eventId: string, finishedAt: string) {
     .from("events")
     .update({ finished_at: finishedAt })
     .eq("id", eventId);
+  if (error) throw error;
+}
+
+export async function deleteEventRemote(eventId: string) {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { error } = await withTimeout(
+    supabase.from("events").delete().eq("id", eventId),
+    12_000,
+  );
   if (error) throw error;
 }
 
@@ -716,6 +859,11 @@ export function subscribeToChanges(onChange: () => void) {
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "club_join_requests" },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "club_bans" },
       onChange,
     )
     .on(

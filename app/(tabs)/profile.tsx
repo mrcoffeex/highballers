@@ -6,6 +6,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { AllStarMemberCard } from "../../components/AllStarMemberCard";
 import { LegalSettingsCard } from "../../components/LegalSettingsCard";
+import { SignOutButton } from "../../components/SignOutButton";
 import { AllStarPromoCard } from "../../components/AllStarPromoCard";
 import { SubscriptionBadge } from "../../components/SubscriptionBadge";
 import { UpgradeModal } from "../../components/UpgradeModal";
@@ -163,7 +164,7 @@ export default function ProfileScreen() {
                   onPress={() => router.push("/profile/edit")}
                 />
                 <Button
-                  title="Public Profile"
+                  title="Public"
                   variant="ghost"
                   size="sm"
                   onPress={() => router.push(`/player/${user.id}`)}
@@ -241,14 +242,11 @@ export default function ProfileScreen() {
           <LegalSettingsCard />
 
           {isSupabaseEnabled ? (
-            <Button
-              title="Sign Out"
-              variant="ghost"
-              onPress={async () => {
+            <SignOutButton
+              onSignOut={async () => {
                 await signOut();
                 router.replace("/auth");
               }}
-              style={styles.signOut}
             />
           ) : null}
         </LinearGradient>
@@ -452,10 +450,6 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     fontWeight: "700",
     textAlign: "right",
-  },
-  signOut: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
   },
   placeholder: {
     flex: 1,

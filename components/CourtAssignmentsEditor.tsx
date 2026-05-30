@@ -11,7 +11,12 @@ import {
 
 import { Avatar, Button } from "./ui";
 import { formatGameSizeLabel, getTeamSize } from "../lib/gameFormats";
-import { getCourtGameLabel, sanitizeCourtGames } from "../lib/eventRoster";
+import {
+  getCourtGameLabel,
+  getCourtPlayersPerGame,
+  isActiveCourtGame,
+  sanitizeCourtGames,
+} from "../lib/eventRoster";
 import { colors, radius, spacing, typography } from "../lib/theme";
 import { CourtGame, UserProfile } from "../lib/types";
 
@@ -20,8 +25,10 @@ interface CourtAssignmentsEditorProps {
   initialCourtGames: CourtGame[];
   playersPerGame: number;
   saving?: boolean;
+  bottomInset?: number;
+  /** @deprecated Flex layout uses full height; refresh not shown on this screen */
   refreshControl?: ScrollViewProps["refreshControl"];
-  onSave: (courtGames: CourtGame[]) => void;
+  onSave: (courtGames: CourtGame[]) => void | Promise<void>;
 }
 
 type TeamSide = "teamA" | "teamB";
@@ -38,10 +45,11 @@ export function CourtAssignmentsEditor({
   initialCourtGames,
   playersPerGame,
   saving,
-  refreshControl,
+  bottomInset = 0,
   onSave,
 }: CourtAssignmentsEditorProps) {
   const teamSize = getTeamSize(playersPerGame);
+  const gameSizeLabel = formatGameSizeLabel(playersPerGame);
   const [courtGames, setCourtGames] = useState<CourtGame[]>(() =>
     cloneCourts(initialCourtGames),
   );
@@ -50,11 +58,16 @@ export function CourtAssignmentsEditor({
     string | null
   >(null);
 
+  const initialCourtsKey = useMemo(
+    () => JSON.stringify(initialCourtGames),
+    [initialCourtGames],
+  );
+
   useEffect(() => {
     setCourtGames(cloneCourts(initialCourtGames));
     setSelectedCourtIndex(0);
     setSelectedUnassignedId(null);
-  }, [initialCourtGames]);
+  }, [initialCourtsKey, initialCourtGames]);
 
   const participantMap = useMemo(
     () => new Map(participants.map((player) => [player.id, player])),
@@ -76,6 +89,12 @@ export function CourtAssignmentsEditor({
     Math.max(courtGames.length - 1, 0),
   );
   const selectedCourt = courtGames[safeCourtIndex];
+  const selectedCourtCount = selectedCourt
+    ? getCourtPlayersPerGame(selectedCourt)
+    : 0;
+  const selectedCourtReady = selectedCourt
+    ? isActiveCourtGame(selectedCourt, playersPerGame)
+    : false;
 
   const updateCourt = (
     courtIndex: number,
@@ -101,6 +120,7 @@ export function CourtAssignmentsEditor({
         teamA: game.teamA.filter((id) => id !== userId),
         teamB: game.teamB.filter((id) => id !== userId),
       };
+      if (next[target].length >= teamSize) return game;
       next[target] = [...next[target], userId];
       return next;
     });
@@ -109,10 +129,13 @@ export function CourtAssignmentsEditor({
   const addToTeam = (courtIndex: number, userId: string, target: TeamSide) => {
     if (!participantMap.has(userId) || assignedIds.has(userId)) return;
 
-    updateCourt(courtIndex, (game) => ({
-      ...game,
-      [target]: [...game[target], userId],
-    }));
+    updateCourt(courtIndex, (game) => {
+      if (game[target].length >= teamSize) return game;
+      return {
+        ...game,
+        [target]: [...game[target], userId],
+      };
+    });
     setSelectedUnassignedId(null);
   };
 
@@ -129,7 +152,7 @@ export function CourtAssignmentsEditor({
   };
 
   const handleSave = () => {
-    onSave(
+    void onSave(
       sanitizeCourtGames(
         courtGames,
         participants.map((player) => player.id),
@@ -144,70 +167,95 @@ export function CourtAssignmentsEditor({
     color: string,
   ) => {
     const ids = selectedCourt?.[side] ?? [];
+    const teamFull = ids.length >= teamSize;
 
     return (
       <View style={styles.teamColumn}>
-        <View style={styles.teamHeader}>
+        <View style={[styles.teamHeader, { borderBottomColor: `${color}44` }]}>
+          <View style={[styles.teamDot, { backgroundColor: color }]} />
           <Text style={[styles.teamTitle, { color }]}>{label}</Text>
           <Text style={styles.teamCount}>
             {ids.length}/{teamSize}
           </Text>
-          {selectedUnassignedId ? (
+          {selectedUnassignedId && !teamFull ? (
             <Pressable
               style={[styles.addBtn, { borderColor: `${color}88` }]}
               onPress={() => addToTeam(courtIndex, selectedUnassignedId, side)}
+              accessibilityLabel={`Add to ${label}`}
             >
               <Ionicons name="add" size={16} color={color} />
             </Pressable>
           ) : null}
         </View>
 
-        <View style={styles.teamList}>
+        <ScrollView
+          style={styles.teamScroll}
+          contentContainerStyle={styles.teamScrollContent}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+        >
           {ids.map((userId) => {
             const player = participantMap.get(userId);
             if (!player) return null;
             const otherTeam: TeamSide = side === "teamA" ? "teamB" : "teamA";
+            const otherFull =
+              (selectedCourt?.[otherTeam].length ?? 0) >= teamSize;
 
             return (
               <View key={userId} style={styles.playerRow}>
                 <Avatar
                   name={player.name}
                   color={player.avatarColor}
-                  size={32}
+                  size={30}
                   imageUrl={player.avatarUrl}
                 />
-                <View style={styles.playerInfo}>
-                  <Text style={styles.playerName} numberOfLines={1}>
-                    {player.nickname ?? player.name}
-                  </Text>
-                  <Text style={styles.playerMeta}>{player.position}</Text>
-                </View>
+                <Text style={styles.playerName} numberOfLines={1}>
+                  {player.nickname ?? player.name}
+                </Text>
                 <Pressable
                   style={styles.iconBtn}
                   onPress={() => moveToTeam(courtIndex, userId, otherTeam)}
+                  disabled={otherFull}
                   hitSlop={6}
+                  accessibilityLabel="Move to other team"
                 >
                   <Ionicons
                     name="swap-horizontal"
-                    size={16}
-                    color={colors.textMuted}
+                    size={15}
+                    color={otherFull ? colors.textDim : colors.textMuted}
                   />
                 </Pressable>
                 <Pressable
                   style={styles.iconBtn}
                   onPress={() => removeFromCourt(courtIndex, userId)}
                   hitSlop={6}
+                  accessibilityLabel="Remove from court"
                 >
-                  <Ionicons name="close" size={16} color={colors.error} />
+                  <Ionicons name="close" size={15} color={colors.error} />
                 </Pressable>
               </View>
             );
           })}
 
           {ids.length === 0 ? (
-            <Text style={styles.emptyTeam}>No players yet</Text>
+            <View style={styles.emptyTeam}>
+              <Ionicons name="person-add-outline" size={20} color={colors.textDim} />
+              <Text style={styles.emptyTeamText}>
+                {selectedUnassignedId
+                  ? "Tap + to add"
+                  : "Select a substitute below"}
+              </Text>
+            </View>
           ) : null}
-        </View>
+
+          {Array.from({ length: Math.max(0, teamSize - ids.length) }).map(
+            (_, slot) => (
+              <View key={`slot-${slot}`} style={styles.emptySlot}>
+                <Text style={styles.emptySlotText}>Open slot</Text>
+              </View>
+            ),
+          )}
+        </ScrollView>
       </View>
     );
   };
@@ -215,8 +263,10 @@ export function CourtAssignmentsEditor({
   if (courtGames.length === 0) {
     return (
       <View style={styles.emptyWrap}>
+        <Ionicons name="grid-outline" size={40} color={colors.textDim} />
+        <Text style={styles.emptyTitle}>No courts yet</Text>
         <Text style={styles.emptyText}>
-          Shuffle first, or add a court to assign players manually.
+          Shuffle from the game page, or add a court to assign players manually.
         </Text>
         <Button title="Add Court" onPress={addCourt} variant="secondary" />
       </View>
@@ -225,81 +275,104 @@ export function CourtAssignmentsEditor({
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.courtTabs}
-      >
-        {courtGames.map((game, index) => {
-          const selected = index === safeCourtIndex;
-          const count = game.teamA.length + game.teamB.length;
-          return (
-            <Pressable
-              key={`court-${index}`}
-              style={[styles.courtTab, selected && styles.courtTabActive]}
-              onPress={() => setSelectedCourtIndex(index)}
-            >
-              <Text
-                style={[
-                  styles.courtTabText,
-                  selected && styles.courtTabTextActive,
-                ]}
-              >
-                {getCourtGameLabel(index)}
-              </Text>
-              <Text style={styles.courtTabMeta}>{count} players</Text>
-            </Pressable>
-          );
-        })}
-        <Pressable style={styles.addCourtTab} onPress={addCourt}>
-          <Ionicons name="add" size={18} color={colors.primary} />
-          <Text style={styles.addCourtTabText}>Court</Text>
-        </Pressable>
-      </ScrollView>
-
-      {selectedCourt ? (
-        <ScrollView
-          style={styles.body}
-          contentContainerStyle={styles.bodyContent}
-          refreshControl={refreshControl}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.courtToolbar}>
-            <Text style={styles.courtHint}>
-              {formatGameSizeLabel(playersPerGame)} target · tap swap to move
-              teams, X to unassign
-            </Text>
-            {courtGames.length > 1 ? (
-              <Pressable onPress={() => removeCourt(safeCourtIndex)}>
-                <Text style={styles.removeCourtText}>Remove court</Text>
-              </Pressable>
-            ) : null}
-          </View>
-
-          <View style={styles.teamsRow}>
-            {renderTeam(safeCourtIndex, "teamA", "Team A", colors.teamA)}
-            {renderTeam(safeCourtIndex, "teamB", "Team B", colors.teamB)}
-          </View>
-        </ScrollView>
-      ) : null}
-
-      <View style={styles.unassignedSection}>
-        <Text style={styles.unassignedTitle}>
-          Substitutes ({unassigned.length})
-        </Text>
-        {selectedUnassignedId ? (
-          <Text style={styles.unassignedHint}>
-            Tap + on Team A or B to assign
-          </Text>
-        ) : (
-          <Text style={styles.unassignedHint}>
-            Tap a player, then tap + on a team
-          </Text>
-        )}
+      <View style={styles.header}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.unassignedStrip}
+          contentContainerStyle={styles.courtTabs}
+        >
+          {courtGames.map((game, index) => {
+            const selected = index === safeCourtIndex;
+            const count = getCourtPlayersPerGame(game);
+            const ready = isActiveCourtGame(game, playersPerGame);
+            return (
+              <Pressable
+                key={`court-${index}`}
+                style={[styles.courtTab, selected && styles.courtTabActive]}
+                onPress={() => setSelectedCourtIndex(index)}
+              >
+                <View style={styles.courtTabTop}>
+                  <Text
+                    style={[
+                      styles.courtTabText,
+                      selected && styles.courtTabTextActive,
+                    ]}
+                  >
+                    {getCourtGameLabel(index)}
+                  </Text>
+                  {ready ? (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={14}
+                      color={colors.success}
+                    />
+                  ) : null}
+                </View>
+                <Text style={styles.courtTabMeta}>
+                  {count}/{playersPerGame}
+                </Text>
+              </Pressable>
+            );
+          })}
+          <Pressable style={styles.addCourtTab} onPress={addCourt}>
+            <Ionicons name="add" size={18} color={colors.primary} />
+            <Text style={styles.addCourtTabText}>Court</Text>
+          </Pressable>
+        </ScrollView>
+
+        {selectedCourt ? (
+          <View style={styles.statusBar}>
+            <Text style={styles.statusLabel}>
+              {gameSizeLabel} · {selectedCourtCount}/{playersPerGame} on court
+            </Text>
+            {selectedCourtReady ? (
+              <View style={styles.readyPill}>
+                <Text style={styles.readyPillText}>Ready</Text>
+              </View>
+            ) : (
+              <Text style={styles.statusHint}>Balance teams to activate</Text>
+            )}
+            {courtGames.length > 1 ? (
+              <Pressable
+                onPress={() => removeCourt(safeCourtIndex)}
+                hitSlop={8}
+              >
+                <Text style={styles.removeCourtText}>Remove</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+
+      {selectedCourt ? (
+        <View style={styles.workspace}>
+          <View style={styles.teamsRow}>
+            {renderTeam(safeCourtIndex, "teamA", "Team A", colors.teamA)}
+            <View style={styles.teamDivider} />
+            {renderTeam(safeCourtIndex, "teamB", "Team B", colors.teamB)}
+          </View>
+        </View>
+      ) : (
+        <View style={styles.workspace} />
+      )}
+
+      <View style={[styles.footer, { paddingBottom: spacing.md + bottomInset }]}>
+        <View style={styles.footerHeader}>
+          <Text style={styles.unassignedTitle}>
+            Substitutes ({unassigned.length})
+          </Text>
+          <Text style={styles.unassignedHint} numberOfLines={1}>
+            {selectedUnassignedId
+              ? "Tap + on a team"
+              : "Tap a player to assign"}
+          </Text>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.substitutesScroll}
+          contentContainerStyle={styles.substitutesContent}
         >
           {unassigned.map((player) => {
             const selected = selectedUnassignedId === player.id;
@@ -317,19 +390,17 @@ export function CourtAssignmentsEditor({
                 <Avatar
                   name={player.name}
                   color={player.avatarColor}
-                  size={28}
+                  size={32}
                   imageUrl={player.avatarUrl}
                 />
                 <Text style={styles.unassignedName} numberOfLines={1}>
-                  {player.name.split(" ")[0]}
+                  {player.nickname ?? player.name.split(" ")[0]}
                 </Text>
               </Pressable>
             );
           })}
           {unassigned.length === 0 ? (
-            <Text style={styles.allAssigned}>
-              All joined players are assigned
-            </Text>
+            <Text style={styles.allAssigned}>Everyone is on a court</Text>
           ) : null}
         </ScrollView>
 
@@ -346,41 +417,62 @@ export function CourtAssignmentsEditor({
   );
 }
 
+const TEAM_COLUMN_MIN_HEIGHT = 200;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    minHeight: 0,
   },
   emptyWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: spacing.lg,
+    padding: spacing.xl,
     gap: spacing.md,
+  },
+  emptyTitle: {
+    ...typography.heading,
+    color: colors.text,
+    fontSize: 18,
   },
   emptyText: {
     ...typography.body,
     color: colors.textMuted,
     textAlign: "center",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  header: {
+    flexGrow: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
+    backgroundColor: colors.surface,
   },
   courtTabs: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
     gap: spacing.sm,
     alignItems: "center",
   },
   courtTab: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    alignItems: "center",
-    minWidth: 84,
+    minWidth: 76,
   },
   courtTabActive: {
     borderColor: colors.primary,
-    backgroundColor: `${colors.primary}18`,
+    backgroundColor: `${colors.primary}14`,
+  },
+  courtTabTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   courtTabText: {
     ...typography.caption,
@@ -393,7 +485,7 @@ const styles = StyleSheet.create({
   courtTabMeta: {
     ...typography.label,
     color: colors.textDim,
-    fontSize: 9,
+    fontSize: 10,
     marginTop: 2,
   },
   addCourtTab: {
@@ -402,45 +494,77 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.full,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.primary,
     borderStyle: "dashed",
+    minHeight: 48,
+    justifyContent: "center",
   },
   addCourtTabText: {
     ...typography.caption,
     color: colors.primary,
     fontWeight: "600",
   },
-  body: {
-    flex: 1,
-  },
-  bodyContent: {
-    padding: spacing.md,
-    gap: spacing.md,
-  },
-  courtToolbar: {
+  statusBar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
     gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
   },
-  courtHint: {
+  statusLabel: {
+    ...typography.caption,
+    color: colors.text,
+    fontWeight: "600",
+    flex: 1,
+    minWidth: 120,
+  },
+  statusHint: {
     ...typography.caption,
     color: colors.textDim,
-    flex: 1,
+    fontSize: 11,
+  },
+  readyPill: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    backgroundColor: `${colors.success}22`,
+    borderWidth: 1,
+    borderColor: `${colors.success}55`,
+  },
+  readyPillText: {
+    ...typography.label,
+    color: colors.success,
+    fontSize: 10,
+    fontWeight: "700",
   },
   removeCourtText: {
     ...typography.caption,
     color: colors.error,
     fontWeight: "600",
   },
+  workspace: {
+    flex: 1,
+    minHeight: 0,
+    padding: spacing.md,
+  },
   teamsRow: {
+    flex: 1,
     flexDirection: "row",
     gap: spacing.sm,
+    minHeight: TEAM_COLUMN_MIN_HEIGHT,
+  },
+  teamDivider: {
+    width: 1,
+    backgroundColor: colors.cardBorder,
+    marginVertical: spacing.xs,
   },
   teamColumn: {
     flex: 1,
+    minWidth: 0,
+    minHeight: TEAM_COLUMN_MIN_HEIGHT,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
@@ -454,17 +578,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
+  },
+  teamDot: {
+    width: 8,
+    height: 8,
+    borderRadius: radius.full,
   },
   teamTitle: {
     ...typography.label,
     fontSize: 11,
+    fontWeight: "700",
     flex: 1,
   },
   teamCount: {
     ...typography.caption,
     color: colors.textMuted,
     fontSize: 11,
+    fontVariant: ["tabular-nums"],
   },
   addBtn: {
     width: 28,
@@ -475,75 +605,107 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.card,
   },
-  teamList: {
+  teamScroll: {
+    flex: 1,
+  },
+  teamScrollContent: {
     padding: spacing.sm,
     gap: spacing.xs,
-    minHeight: 120,
+    flexGrow: 1,
   },
   playerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    padding: spacing.xs,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.xs,
     borderRadius: radius.sm,
     backgroundColor: colors.card,
-  },
-  playerInfo: {
-    flex: 1,
-    minWidth: 0,
   },
   playerName: {
     ...typography.caption,
     color: colors.text,
     fontWeight: "600",
-  },
-  playerMeta: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 9,
+    flex: 1,
+    minWidth: 0,
   },
   iconBtn: {
-    width: 28,
-    height: 28,
+    width: 26,
+    height: 26,
     borderRadius: radius.full,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surface,
   },
   emptyTeam: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.lg,
+    gap: spacing.xs,
+  },
+  emptyTeamText: {
     ...typography.caption,
     color: colors.textDim,
     textAlign: "center",
-    paddingVertical: spacing.lg,
   },
-  unassignedSection: {
+  emptySlot: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: colors.cardBorder,
+    alignItems: "center",
+  },
+  emptySlotText: {
+    ...typography.label,
+    color: colors.textDim,
+    fontSize: 10,
+  },
+  footer: {
+    flexGrow: 0,
     borderTopWidth: 1,
     borderTopColor: colors.cardBorder,
-    backgroundColor: colors.background,
-    padding: spacing.md,
+    backgroundColor: colors.surface,
+    paddingTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  footerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: spacing.sm,
   },
   unassignedTitle: {
     ...typography.label,
     color: colors.warning,
+    fontWeight: "700",
   },
   unassignedHint: {
     ...typography.caption,
     color: colors.textDim,
+    flex: 1,
+    textAlign: "right",
   },
-  unassignedStrip: {
+  substitutesScroll: {
+    maxHeight: 88,
+    flexGrow: 0,
+  },
+  substitutesContent: {
     gap: spacing.sm,
+    alignItems: "flex-start",
     paddingBottom: spacing.xs,
   },
   unassignedChip: {
-    width: 64,
+    width: 72,
     alignItems: "center",
     padding: spacing.xs,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    backgroundColor: colors.surface,
-    gap: 2,
+    backgroundColor: colors.card,
+    gap: 4,
   },
   unassignedChipActive: {
     borderColor: colors.warning,
@@ -552,12 +714,14 @@ const styles = StyleSheet.create({
   unassignedName: {
     ...typography.label,
     color: colors.textMuted,
-    fontSize: 9,
-    maxWidth: 58,
+    fontSize: 10,
+    maxWidth: 68,
+    textAlign: "center",
   },
   allAssigned: {
     ...typography.caption,
     color: colors.textMuted,
-    paddingVertical: spacing.sm,
+    alignSelf: "center",
+    paddingVertical: spacing.md,
   },
 });

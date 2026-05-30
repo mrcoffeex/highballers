@@ -79,9 +79,21 @@ export function useUser(userId: string): UserProfile | undefined {
   return useAppStore((state) => state.users.find((user) => user.id === userId));
 }
 
+export function useClubBans(clubId: string) {
+  const clubBans = useAppStore((state) => state.clubBans);
+
+  return useMemo(
+    () => clubBans.filter((ban) => ban.clubId === clubId),
+    [clubBans, clubId],
+  );
+}
+
 export function useClubJoinRequests(clubId: string) {
-  return useAppStore((state) =>
-    state.joinRequests.filter((request) => request.clubId === clubId),
+  const joinRequests = useAppStore((state) => state.joinRequests);
+
+  return useMemo(
+    () => joinRequests.filter((request) => request.clubId === clubId),
+    [clubId, joinRequests],
   );
 }
 

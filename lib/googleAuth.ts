@@ -1,5 +1,6 @@
 import * as QueryParams from "expo-auth-session/build/QueryParams";
 import { makeRedirectUri } from "expo-auth-session";
+import Constants from "expo-constants";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
@@ -9,6 +10,10 @@ import { getSupabase } from "./supabase";
 WebBrowser.maybeCompleteAuthSession();
 
 const exchangedCodes = new Set<string>();
+
+export function resetOAuthExchangeState() {
+  exchangedCodes.clear();
+}
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -42,11 +47,33 @@ export function getOAuthRedirectUri() {
     }
   }
 
+  const useDevRedirect =
+    __DEV__ || Constants.appOwnership === "expo" || Constants.appOwnership === null;
+
   return makeRedirectUri({
     scheme: "highballers",
     path: "oauth-callback",
-    preferLocalhost: true,
+    preferLocalhost: useDevRedirect,
   });
+}
+
+/** Wait for Supabase to persist the session after code exchange (AsyncStorage). */
+export async function waitForSupabaseSession(
+  attempts = 8,
+  delayMs = 250,
+): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) return true;
+    if (attempt < attempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return false;
 }
 
 export function buildCallbackHrefFromParams(params: SearchParams): string | null {
@@ -97,25 +124,42 @@ export async function resolveOAuthCallbackHref(options: {
   const fromRouterParams = buildCallbackHrefFromParams(params);
   if (fromRouterParams) return fromRouterParams;
 
-  try {
-    const parsed = await Linking.parseInitialURLAsync();
-    const parsedParams = (parsed.queryParams ?? {}) as SearchParams;
+  // Avoid stale cold-start URLs after logout/login (only when live params are empty).
+  const hasLiveParams = paramsHaveOAuthPayload(params);
+  if (!hasLiveParams && !linkingUrl) {
+    try {
+      const parsed = await Linking.parseInitialURLAsync();
+      const parsedParams = (parsed.queryParams ?? {}) as SearchParams;
 
-    if (parsedParams && paramsHaveOAuthPayload(parsedParams)) {
-      const built = buildCallbackHrefFromParams(parsedParams);
-      if (built) return built;
+      if (parsedParams && paramsHaveOAuthPayload(parsedParams)) {
+        const built = buildCallbackHrefFromParams(parsedParams);
+        if (built) return built;
+      }
+    } catch {
+      // parseInitialURLAsync can fail on some platforms; fall through.
     }
 
-  } catch {
-    // parseInitialURLAsync can fail on some platforms; fall through.
-  }
-
-  const legacy = await Linking.getInitialURL();
-  if (legacy && urlHasOAuthPayload(legacy)) {
-    return legacy;
+    const legacy = await Linking.getInitialURL();
+    if (legacy && urlHasOAuthPayload(legacy)) {
+      return legacy;
+    }
   }
 
   return null;
+}
+
+export function serializeOAuthParams(params: SearchParams): string {
+  const keys = [
+    "code",
+    "access_token",
+    "refresh_token",
+    "error",
+    "error_description",
+    "error_code",
+  ] as const;
+  return keys
+    .map((key) => `${key}=${firstParam(params[key]) ?? ""}`)
+    .join("&");
 }
 
 function parseAuthParams(url: string) {
@@ -145,6 +189,8 @@ export async function createSessionFromUrl(
     const { error } = await supabase.auth.exchangeCodeForSession(params.code);
     if (error) {
       exchangedCodes.delete(params.code);
+      const { data } = await supabase.auth.getSession();
+      if (data.session) return null;
       return error.message;
     }
 

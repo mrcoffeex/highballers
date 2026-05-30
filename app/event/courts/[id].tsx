@@ -1,22 +1,25 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { Stack, useLocalSearchParams } from "expo-router";
+import { useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CourtAssignmentsEditor } from "../../../components/CourtAssignmentsEditor";
+import { FloatingAlert } from "../../../components/FloatingAlert";
 import { FormScreenSkeleton } from "../../../components/ui";
 import { shouldShowEntitySkeleton } from "../../../lib/entityLoading";
 import { canEditEvent } from "../../../lib/gameEvents";
 import { getPlayersPerGame } from "../../../lib/gameFormats";
 import { colors, spacing, typography } from "../../../lib/theme";
-import { useRefreshControl } from "../../../lib/useRefreshControl";
+import { formatSyncError } from "../../../lib/syncErrors";
+import { SubscriptionError } from "../../../lib/subscription";
+import { useFloatingAlert } from "../../../lib/useFloatingAlert";
+import { useUpgradePrompt } from "../../../lib/useUpgradePrompt";
 import { CourtGame, UserProfile } from "../../../lib/types";
 import { useClub, useEvent } from "../../../store/hooks";
 import { useAppStore } from "../../../store/useAppStore";
 
 export default function EditEventCourtsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const event = useEvent(id);
   const club = useClub(event?.clubId ?? "");
@@ -26,8 +29,9 @@ export default function EditEventCourtsScreen() {
   const events = useAppStore((state) => state.events);
   const hydrated = useAppStore((state) => state.hydrated);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { refreshControl } = useRefreshControl();
+  const savingRef = useRef(false);
+  const floatingAlert = useFloatingAlert();
+  const { handleSubscriptionError } = useUpgradePrompt();
 
   const participants = useMemo(
     () =>
@@ -41,23 +45,34 @@ export default function EditEventCourtsScreen() {
     ? canEditEvent(event, currentUserId, club?.adminId)
     : false;
   const playersPerGame = event ? getPlayersPerGame(event) : 10;
-  const initialCourtGames: CourtGame[] = event?.courtGames?.length
-    ? event.courtGames
-    : [{ teamA: [], teamB: [] }];
+  const initialCourtGames = useMemo<CourtGame[]>(
+    () =>
+      event?.courtGames?.length
+        ? event.courtGames
+        : [{ teamA: [], teamB: [] }],
+    [event?.courtGames, event?.id],
+  );
 
   const handleSave = async (courtGames: CourtGame[]) => {
-    if (!event) return;
+    if (!event || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
-    setError(null);
+    floatingAlert.dismiss();
     try {
-      const saved = await saveEventCourts(event.id, courtGames);
-      if (saved) {
-        router.back();
-        return;
+      await saveEventCourts(event.id, courtGames);
+      floatingAlert.show("Court assignments saved.", "success");
+    } catch (err) {
+      if (err instanceof SubscriptionError) {
+        handleSubscriptionError(err);
+      } else {
+        floatingAlert.show(
+          formatSyncError(err, "Could not save court assignments. Try again."),
+          "error",
+        );
       }
-      setError("Could not save court assignments. Try again.");
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   };
 
@@ -92,14 +107,19 @@ export default function EditEventCourtsScreen() {
     <>
       <Stack.Screen options={{ headerTitle: "Edit Courts" }} />
       <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <FloatingAlert
+          message={floatingAlert.message}
+          variant={floatingAlert.variant}
+          bottomInset={insets.bottom}
+          onDismiss={floatingAlert.dismiss}
+        />
         <CourtAssignmentsEditor
-          key={`${event.id}-${event.courtGames?.length ?? 0}-${event.participantIds.length}`}
+          key={event.id}
           participants={participants}
           initialCourtGames={initialCourtGames}
           playersPerGame={playersPerGame}
           saving={saving}
-          refreshControl={refreshControl}
+          bottomInset={insets.bottom}
           onSave={handleSave}
         />
       </View>
@@ -111,6 +131,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    position: "relative",
   },
   blocked: {
     flex: 1,
@@ -129,11 +150,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: "center",
     fontSize: 14,
-  },
-  error: {
-    ...typography.caption,
-    color: colors.error,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
   },
 });

@@ -52,15 +52,23 @@ export function formatSyncError(
   const lower = message.toLowerCase();
 
   if (lower.includes("visibility") || lower.includes("club_join_requests")) {
-    return "Database needs an update. Run supabase/migration-club-visibility.sql in the Supabase SQL Editor.";
+    return "Database needs an update. Run supabase/migrations (latest timestamp files) or ./scripts/db-migrate-all.sh in the Supabase SQL Editor.";
   }
 
   if (lower.includes("does not exist") && lower.includes("relation")) {
-    return "Database schema is out of date. Run supabase/schema.sql (or migration-club-visibility.sql) in Supabase.";
+    return "Database schema is out of date. Run supabase/schema.sql and supabase/migrations in order (see ./scripts/db-migrate-all.sh).";
+  }
+
+  if (lower.includes("club_bans")) {
+    return "Database needs an update. Run supabase/migrations/20250110121400_club-bans.sql in the Supabase SQL Editor.";
+  }
+
+  if (lower.includes("row-level security") && lower.includes("club_chat")) {
+    return "Chat is blocked by database rules. Run supabase/migrations/20250110121000_basic-chat.sql in the Supabase SQL Editor.";
   }
 
   if (lower.includes("row-level security")) {
-    return "Only the game creator or club admin can save stats. Sign in with that account, or run supabase/migration-event-stats-rls.sql in Supabase.";
+    return "Only the game creator or club admin can save stats. Sign in with that account, or run supabase/migrations/20250110120600_event-stats-rls.sql in Supabase.";
   }
 
   if (lower.includes("foreign key") && lower.includes("profiles")) {

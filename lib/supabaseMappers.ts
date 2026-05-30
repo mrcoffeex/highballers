@@ -1,5 +1,6 @@
 import {
   Club,
+  ClubBan,
   ClubChatMessage,
   ClubJoinRequest,
   CourtGame,
@@ -51,6 +52,13 @@ interface ClubMemberRow {
   user_id: string;
 }
 
+interface ClubBanRow {
+  club_id: string;
+  user_id: string;
+  banned_by: string | null;
+  created_at: string;
+}
+
 interface EventRow {
   id: string;
   club_id: string;
@@ -68,6 +76,12 @@ interface EventRow {
   team_b: string[] | null;
   court_games: CourtGame[] | null;
   finished_at: string | null;
+  visibility: "open" | "private" | null;
+}
+
+interface EventInviteRow {
+  event_id: string;
+  user_id: string;
 }
 
 interface EventPlayerStatsRow {
@@ -149,9 +163,19 @@ export function joinRequestFromRow(row: ClubJoinRequestRow): ClubJoinRequest {
   };
 }
 
+export function clubBanFromRow(row: ClubBanRow): ClubBan {
+  return {
+    clubId: row.club_id,
+    userId: row.user_id,
+    bannedBy: row.banned_by ?? "",
+    createdAt: row.created_at,
+  };
+}
+
 export function eventFromRow(
   row: EventRow,
   participantIds: string[],
+  invitedMemberIds?: string[],
 ): GameEvent {
   const courtGames =
     normalizeCourtGames(row.court_games) ??
@@ -162,6 +186,9 @@ export function eventFromRow(
   return {
     id: row.id,
     clubId: row.club_id,
+    visibility: row.visibility ?? "open",
+    invitedMemberIds:
+      row.visibility === "private" ? invitedMemberIds : undefined,
     title: row.title,
     description: row.description,
     location: row.location,

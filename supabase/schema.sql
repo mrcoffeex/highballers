@@ -43,6 +43,14 @@ create table if not exists public.club_members (
   primary key (club_id, user_id)
 );
 
+create table if not exists public.club_bans (
+  club_id uuid not null references public.clubs(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  banned_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  primary key (club_id, user_id)
+);
+
 create table if not exists public.events (
   id uuid primary key default gen_random_uuid(),
   club_id uuid not null references public.clubs(id) on delete cascade,
@@ -61,7 +69,14 @@ create table if not exists public.events (
   team_a uuid[],
   team_b uuid[],
   court_games jsonb,
-  finished_at timestamptz
+  finished_at timestamptz,
+  visibility text not null default 'open' check (visibility in ('open', 'private'))
+);
+
+create table if not exists public.event_invites (
+  event_id uuid not null references public.events(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  primary key (event_id, user_id)
 );
 
 create table if not exists public.event_player_stats (
@@ -87,7 +102,9 @@ create table if not exists public.event_participants (
 alter table public.profiles enable row level security;
 alter table public.clubs enable row level security;
 alter table public.club_members enable row level security;
+alter table public.club_bans enable row level security;
 alter table public.events enable row level security;
+alter table public.event_invites enable row level security;
 alter table public.event_participants enable row level security;
 alter table public.event_player_stats enable row level security;
 alter table public.club_join_requests enable row level security;
@@ -100,13 +117,21 @@ drop policy if exists "Clubs are readable by authenticated users" on public.club
 drop policy if exists "Authenticated users can create clubs" on public.clubs;
 drop policy if exists "Club admins can update clubs" on public.clubs;
 drop policy if exists "Club members are readable by authenticated users" on public.club_members;
+drop policy if exists "Club bans are readable by authenticated users" on public.club_bans;
+drop policy if exists "Club admins can ban members" on public.club_bans;
+drop policy if exists "Club admins can unban members" on public.club_bans;
 drop policy if exists "Users can join clubs" on public.club_members;
 drop policy if exists "Users can leave clubs" on public.club_members;
+drop policy if exists "Club admins can remove members" on public.club_members;
 drop policy if exists "Events are readable by authenticated users" on public.events;
+drop policy if exists "Event creator or club admin can delete events" on public.events;
 drop policy if exists "Club members can create events" on public.events;
 drop policy if exists "Event creators and club admins can update events" on public.events;
 drop policy if exists "Event creators can update events" on public.events;
 drop policy if exists "Participants are readable by authenticated users" on public.event_participants;
+drop policy if exists "Event invites are readable by authenticated users" on public.event_invites;
+drop policy if exists "Event creators can manage invites" on public.event_invites;
+drop policy if exists "Event creators can remove invites" on public.event_invites;
 drop policy if exists "Users can join events" on public.event_participants;
 drop policy if exists "Users can leave events" on public.event_participants;
 drop policy if exists "Event stats are readable by authenticated users" on public.event_player_stats;
@@ -135,16 +160,64 @@ create policy "Authenticated users can create clubs"
   on public.clubs for insert to authenticated with check (auth.uid() = admin_id);
 
 create policy "Club admins can update clubs"
-  on public.clubs for update to authenticated using (auth.uid() = admin_id);
+  on public.clubs for update to authenticated
+  using (auth.uid() = admin_id)
+  with check (
+    auth.uid() = admin_id
+    and (
+      visibility = 'open'
+      or exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.subscription_tier = 'all_star'
+      )
+    )
+  );
 
 create policy "Club members are readable by authenticated users"
   on public.club_members for select to authenticated using (true);
 
-create policy "Users can join clubs"
-  on public.club_members for insert to authenticated with check (auth.uid() = user_id);
+create policy "Club bans are readable by authenticated users"
+  on public.club_bans for select to authenticated using (true);
 
-create policy "Users can leave clubs"
-  on public.club_members for delete to authenticated using (auth.uid() = user_id);
+create policy "Club admins can ban members"
+  on public.club_bans for insert to authenticated
+  with check (
+    exists (
+      select 1 from public.clubs
+      where id = club_bans.club_id and admin_id = auth.uid()
+    )
+    and banned_by = auth.uid()
+    and user_id <> auth.uid()
+  );
+
+create policy "Club admins can unban members"
+  on public.club_bans for delete to authenticated
+  using (
+    exists (
+      select 1 from public.clubs
+      where id = club_bans.club_id and admin_id = auth.uid()
+    )
+  );
+
+create policy "Users can join clubs"
+  on public.club_members for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and not exists (
+      select 1 from public.club_bans
+      where club_id = club_members.club_id and user_id = auth.uid()
+    )
+  );
+
+create policy "Club admins can remove members"
+  on public.club_members for delete to authenticated
+  using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from public.clubs
+      where id = club_members.club_id and admin_id = auth.uid()
+    )
+  );
 
 create policy "Events are readable by authenticated users"
   on public.events for select to authenticated using (true);
@@ -169,11 +242,65 @@ create policy "Event creators and club admins can update events"
     )
   );
 
+create policy "Event creator or club admin can delete events"
+  on public.events for delete to authenticated
+  using (
+    finished_at is null
+    and (
+      created_by = auth.uid()
+      or exists (
+        select 1 from public.clubs c
+        where c.id = club_id and c.admin_id = auth.uid()
+      )
+    )
+  );
+
 create policy "Participants are readable by authenticated users"
   on public.event_participants for select to authenticated using (true);
 
+create policy "Event invites are readable by authenticated users"
+  on public.event_invites for select to authenticated using (true);
+
+create policy "Event creators can manage invites"
+  on public.event_invites for insert to authenticated
+  with check (
+    exists (
+      select 1 from public.events e
+      join public.club_members cm
+        on cm.club_id = e.club_id and cm.user_id = event_invites.user_id
+      where e.id = event_invites.event_id
+        and e.created_by = auth.uid()
+    )
+  );
+
+create policy "Event creators can remove invites"
+  on public.event_invites for delete to authenticated
+  using (
+    exists (
+      select 1 from public.events e
+      where e.id = event_invites.event_id and e.created_by = auth.uid()
+    )
+  );
+
 create policy "Users can join events"
-  on public.event_participants for insert to authenticated with check (auth.uid() = user_id);
+  on public.event_participants for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.events e
+      join public.club_members cm
+        on cm.club_id = e.club_id and cm.user_id = auth.uid()
+      where e.id = event_id
+        and (
+          e.visibility = 'open'
+          or e.created_by = auth.uid()
+          or exists (
+            select 1 from public.event_invites ei
+            where ei.event_id = e.id and ei.user_id = auth.uid()
+          )
+        )
+    )
+  );
 
 create policy "Users can leave events"
   on public.event_participants for delete to authenticated using (auth.uid() = user_id);
@@ -226,7 +353,14 @@ create policy "Join requests are readable by authenticated users"
   on public.club_join_requests for select to authenticated using (true);
 
 create policy "Users can request to join private clubs"
-  on public.club_join_requests for insert to authenticated with check (auth.uid() = user_id);
+  on public.club_join_requests for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and not exists (
+      select 1 from public.club_bans
+      where club_id = club_join_requests.club_id and user_id = auth.uid()
+    )
+  );
 
 create policy "Users can cancel their join request"
   on public.club_join_requests for delete to authenticated

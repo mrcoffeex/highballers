@@ -1,5 +1,5 @@
 -- HighBallers: combined schema + migrations
--- Generated: 2026-05-30T02:49:15Z
+-- Generated: 2026-05-30T10:00:56Z
 -- Paste into Supabase Dashboard → SQL Editor → Run
 
 -- ========== schema.sql (baseline) ==========
@@ -48,6 +48,14 @@ create table if not exists public.club_members (
   primary key (club_id, user_id)
 );
 
+create table if not exists public.club_bans (
+  club_id uuid not null references public.clubs(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  banned_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  primary key (club_id, user_id)
+);
+
 create table if not exists public.events (
   id uuid primary key default gen_random_uuid(),
   club_id uuid not null references public.clubs(id) on delete cascade,
@@ -66,7 +74,14 @@ create table if not exists public.events (
   team_a uuid[],
   team_b uuid[],
   court_games jsonb,
-  finished_at timestamptz
+  finished_at timestamptz,
+  visibility text not null default 'open' check (visibility in ('open', 'private'))
+);
+
+create table if not exists public.event_invites (
+  event_id uuid not null references public.events(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  primary key (event_id, user_id)
 );
 
 create table if not exists public.event_player_stats (
@@ -92,7 +107,9 @@ create table if not exists public.event_participants (
 alter table public.profiles enable row level security;
 alter table public.clubs enable row level security;
 alter table public.club_members enable row level security;
+alter table public.club_bans enable row level security;
 alter table public.events enable row level security;
+alter table public.event_invites enable row level security;
 alter table public.event_participants enable row level security;
 alter table public.event_player_stats enable row level security;
 alter table public.club_join_requests enable row level security;
@@ -105,13 +122,21 @@ drop policy if exists "Clubs are readable by authenticated users" on public.club
 drop policy if exists "Authenticated users can create clubs" on public.clubs;
 drop policy if exists "Club admins can update clubs" on public.clubs;
 drop policy if exists "Club members are readable by authenticated users" on public.club_members;
+drop policy if exists "Club bans are readable by authenticated users" on public.club_bans;
+drop policy if exists "Club admins can ban members" on public.club_bans;
+drop policy if exists "Club admins can unban members" on public.club_bans;
 drop policy if exists "Users can join clubs" on public.club_members;
 drop policy if exists "Users can leave clubs" on public.club_members;
+drop policy if exists "Club admins can remove members" on public.club_members;
 drop policy if exists "Events are readable by authenticated users" on public.events;
+drop policy if exists "Event creator or club admin can delete events" on public.events;
 drop policy if exists "Club members can create events" on public.events;
 drop policy if exists "Event creators and club admins can update events" on public.events;
 drop policy if exists "Event creators can update events" on public.events;
 drop policy if exists "Participants are readable by authenticated users" on public.event_participants;
+drop policy if exists "Event invites are readable by authenticated users" on public.event_invites;
+drop policy if exists "Event creators can manage invites" on public.event_invites;
+drop policy if exists "Event creators can remove invites" on public.event_invites;
 drop policy if exists "Users can join events" on public.event_participants;
 drop policy if exists "Users can leave events" on public.event_participants;
 drop policy if exists "Event stats are readable by authenticated users" on public.event_player_stats;
@@ -140,16 +165,64 @@ create policy "Authenticated users can create clubs"
   on public.clubs for insert to authenticated with check (auth.uid() = admin_id);
 
 create policy "Club admins can update clubs"
-  on public.clubs for update to authenticated using (auth.uid() = admin_id);
+  on public.clubs for update to authenticated
+  using (auth.uid() = admin_id)
+  with check (
+    auth.uid() = admin_id
+    and (
+      visibility = 'open'
+      or exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.subscription_tier = 'all_star'
+      )
+    )
+  );
 
 create policy "Club members are readable by authenticated users"
   on public.club_members for select to authenticated using (true);
 
-create policy "Users can join clubs"
-  on public.club_members for insert to authenticated with check (auth.uid() = user_id);
+create policy "Club bans are readable by authenticated users"
+  on public.club_bans for select to authenticated using (true);
 
-create policy "Users can leave clubs"
-  on public.club_members for delete to authenticated using (auth.uid() = user_id);
+create policy "Club admins can ban members"
+  on public.club_bans for insert to authenticated
+  with check (
+    exists (
+      select 1 from public.clubs
+      where id = club_bans.club_id and admin_id = auth.uid()
+    )
+    and banned_by = auth.uid()
+    and user_id <> auth.uid()
+  );
+
+create policy "Club admins can unban members"
+  on public.club_bans for delete to authenticated
+  using (
+    exists (
+      select 1 from public.clubs
+      where id = club_bans.club_id and admin_id = auth.uid()
+    )
+  );
+
+create policy "Users can join clubs"
+  on public.club_members for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and not exists (
+      select 1 from public.club_bans
+      where club_id = club_members.club_id and user_id = auth.uid()
+    )
+  );
+
+create policy "Club admins can remove members"
+  on public.club_members for delete to authenticated
+  using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from public.clubs
+      where id = club_members.club_id and admin_id = auth.uid()
+    )
+  );
 
 create policy "Events are readable by authenticated users"
   on public.events for select to authenticated using (true);
@@ -174,11 +247,65 @@ create policy "Event creators and club admins can update events"
     )
   );
 
+create policy "Event creator or club admin can delete events"
+  on public.events for delete to authenticated
+  using (
+    finished_at is null
+    and (
+      created_by = auth.uid()
+      or exists (
+        select 1 from public.clubs c
+        where c.id = club_id and c.admin_id = auth.uid()
+      )
+    )
+  );
+
 create policy "Participants are readable by authenticated users"
   on public.event_participants for select to authenticated using (true);
 
+create policy "Event invites are readable by authenticated users"
+  on public.event_invites for select to authenticated using (true);
+
+create policy "Event creators can manage invites"
+  on public.event_invites for insert to authenticated
+  with check (
+    exists (
+      select 1 from public.events e
+      join public.club_members cm
+        on cm.club_id = e.club_id and cm.user_id = event_invites.user_id
+      where e.id = event_invites.event_id
+        and e.created_by = auth.uid()
+    )
+  );
+
+create policy "Event creators can remove invites"
+  on public.event_invites for delete to authenticated
+  using (
+    exists (
+      select 1 from public.events e
+      where e.id = event_invites.event_id and e.created_by = auth.uid()
+    )
+  );
+
 create policy "Users can join events"
-  on public.event_participants for insert to authenticated with check (auth.uid() = user_id);
+  on public.event_participants for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.events e
+      join public.club_members cm
+        on cm.club_id = e.club_id and cm.user_id = auth.uid()
+      where e.id = event_id
+        and (
+          e.visibility = 'open'
+          or e.created_by = auth.uid()
+          or exists (
+            select 1 from public.event_invites ei
+            where ei.event_id = e.id and ei.user_id = auth.uid()
+          )
+        )
+    )
+  );
 
 create policy "Users can leave events"
   on public.event_participants for delete to authenticated using (auth.uid() = user_id);
@@ -231,7 +358,14 @@ create policy "Join requests are readable by authenticated users"
   on public.club_join_requests for select to authenticated using (true);
 
 create policy "Users can request to join private clubs"
-  on public.club_join_requests for insert to authenticated with check (auth.uid() = user_id);
+  on public.club_join_requests for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and not exists (
+      select 1 from public.club_bans
+      where club_id = club_join_requests.club_id and user_id = auth.uid()
+    )
+  );
 
 create policy "Users can cancel their join request"
   on public.club_join_requests for delete to authenticated
@@ -277,7 +411,7 @@ create policy "Authenticated users can upload club logos"
 create policy "Authenticated users can update club logos"
   on storage.objects for update to authenticated using (bucket_id = 'club-logos');
 
--- ========== migration-club-visibility.sql ==========
+-- ========== migrations/20250110120000_club-visibility.sql ==========
 -- Run if you already created the schema before open/private clubs existed.
 
 alter table public.clubs
@@ -313,14 +447,14 @@ create policy "Club admins can manage join requests"
     )
   );
 
--- ========== migration-event-coordinates.sql ==========
+-- ========== migrations/20250110120100_event-coordinates.sql ==========
 -- Run if events table was created before map coordinates existed.
 
 alter table public.events
   add column if not exists latitude double precision,
   add column if not exists longitude double precision;
 
--- ========== migration-event-max-players.sql ==========
+-- ========== migrations/20250110120200_event-max-players.sql ==========
 -- Run if events.max_players still caps at 20.
 
 alter table public.events
@@ -329,7 +463,7 @@ alter table public.events
 alter table public.events
   add constraint events_max_players_check check (max_players between 10 and 40);
 
--- ========== migration-event-players-per-game.sql ==========
+-- ========== migrations/20250110120300_event-players-per-game.sql ==========
 -- Configurable players per court when shuffling (default 10 = 5v5)
 alter table public.events
   add column if not exists players_per_game int check (
@@ -340,7 +474,7 @@ update public.events
 set players_per_game = 10
 where players_per_game is null;
 
--- ========== migration-court-games.sql ==========
+-- ========== migrations/20250110120400_court-games.sql ==========
 -- Multi-court 5v5 shuffle storage (Game 1, Game 2, ...)
 
 alter table public.events
@@ -359,7 +493,7 @@ where court_games is null
   and coalesce(array_length(team_a, 1), 0) > 0
   and coalesce(array_length(team_b, 1), 0) > 0;
 
--- ========== migration-event-stats.sql ==========
+-- ========== migrations/20250110120500_event-stats.sql ==========
 -- Post-game stats and event finish state
 
 alter table public.events
@@ -414,7 +548,7 @@ create policy "Event creators and club admins can update events"
     )
   );
 
--- ========== migration-event-stats-rls.sql ==========
+-- ========== migrations/20250110120600_event-stats-rls.sql ==========
 -- Fix event_player_stats upsert under RLS (explicit INSERT/UPDATE policies)
 
 drop policy if exists "Creators and club admins can manage event stats"
@@ -468,7 +602,7 @@ create policy "Event stats delete by creator or club admin"
     )
   );
 
--- ========== migration-subscription-tier.sql ==========
+-- ========== migrations/20250110120700_subscription-tier.sql ==========
 -- Subscription tiers: basic (Basic Baller) | all_star (All-Star Baller)
 
 alter table public.profiles
@@ -569,7 +703,7 @@ create policy "Authenticated users can create clubs"
     )
   );
 
--- ========== migration-basic-create-game.sql ==========
+-- ========== migrations/20250110120800_basic-create-game.sql ==========
 -- Allow Basic Ballers to create games (club members who created the event)
 
 drop policy if exists "All-star club members can create events" on public.events;
@@ -585,7 +719,7 @@ create policy "Club members can create events"
     )
   );
 
--- ========== migration-club-chats.sql ==========
+-- ========== migrations/20250110120900_club-chats.sql ==========
 -- Club group chats: one chat per club, messages visible to club members only.
 
 create table if not exists public.club_chats (
@@ -667,7 +801,7 @@ alter publication supabase_realtime add table public.club_chat_messages;
 grant select, insert on public.club_chats to authenticated;
 grant select, insert on public.club_chat_messages to authenticated;
 
--- ========== migration-basic-chat.sql ==========
+-- ========== migrations/20250110121000_basic-chat.sql ==========
 -- Allow Basic Baller club members to send chat messages (read/send for all members).
 
 drop policy if exists "All-star club members can send chat messages" on public.club_chat_messages;
@@ -683,7 +817,7 @@ create policy "Club members can send chat messages"
     )
   );
 
--- ========== migration-iap-subscriptions.sql ==========
+-- ========== migrations/20250110121100_iap-subscriptions.sql ==========
 -- In-app purchase receipts and server-side subscription tier protection
 
 create table if not exists public.subscription_receipts (
@@ -731,7 +865,7 @@ create trigger protect_profiles_subscription_tier
   for each row
   execute function public.protect_subscription_tier();
 
--- ========== migration-push-notifications.sql ==========
+-- ========== migrations/20250110121200_push-notifications.sql ==========
 -- Push notification edge functions (deploy separately):
 --
 --   supabase functions deploy notify-club-chat
@@ -744,4 +878,181 @@ create trigger protect_profiles_subscription_tier
 --
 -- Requires profiles.push_token (saved on app launch via registerForPushNotifications).
 
--- Done. Optional seeds (manual): seed-*.sql in supabase/
+-- ========== migrations/20250110121300_event-visibility.sql ==========
+-- Open games: any club member can join. Private games: invited members only.
+
+alter table public.events
+  add column if not exists visibility text not null default 'open'
+  check (visibility in ('open', 'private'));
+
+create table if not exists public.event_invites (
+  event_id uuid not null references public.events(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  primary key (event_id, user_id)
+);
+
+alter table public.event_invites enable row level security;
+
+drop policy if exists "Event invites are readable by authenticated users" on public.event_invites;
+drop policy if exists "Event creators can manage invites" on public.event_invites;
+drop policy if exists "Users can join events" on public.event_participants;
+
+create policy "Event invites are readable by authenticated users"
+  on public.event_invites for select to authenticated using (true);
+
+create policy "Event creators can manage invites"
+  on public.event_invites for insert to authenticated
+  with check (
+    exists (
+      select 1 from public.events e
+      join public.club_members cm
+        on cm.club_id = e.club_id and cm.user_id = event_invites.user_id
+      where e.id = event_invites.event_id
+        and e.created_by = auth.uid()
+    )
+  );
+
+create policy "Event creators can remove invites"
+  on public.event_invites for delete to authenticated
+  using (
+    exists (
+      select 1 from public.events e
+      where e.id = event_invites.event_id and e.created_by = auth.uid()
+    )
+  );
+
+create policy "Users can join events"
+  on public.event_participants for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.events e
+      join public.club_members cm
+        on cm.club_id = e.club_id and cm.user_id = auth.uid()
+      where e.id = event_id
+        and (
+          e.visibility = 'open'
+          or e.created_by = auth.uid()
+          or exists (
+            select 1 from public.event_invites ei
+            where ei.event_id = e.id and ei.user_id = auth.uid()
+          )
+        )
+    )
+  );
+
+-- ========== migrations/20250110121400_club-bans.sql ==========
+-- Club admins can kick members and ban them from rejoining.
+
+create table if not exists public.club_bans (
+  club_id uuid not null references public.clubs(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  banned_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  primary key (club_id, user_id)
+);
+
+alter table public.club_bans enable row level security;
+
+drop policy if exists "Club bans are readable by authenticated users" on public.club_bans;
+drop policy if exists "Club admins can ban members" on public.club_bans;
+drop policy if exists "Club admins can unban members" on public.club_bans;
+drop policy if exists "Users can join clubs" on public.club_members;
+drop policy if exists "Club admins can remove members" on public.club_members;
+drop policy if exists "Users can request to join private clubs" on public.club_join_requests;
+
+create policy "Club bans are readable by authenticated users"
+  on public.club_bans for select to authenticated using (true);
+
+create policy "Club admins can ban members"
+  on public.club_bans for insert to authenticated
+  with check (
+    exists (
+      select 1 from public.clubs
+      where id = club_bans.club_id and admin_id = auth.uid()
+    )
+    and banned_by = auth.uid()
+    and user_id <> auth.uid()
+  );
+
+create policy "Club admins can unban members"
+  on public.club_bans for delete to authenticated
+  using (
+    exists (
+      select 1 from public.clubs
+      where id = club_bans.club_id and admin_id = auth.uid()
+    )
+  );
+
+create policy "Users can join clubs"
+  on public.club_members for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and not exists (
+      select 1 from public.club_bans
+      where club_id = club_members.club_id and user_id = auth.uid()
+    )
+  );
+
+create policy "Club admins can remove members"
+  on public.club_members for delete to authenticated
+  using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from public.clubs
+      where id = club_members.club_id and admin_id = auth.uid()
+    )
+  );
+
+create policy "Users can request to join private clubs"
+  on public.club_join_requests for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and not exists (
+      select 1 from public.club_bans
+      where club_id = club_join_requests.club_id and user_id = auth.uid()
+    )
+  );
+
+-- ========== migrations/20250110121500_club-visibility-update-rls.sql ==========
+-- Only All-Star admins can set a club to private on update (open is always allowed).
+
+drop policy if exists "Club admins can update clubs" on public.clubs;
+
+create policy "Club admins can update clubs"
+  on public.clubs for update to authenticated
+  using (auth.uid() = admin_id)
+  with check (
+    auth.uid() = admin_id
+    and (
+      visibility = 'open'
+      or exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.subscription_tier = 'all_star'
+      )
+    )
+  );
+
+-- ========== migrations/20250110121600_event-cancel.sql ==========
+-- Club admins and game creators can cancel (delete) games that are not finished.
+
+drop policy if exists "Event creator or club admin can delete events" on public.events;
+
+create policy "Event creator or club admin can delete events"
+  on public.events for delete to authenticated
+  using (
+    finished_at is null
+    and (
+      created_by = auth.uid()
+      or exists (
+        select 1 from public.clubs c
+        where c.id = club_id and c.admin_id = auth.uid()
+      )
+    )
+  );
+
+-- Done.
+-- Optional seeds (manual, filename order = run order):
+--   seeds/20250115120000_dav-sur-dummy-players.sql
+--   seeds/20250115120100_join-davsur-mga-par-event.sql
+--   seeds/20250115120200_join-davsur-night-game.sql

@@ -20,6 +20,13 @@ export default function ClubDetailLayout() {
           headerTitleStyle: { color: colors.text },
         }}
       />
+      <Stack.Screen
+        name="requests"
+        options={{
+          headerTitle: "Join Requests",
+          headerTitleStyle: { color: colors.text },
+        }}
+      />
     </Stack>
   );
 }

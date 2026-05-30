@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Combine HighBallers SQL into one file (correct order) for Supabase SQL Editor or psql.
 #
+# Migrations live in supabase/migrations/ as:
+#   YYYYMMDDHHMMSS_short-description.sql
+# Sorted by filename (timestamp) = apply order. Latest file = highest timestamp.
+#
+# Optional seeds: supabase/seeds/ (same timestamp prefix, run manually in order)
+#
 # Usage:
 #   ./scripts/db-migrate-all.sh              # writes supabase/_apply-all.sql
 #   ./scripts/db-migrate-all.sh --execute    # needs linked project + Supabase CLI
@@ -13,33 +19,34 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/supabase/_apply-all.sql"
+MIGRATIONS_DIR="$ROOT/supabase/migrations"
+SEEDS_DIR="$ROOT/supabase/seeds"
 EXECUTE=false
 
 for arg in "$@"; do
   case "$arg" in
     --execute) EXECUTE=true ;;
     -h|--help)
-      sed -n '2,12p' "$0"
+      sed -n '2,18p' "$0"
       exit 0
       ;;
   esac
 done
 
-MIGRATIONS=(
-  migration-club-visibility.sql
-  migration-event-coordinates.sql
-  migration-event-max-players.sql
-  migration-event-players-per-game.sql
-  migration-court-games.sql
-  migration-event-stats.sql
-  migration-event-stats-rls.sql
-  migration-subscription-tier.sql
-  migration-basic-create-game.sql
-  migration-club-chats.sql
-  migration-basic-chat.sql
-  migration-iap-subscriptions.sql
-  migration-push-notifications.sql
-)
+if [[ ! -d "$MIGRATIONS_DIR" ]]; then
+  echo "Missing migrations directory: $MIGRATIONS_DIR" >&2
+  exit 1
+fi
+
+MIGRATIONS=()
+while IFS= read -r path; do
+  MIGRATIONS+=("$(basename "$path")")
+done < <(find "$MIGRATIONS_DIR" -maxdepth 1 -name '*.sql' | sort)
+
+if [[ ${#MIGRATIONS[@]} -eq 0 ]]; then
+  echo "No migration files in $MIGRATIONS_DIR" >&2
+  exit 1
+fi
 
 {
   echo "-- HighBallers: combined schema + migrations"
@@ -57,20 +64,25 @@ MIGRATIONS=(
   fi
 
   for file in "${MIGRATIONS[@]}"; do
-    path="$ROOT/supabase/$file"
-    if [[ ! -f "$path" ]]; then
-      echo "Missing: $path" >&2
-      exit 1
-    fi
-    echo "-- ========== $file =========="
+    path="$MIGRATIONS_DIR/$file"
+    echo "-- ========== migrations/$file =========="
     cat "$path"
     echo ""
   done
 
-  echo "-- Done. Optional seeds (manual): seed-*.sql in supabase/"
+  echo "-- Done."
+  if [[ -d "$SEEDS_DIR" ]]; then
+    echo "-- Optional seeds (manual, filename order = run order):"
+    while IFS= read -r seed; do
+      echo "--   seeds/$(basename "$seed")"
+    done < <(find "$SEEDS_DIR" -maxdepth 1 -name '*.sql' | sort)
+  fi
 } > "$OUT"
 
-echo "Wrote $OUT ($(wc -l < "$OUT") lines)"
+echo "Wrote $OUT ($(wc -l < "$OUT") lines, ${#MIGRATIONS[@]} migrations)"
+if [[ ${#MIGRATIONS[@]} -gt 0 ]]; then
+  echo "Latest migration: ${MIGRATIONS[${#MIGRATIONS[@]}-1]}"
+fi
 
 if [[ "$EXECUTE" == "true" ]]; then
   if ! command -v supabase >/dev/null 2>&1; then

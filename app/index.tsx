@@ -10,6 +10,10 @@ export default function Index() {
   const onboardingComplete = useAppStore((state) => state.onboardingComplete);
 
   if (paramsHaveOAuthPayload(params)) {
+    if (session) {
+      return <Redirect href="/" />;
+    }
+
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
       const next = Array.isArray(value) ? value[0] : value;

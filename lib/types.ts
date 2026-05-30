@@ -50,6 +50,13 @@ export interface ClubJoinRequest {
   createdAt: string;
 }
 
+export interface ClubBan {
+  clubId: string;
+  userId: string;
+  bannedBy: string;
+  createdAt: string;
+}
+
 export interface Club {
   id: string;
   name: string;
@@ -81,9 +88,15 @@ export interface CourtGame {
   teamB: string[];
 }
 
+export type EventVisibility = "open" | "private";
+
 export interface GameEvent {
   id: string;
   clubId: string;
+  /** Open: any club member can join. Private: invited members only. */
+  visibility?: EventVisibility;
+  /** Users allowed to join a private game (excludes creator). */
+  invitedMemberIds?: string[];
   title: string;
   description: string;
   location: string;

@@ -23,7 +23,9 @@ import {
   SectionHeader,
 } from "../../components/ui";
 import { shouldShowEntitySkeleton } from "../../lib/entityLoading";
+import { canUserJoinEvent, isPrivateEvent } from "../../lib/eventAccess";
 import {
+  canCancelEvent,
   canEditEvent,
   canManageEventStats,
   canMarkEventFinished,
@@ -31,6 +33,7 @@ import {
   hasEventStarted,
   isEventOptionsLocked,
 } from "../../lib/gameEvents";
+import { formatSyncError } from "../../lib/syncErrors";
 import {
   canShuffleEvent,
   getCourtGameCount,
@@ -52,7 +55,6 @@ import {
   useCourtGames,
   useEvent,
   useEventWaitlist,
-  useIsAllStar,
 } from "../../store/hooks";
 import { useAppStore } from "../../store/useAppStore";
 
@@ -70,17 +72,22 @@ export default function EventDetailScreen() {
   const leaveEvent = useAppStore((state) => state.leaveEvent);
   const shuffleTeams = useAppStore((state) => state.shuffleTeams);
   const finishEvent = useAppStore((state) => state.finishEvent);
+  const cancelEvent = useAppStore((state) => state.cancelEvent);
   const upgradeToAllStar = useAppStore((state) => state.upgradeToAllStar);
-  const isPro = useIsAllStar();
   const {
     upgradeVisible,
     upgradeReason,
-    promptUpgrade,
     closeUpgrade,
     handleSubscriptionError,
   } = useUpgradePrompt();
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [reshuffleModalVisible, setReshuffleModalVisible] = useState(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [shuffling, setShuffling] = useState(false);
   const [playersPerGame, setPlayersPerGame] = useState(
     DEFAULT_PLAYERS_PER_GAME,
   );
@@ -133,6 +140,10 @@ export default function EventDetailScreen() {
   const isJoined = event.participantIds.includes(currentUserId ?? "");
   const isFull = event.participantIds.length >= event.maxPlayers;
   const isClubMember = club?.memberIds.includes(currentUserId ?? "") ?? false;
+  const joinAccess = currentUserId
+    ? canUserJoinEvent(currentUserId, event)
+    : { ok: false as const, reason: "Sign in to join this game." };
+  const canJoinThisGame = joinAccess.ok;
   const shuffleReady = event ? canShuffleEvent(event, playersPerGame) : false;
   const courtCapacity = describeCourtCapacity(
     event.participantIds.length,
@@ -153,27 +164,28 @@ export default function EventDetailScreen() {
     club?.adminId,
   );
   const canFinish = canMarkEventFinished(event, currentUserId, club?.adminId);
+  const canCancel = canCancelEvent(event, currentUserId, club?.adminId);
   const hasEventStats = Object.keys(eventStats).length > 0;
 
   const handleShuffle = async () => {
-    if (!isPro) {
-      promptUpgrade("Team shuffle is All-Star only.");
-      return;
-    }
+    setShuffling(true);
     try {
       await shuffleTeams(event.id, playersPerGame);
       await triggerShuffleHaptic();
+      setReshuffleModalVisible(false);
     } catch (error) {
       handleSubscriptionError(error);
+    } finally {
+      setShuffling(false);
     }
   };
 
-  const requirePro = (message: string, action: () => void | Promise<void>) => {
-    if (isPro) {
-      void action();
+  const handleShufflePress = () => {
+    if (event.shuffled) {
+      setReshuffleModalVisible(true);
       return;
     }
-    promptUpgrade(message);
+    void handleShuffle();
   };
 
   const handleLeaveGame = async () => {
@@ -183,6 +195,27 @@ export default function EventDetailScreen() {
       setLeaveModalVisible(false);
     } finally {
       setLeaving(false);
+    }
+  };
+
+  const handleCancelGame = async () => {
+    setCancelling(true);
+    setCancelError(null);
+
+    try {
+      await cancelEvent(event.id);
+      setCancelModalVisible(false);
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace(club ? `/clubs/${club.id}` : "/(tabs)");
+      }
+    } catch (error) {
+      setCancelError(
+        formatSyncError(error, "Could not cancel this game. Try again."),
+      );
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -228,6 +261,11 @@ export default function EventDetailScreen() {
           </View>
           <Text style={styles.description}>{event.description}</Text>
           <View style={styles.badges}>
+            {isPrivateEvent(event) ? (
+              <Badge label="Private" color={colors.warning} />
+            ) : (
+              <Badge label="Open" color={colors.success} />
+            )}
             <Badge
               label={`${event.participantIds.length}/${event.maxPlayers} players`}
               color={isFull ? colors.warning : colors.success}
@@ -277,18 +315,37 @@ export default function EventDetailScreen() {
               style={styles.action}
             />
           ) : (
-            <Button
-              title={isFull ? "Game Full" : "Join Game"}
-              onPress={async () => {
-                try {
-                  await joinEvent(event.id);
-                } catch (error) {
-                  handleSubscriptionError(error);
+            <>
+              <Button
+                title={
+                  isFull
+                    ? "Game Full"
+                    : canJoinThisGame
+                      ? "Join Game"
+                      : "Invite Only"
                 }
-              }}
-              disabled={isFull}
-              style={styles.action}
-            />
+                onPress={async () => {
+                  setJoinError(null);
+                  try {
+                    await joinEvent(event.id);
+                  } catch (error) {
+                    if (handleSubscriptionError(error)) return;
+                    setJoinError(
+                      error instanceof Error
+                        ? error.message
+                        : "Could not join this game.",
+                    );
+                  }
+                }}
+                disabled={isFull || !canJoinThisGame}
+                style={styles.action}
+              />
+              {joinError ? (
+                <Text style={styles.hint}>{joinError}</Text>
+              ) : !canJoinThisGame && !isFull ? (
+                <Text style={styles.hint}>{joinAccess.reason}</Text>
+              ) : null}
+            </>
           )
         ) : isClubMember ? null : (
           <Text style={styles.hint}>
@@ -325,7 +382,7 @@ export default function EventDetailScreen() {
                 : `Shuffle into ${gameSizeLabel} courts`
             }
             variant="secondary"
-            onPress={handleShuffle}
+            onPress={handleShufflePress}
             icon={<Ionicons name="shuffle" size={18} color={colors.text} />}
             style={styles.action}
           />
@@ -342,11 +399,7 @@ export default function EventDetailScreen() {
               event.shuffled ? "Edit Court Assignments" : "Organize Courts"
             }
             variant="outline"
-            onPress={() =>
-              requirePro("Court assignments are All-Star only.", () =>
-                router.push(`/event/courts/${event.id}`),
-              )
-            }
+            onPress={() => router.push(`/event/courts/${event.id}`)}
             icon={
               <Ionicons
                 name="people-circle-outline"
@@ -362,11 +415,7 @@ export default function EventDetailScreen() {
           <Button
             title="Edit Game"
             variant="outline"
-            onPress={() =>
-              requirePro("Editing games is All-Star only.", () =>
-                router.push(`/event/edit/${event.id}`),
-              )
-            }
+            onPress={() => router.push(`/event/edit/${event.id}`)}
             icon={
               <Ionicons
                 name="create-outline"
@@ -376,6 +425,27 @@ export default function EventDetailScreen() {
             }
             style={styles.action}
           />
+        ) : null}
+
+        {canCancel ? (
+          <>
+            <Button
+              title="Cancel Game"
+              variant="outline"
+              onPress={() => setCancelModalVisible(true)}
+              icon={
+                <Ionicons
+                  name="close-circle-outline"
+                  size={18}
+                  color={colors.error}
+                />
+              }
+              style={styles.action}
+            />
+            {cancelError ? (
+              <Text style={styles.cancelError}>{cancelError}</Text>
+            ) : null}
+          </>
         ) : null}
 
         {canRecordStats ? (
@@ -403,11 +473,13 @@ export default function EventDetailScreen() {
           <Button
             title="Mark Game Finished"
             variant="outline"
-            onPress={() =>
-              requirePro("Finishing games is All-Star only.", () =>
-                finishEvent(event.id),
-              )
-            }
+            onPress={async () => {
+              try {
+                await finishEvent(event.id);
+              } catch (error) {
+                handleSubscriptionError(error);
+              }
+            }}
             icon={
               <Ionicons
                 name="checkmark-circle-outline"
@@ -515,6 +587,21 @@ export default function EventDetailScreen() {
       </ScrollView>
 
       <ConfirmModal
+        visible={reshuffleModalVisible}
+        title="Re-shuffle players?"
+        message={`This replaces current ${gameSizeLabel} court assignments with new random teams. Manual edits will be lost.`}
+        confirmLabel="Re-shuffle"
+        cancelLabel="Keep courts"
+        loading={shuffling}
+        onConfirm={() => {
+          void handleShuffle();
+        }}
+        onClose={() => {
+          if (!shuffling) setReshuffleModalVisible(false);
+        }}
+      />
+
+      <ConfirmModal
         visible={leaveModalVisible}
         title="Leave this game?"
         message="You'll be removed from the participant list and lose your spot. Team assignments will reset if you rejoin."
@@ -524,6 +611,21 @@ export default function EventDetailScreen() {
         onConfirm={handleLeaveGame}
         onClose={() => {
           if (!leaving) setLeaveModalVisible(false);
+        }}
+      />
+
+      <ConfirmModal
+        visible={cancelModalVisible}
+        title="Cancel this game?"
+        message="This removes the game for everyone. Participants will no longer see it on the schedule."
+        confirmLabel="Cancel Game"
+        cancelLabel="Keep Game"
+        loading={cancelling}
+        onConfirm={() => {
+          void handleCancelGame();
+        }}
+        onClose={() => {
+          if (!cancelling) setCancelModalVisible(false);
         }}
       />
 
@@ -644,6 +746,12 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     textAlign: "center",
     marginBottom: spacing.lg,
+  },
+  cancelError: {
+    ...typography.caption,
+    color: colors.error,
+    textAlign: "center",
+    marginBottom: spacing.sm,
   },
   participantRow: {
     marginBottom: spacing.sm,

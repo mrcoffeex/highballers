@@ -85,6 +85,16 @@ export function canEditEvent(
   return canManageEvent(event, userId, clubAdminId);
 }
 
+/** Remove a scheduled game before it is marked finished. */
+export function canCancelEvent(
+  event: GameEvent,
+  userId: string | null | undefined,
+  clubAdminId?: string,
+): boolean {
+  if (event.finishedAt) return false;
+  return canManageEvent(event, userId, clubAdminId);
+}
+
 export function canRecordEventStats(
   event: GameEvent,
   userId: string | null | undefined,

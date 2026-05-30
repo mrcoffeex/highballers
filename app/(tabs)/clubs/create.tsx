@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { ClubVisibilityPicker } from "../../../components/ClubVisibilityPicker";
 import { ImagePickerField } from "../../../components/ImagePickerField";
 import { UpgradeModal } from "../../../components/UpgradeModal";
 import { Button, Input } from "../../../components/ui";
@@ -117,60 +118,13 @@ export default function CreateClubScreen() {
       />
 
       <Text style={styles.label}>Club Type</Text>
-      <View style={styles.typeRow}>
-        <Pressable
-          onPress={() => setVisibility("open")}
-          style={[
-            styles.typeCard,
-            visibility === "open" && styles.typeCardActive,
-          ]}
-        >
-          <Ionicons
-            name="globe-outline"
-            size={22}
-            color={visibility === "open" ? colors.primary : colors.textMuted}
-          />
-          <Text
-            style={[
-              styles.typeTitle,
-              visibility === "open" && styles.typeTitleActive,
-            ]}
-          >
-            Open Club
-          </Text>
-          <Text style={styles.typeDesc}>Anyone can join instantly</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            if (!isPro) {
-              promptUpgrade("Private clubs are All-Star only.");
-              return;
-            }
-            setVisibility("private");
-          }}
-          style={[
-            styles.typeCard,
-            visibility === "private" && styles.typeCardActive,
-            !isPro && styles.typeCardLocked,
-          ]}
-        >
-          <Ionicons
-            name="lock-closed-outline"
-            size={22}
-            color={visibility === "private" ? colors.primary : colors.textMuted}
-          />
-          <Text
-            style={[
-              styles.typeTitle,
-              visibility === "private" && styles.typeTitleActive,
-            ]}
-          >
-            Private Club
-          </Text>
-          <Text style={styles.typeDesc}>
-            {isPro ? "Players request to join" : "All-Star only"}
-          </Text>
-        </Pressable>
+      <View style={styles.visibilityPicker}>
+        <ClubVisibilityPicker
+          value={visibility}
+          onChange={setVisibility}
+          isPro={isPro}
+          onRequirePro={promptUpgrade}
+        />
       </View>
 
       <Text style={styles.label}>Club Color</Text>
@@ -249,42 +203,12 @@ const styles = StyleSheet.create({
   field: {
     marginBottom: spacing.sm,
   },
+  visibilityPicker: {
+    marginBottom: spacing.md,
+  },
   textArea: {
     minHeight: 88,
     textAlignVertical: "top",
-  },
-  typeRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  typeCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  typeCardActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}12`,
-  },
-  typeCardLocked: {
-    opacity: 0.72,
-  },
-  typeTitle: {
-    ...typography.heading,
-    color: colors.textMuted,
-    fontSize: 15,
-  },
-  typeTitleActive: {
-    color: colors.primary,
-  },
-  typeDesc: {
-    ...typography.caption,
-    color: colors.textDim,
   },
   colorRow: {
     flexDirection: "row",

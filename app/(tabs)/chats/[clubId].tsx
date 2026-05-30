@@ -16,8 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChatMessageBubble } from "../../../components/ChatMessageBubble";
-import { AllStarPromoCard } from "../../../components/AllStarPromoCard";
-import { UpgradeModal } from "../../../components/UpgradeModal";
+import { FloatingAlert } from "../../../components/FloatingAlert";
 import {
   ChatThreadSkeleton,
   LoadMoreSkeleton,
@@ -26,8 +25,8 @@ import {
 import { shouldShowEntitySkeleton } from "../../../lib/entityLoading";
 import { isSupabaseEnabled } from "../../../lib/config";
 import { getRemoteCache, setRemoteCache } from "../../../lib/remoteCache";
-import { canAccessFeature } from "../../../lib/subscription";
-import { useUpgradePrompt } from "../../../lib/useUpgradePrompt";
+import { formatSyncError } from "../../../lib/syncErrors";
+import { useFloatingAlert } from "../../../lib/useFloatingAlert";
 import {
   CLUB_CHAT_PAGE_SIZE,
   fetchClubChatMessagesPage,
@@ -36,7 +35,7 @@ import {
 } from "../../../lib/supabaseSync";
 import { colors, radius, spacing, typography } from "../../../lib/theme";
 import { ClubChatMessage } from "../../../lib/types";
-import { useClub, useSubscriptionTier } from "../../../store/hooks";
+import { useClub } from "../../../store/hooks";
 import { useAppStore } from "../../../store/useAppStore";
 
 export default function ClubChatScreen() {
@@ -46,17 +45,8 @@ export default function ClubChatScreen() {
   const hydrated = useAppStore((state) => state.hydrated);
   const users = useAppStore((state) => state.users);
   const currentUserId = useAppStore((state) => state.currentUserId);
-  const upgradeToAllStar = useAppStore((state) => state.upgradeToAllStar);
-  const tier = useSubscriptionTier();
-  const canSendChat = canAccessFeature(tier, "send_chat");
-  const {
-    upgradeVisible,
-    upgradeReason,
-    promptUpgrade,
-    closeUpgrade,
-    handleSubscriptionError,
-  } = useUpgradePrompt();
   const insets = useSafeAreaInsets();
+  const floatingAlert = useFloatingAlert();
   const listRef = useRef<FlatList<ClubChatMessage>>(null);
 
   const cacheKey = clubId ? `club-chat:${clubId}` : "";
@@ -161,13 +151,12 @@ export default function ClubChatScreen() {
   }, [messages.length]);
 
   const handleSend = async () => {
-    if (!clubId || !currentUserId || !draft.trim() || sending) return;
-    if (!canSendChat) {
-      promptUpgrade("Sending club chat messages is All-Star only.");
+    if (!clubId || !currentUserId || !draft.trim() || sending || !isSupabaseEnabled) {
       return;
     }
 
     setSending(true);
+    floatingAlert.dismiss();
     try {
       const message = await sendClubChatMessage(clubId, currentUserId, draft);
       setDraft("");
@@ -176,7 +165,10 @@ export default function ClubChatScreen() {
         return [...prev, message];
       });
     } catch (error) {
-      handleSubscriptionError(error, "Could not send message.");
+      floatingAlert.show(
+        formatSyncError(error, "Could not send message."),
+        "error",
+      );
     } finally {
       setSending(false);
     }
@@ -220,6 +212,12 @@ export default function ClubChatScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
       >
+        <FloatingAlert
+          message={floatingAlert.message}
+          variant={floatingAlert.variant}
+          bottomInset={insets.bottom}
+          onDismiss={floatingAlert.dismiss}
+        />
         {loading && messages.length === 0 ? (
           <ChatThreadSkeleton count={6} />
         ) : (
@@ -271,33 +269,20 @@ export default function ClubChatScreen() {
             { paddingBottom: Math.max(insets.bottom, spacing.sm) },
           ]}
         >
-          {!canSendChat ? (
-            <AllStarPromoCard
-              variant="compact"
-              onPress={() =>
-                promptUpgrade("Sending club chat messages is All-Star only.")
-              }
-            />
-          ) : null}
-          <View
-            style={[
-              styles.inputShell,
-              !canSendChat && styles.inputShellDisabled,
-            ]}
-          >
+          <View style={styles.inputShell}>
             <TextInput
               value={draft}
               onChangeText={setDraft}
               placeholder={
-                canSendChat
+                isSupabaseEnabled
                   ? "Message the squad..."
-                  : "Read-only on Basic Baller"
+                  : "Chat unavailable offline"
               }
               placeholderTextColor={colors.textDim}
               style={styles.input}
               multiline
               maxLength={2000}
-              editable={!sending && isSupabaseEnabled && canSendChat}
+              editable={!sending && isSupabaseEnabled}
               textAlignVertical="center"
               underlineColorAndroid="transparent"
               selectionColor={colors.primary}
@@ -305,10 +290,10 @@ export default function ClubChatScreen() {
             <Pressable
               style={[
                 styles.sendBtn,
-                (!draft.trim() || sending || !canSendChat) &&
+                (!draft.trim() || sending || !isSupabaseEnabled) &&
                   styles.sendBtnDisabled,
               ]}
-              disabled={!draft.trim() || sending || !canSendChat}
+              disabled={!draft.trim() || sending || !isSupabaseEnabled}
               onPress={handleSend}
               hitSlop={8}
             >
@@ -321,15 +306,6 @@ export default function ClubChatScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
-
-      <UpgradeModal
-        visible={upgradeVisible}
-        reason={upgradeReason}
-        onClose={closeUpgrade}
-        onPurchased={() => {
-          void upgradeToAllStar();
-        }}
-      />
     </>
   );
 }
@@ -337,6 +313,7 @@ export default function ClubChatScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+    position: "relative",
     backgroundColor: colors.background,
   },
   list: {
@@ -388,9 +365,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     gap: spacing.xs,
     overflow: "hidden",
-  },
-  inputShellDisabled: {
-    opacity: 0.72,
   },
   input: {
     flex: 1,

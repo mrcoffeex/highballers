@@ -15,7 +15,18 @@ export default function ClubsScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
   const clubs = useAppStore((state) => state.clubs);
+  const joinRequests = useAppStore((state) => state.joinRequests);
   const currentUserId = useAppStore((state) => state.currentUserId);
+
+  const myPendingClubIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const request of joinRequests) {
+      if (request.userId === currentUserId) {
+        ids.add(request.clubId);
+      }
+    }
+    return ids;
+  }, [currentUserId, joinRequests]);
 
   const filteredClubs = useMemo(() => {
     if (filter === "joined") {
@@ -90,6 +101,7 @@ export default function ClubsScreen() {
             key={club.id}
             club={club}
             isMember={club.memberIds.includes(currentUserId ?? "")}
+            hasPendingRequest={myPendingClubIds.has(club.id)}
             onPress={() => router.push(`/clubs/${club.id}`)}
           />
         ))

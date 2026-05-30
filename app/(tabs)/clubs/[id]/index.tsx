@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
+import { ClubVisibilityPicker } from "../../../../components/ClubVisibilityPicker";
 import { EventCard } from "../../../../components/EventCard";
 import { ClubIcon } from "../../../../components/ClubIcon";
 import { ClubInviteModal } from "../../../../components/ClubInviteModal";
@@ -15,34 +16,55 @@ import {
   ClubDetailSkeleton,
   SectionHeader,
 } from "../../../../components/ui";
+import { formatSyncError } from "../../../../lib/syncErrors";
 import { shouldShowEntitySkeleton } from "../../../../lib/entityLoading";
 import { getClubMemberCap } from "../../../../lib/subscription";
 import { useUpgradePrompt } from "../../../../lib/useUpgradePrompt";
 import { colors, spacing, typography } from "../../../../lib/theme";
 import { useTabBarPadding } from "../../../../lib/tabBar";
 import { useRefreshControl } from "../../../../lib/useRefreshControl";
-import { useClub, useIsAllStar } from "../../../../store/hooks";
+import { isUserBannedFromClub } from "../../../../lib/clubBans";
+import {
+  useClub,
+  useClubBans,
+  useClubJoinRequests,
+  useIsAllStar,
+  useMyJoinRequest,
+} from "../../../../store/hooks";
+import { ClubVisibility } from "../../../../lib/types";
 import { useAppStore } from "../../../../store/useAppStore";
 
 const MEMBER_PREVIEW_COUNT = 5;
 
+const EMPTY_HEADER_OPTIONS = { headerTitle: "" };
+
+function resolveClubId(id: string | string[] | undefined) {
+  if (typeof id === "string") return id;
+  if (Array.isArray(id)) return id[0];
+  return "";
+}
+
 export default function ClubDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id: rawId } = useLocalSearchParams<{ id: string | string[] }>();
+  const clubId = resolveClubId(rawId);
   const router = useRouter();
-  const club = useClub(id);
+  const club = useClub(clubId);
   const events = useAppStore((state) => state.events);
   const clubs = useAppStore((state) => state.clubs);
   const hydrated = useAppStore((state) => state.hydrated);
   const users = useAppStore((state) => state.users);
-  const joinRequests = useAppStore((state) => state.joinRequests);
   const currentUserId = useAppStore((state) => state.currentUserId);
   const joinClub = useAppStore((state) => state.joinClub);
   const requestToJoinClub = useAppStore((state) => state.requestToJoinClub);
   const cancelJoinRequest = useAppStore((state) => state.cancelJoinRequest);
-  const approveJoinRequest = useAppStore((state) => state.approveJoinRequest);
-  const denyJoinRequest = useAppStore((state) => state.denyJoinRequest);
   const leaveClub = useAppStore((state) => state.leaveClub);
+  const pendingRequests = useClubJoinRequests(clubId);
+  const myPendingRequest = useMyJoinRequest(clubId);
+  const clubBans = useClubBans(clubId);
   const upgradeToAllStar = useAppStore((state) => state.upgradeToAllStar);
+  const updateClubVisibility = useAppStore(
+    (state) => state.updateClubVisibility,
+  );
   const isPro = useIsAllStar();
   const {
     upgradeVisible,
@@ -52,6 +74,9 @@ export default function ClubDetailScreen() {
     handleSubscriptionError,
   } = useUpgradePrompt();
   const [showInvite, setShowInvite] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
+  const [savingVisibility, setSavingVisibility] = useState(false);
   const bottomPadding = useTabBarPadding(spacing.lg);
   const { refreshControl } = useRefreshControl();
 
@@ -65,17 +90,34 @@ export default function ClubDetailScreen() {
 
   const previewMembers = members.slice(0, MEMBER_PREVIEW_COUNT);
 
-  const pendingRequests = useMemo(
-    () =>
-      club ? joinRequests.filter((request) => request.clubId === club.id) : [],
-    [club, joinRequests],
+  const isMember = Boolean(
+    club && currentUserId && club.memberIds.includes(currentUserId),
   );
 
-  const myPendingRequest = useMemo(
-    () =>
-      pendingRequests.find((request) => request.userId === currentUserId) ??
-      null,
-    [pendingRequests, currentUserId],
+  const openInvite = useCallback(() => {
+    setShowInvite(true);
+  }, []);
+
+  const screenOptions = useMemo(
+    () => ({
+      headerTitle: club?.name ?? "",
+      headerRight: isMember
+        ? () => (
+            <Pressable
+              onPress={openInvite}
+              hitSlop={12}
+              style={styles.headerBtn}
+            >
+              <Ionicons
+                name="person-add-outline"
+                size={22}
+                color={colors.primary}
+              />
+            </Pressable>
+          )
+        : undefined,
+    }),
+    [club?.name, isMember, openInvite],
   );
 
   if (!club) {
@@ -84,13 +126,15 @@ export default function ClubDetailScreen() {
     }
 
     return (
-      <View style={styles.notFound}>
-        <Text style={styles.notFoundText}>Club not found</Text>
-      </View>
+      <>
+        <Stack.Screen options={EMPTY_HEADER_OPTIONS} />
+        <View style={styles.notFound}>
+          <Text style={styles.notFoundText}>Club not found</Text>
+        </View>
+      </>
     );
   }
 
-  const isMember = club.memberIds.includes(currentUserId ?? "");
   const isAdmin = club.adminId === currentUserId;
   const clubEvents = events
     .filter((event) => event.clubId === club.id)
@@ -98,11 +142,19 @@ export default function ClubDetailScreen() {
       (a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime(),
     );
 
+  const isBanned =
+    Boolean(currentUserId) &&
+    isUserBannedFromClub(club.id, currentUserId!, clubBans);
+
   const joinAction = async () => {
     if (isMember) {
       leaveClub(club.id);
       return;
     }
+
+    if (isBanned) return;
+
+    setJoinError(null);
 
     try {
       if (club.visibility === "open") {
@@ -117,25 +169,22 @@ export default function ClubDetailScreen() {
 
       await requestToJoinClub(club.id);
     } catch (error) {
-      handleSubscriptionError(error);
+      if (handleSubscriptionError(error)) return;
+      setJoinError(
+        error instanceof Error ? error.message : "Could not join this club.",
+      );
     }
-  };
-
-  const requirePro = (featureMessage: string, action: () => void) => {
-    if (isPro) {
-      action();
-      return;
-    }
-    promptUpgrade(featureMessage);
   };
 
   const joinButtonTitle = isMember
     ? "Leave Club"
-    : club.visibility === "open"
-      ? "Join Club"
-      : myPendingRequest
-        ? "Cancel Request"
-        : "Request to Join";
+    : isBanned
+      ? "Banned from club"
+      : club.visibility === "open"
+        ? "Join Club"
+        : myPendingRequest
+          ? "Cancel Request"
+          : "Request to Join";
 
   const clubAdmin = users.find((user) => user.id === club.adminId) ?? null;
   const clubMemberCap = getClubMemberCap(clubAdmin);
@@ -144,28 +193,27 @@ export default function ClubDetailScreen() {
       ? `${members.length}/${clubMemberCap}`
       : String(members.length);
 
+  const handleVisibilityChange = async (next: ClubVisibility) => {
+    if (next === club.visibility) return;
+
+    setVisibilityError(null);
+    setSavingVisibility(true);
+
+    try {
+      await updateClubVisibility(club.id, next);
+    } catch (error) {
+      if (handleSubscriptionError(error)) return;
+      setVisibilityError(
+        formatSyncError(error, "Could not update club visibility."),
+      );
+    } finally {
+      setSavingVisibility(false);
+    }
+  };
+
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerTitle: club.name,
-          headerRight: isMember
-            ? () => (
-                <Pressable
-                  onPress={() => setShowInvite(true)}
-                  hitSlop={12}
-                  style={styles.headerBtn}
-                >
-                  <Ionicons
-                    name="person-add-outline"
-                    size={22}
-                    color={colors.primary}
-                  />
-                </Pressable>
-              )
-            : undefined,
-        }}
-      />
+      <Stack.Screen options={screenOptions} />
       <ClubInviteModal
         visible={showInvite}
         clubId={club.id}
@@ -189,10 +237,17 @@ export default function ClubDetailScreen() {
             iconUrl={club.iconUrl}
             size={72}
           />
-          <Badge
-            label={club.visibility === "open" ? "Open Club" : "Private Club"}
-            color={club.visibility === "open" ? colors.success : colors.warning}
-          />
+          <View style={styles.badgeRow}>
+            <Badge
+              label={club.visibility === "open" ? "Public" : "Private"}
+              color={
+                club.visibility === "open" ? colors.success : colors.warning
+              }
+            />
+            {myPendingRequest ? (
+              <Badge label="Requested" color={colors.accent} />
+            ) : null}
+          </View>
           <Text style={styles.location}>
             <Ionicons
               name="location-outline"
@@ -217,10 +272,18 @@ export default function ClubDetailScreen() {
 
         <Button
           title={joinButtonTitle}
-          variant={isMember || myPendingRequest ? "outline" : "primary"}
+          variant={isMember || myPendingRequest || isBanned ? "outline" : "primary"}
           onPress={joinAction}
+          disabled={isBanned}
           style={styles.actionBtn}
         />
+        {joinError ? <Text style={styles.bannedHint}>{joinError}</Text> : null}
+        {isBanned ? (
+          <Text style={styles.bannedHint}>
+            You were banned from this club. Contact the admin if you think this
+            was a mistake.
+          </Text>
+        ) : null}
 
         {isMember ? (
           <>
@@ -265,44 +328,45 @@ export default function ClubDetailScreen() {
           </>
         ) : null}
 
-        {isAdmin &&
-        club.visibility === "private" &&
-        pendingRequests.length > 0 ? (
-          <>
-            <SectionHeader
-              title="Join Requests"
-              subtitle={`${pendingRequests.length} pending`}
-            />
-            {pendingRequests.map((request) => {
-              const player = users.find((user) => user.id === request.userId);
-              if (!player) return null;
+        {isAdmin && club.visibility === "private" ? (
+          <Button
+            title={
+              pendingRequests.length > 0
+                ? `Join Requests (${pendingRequests.length})`
+                : "Join Requests"
+            }
+            variant="outline"
+            onPress={() => router.push(`/clubs/${club.id}/requests`)}
+            icon={
+              <Ionicons
+                name="person-add-outline"
+                size={18}
+                color={colors.primary}
+              />
+            }
+            style={styles.actionBtn}
+          />
+        ) : null}
 
-              return (
-                <Card key={request.id} style={styles.requestCard}>
-                  <PlayerCard
-                    player={player}
-                    compact
-                    onPress={() => router.push(`/player/${player.id}`)}
-                  />
-                  <View style={styles.requestActions}>
-                    <Button
-                      title="Approve"
-                      size="sm"
-                      onPress={() => approveJoinRequest(request.id)}
-                      style={styles.requestBtn}
-                    />
-                    <Button
-                      title="Deny"
-                      size="sm"
-                      variant="outline"
-                      onPress={() => denyJoinRequest(request.id)}
-                      style={styles.requestBtn}
-                    />
-                  </View>
-                </Card>
-              );
-            })}
-          </>
+        {isAdmin ? (
+          <Card style={styles.visibilityCard}>
+            <Text style={styles.visibilityTitle}>Club visibility</Text>
+            <Text style={styles.visibilityHint}>
+              Public clubs let anyone join. Private clubs require your approval.
+            </Text>
+            <ClubVisibilityPicker
+              value={club.visibility}
+              onChange={(next) => {
+                void handleVisibilityChange(next);
+              }}
+              isPro={isPro}
+              onRequirePro={promptUpgrade}
+              disabled={savingVisibility}
+            />
+            {visibilityError ? (
+              <Text style={styles.visibilityError}>{visibilityError}</Text>
+            ) : null}
+          </Card>
         ) : null}
 
         <SectionHeader
@@ -439,24 +503,42 @@ const styles = StyleSheet.create({
   actionBtn: {
     marginBottom: spacing.sm,
   },
+  bannedHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginBottom: spacing.md,
+  },
   headerBtn: {
     marginRight: spacing.sm,
   },
-  requestCard: {
-    marginBottom: spacing.md,
-  },
-  requestActions: {
+  badgeRow: {
     flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  requestBtn: {
-    flex: 1,
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    justifyContent: "center",
   },
   empty: {
     ...typography.body,
     color: colors.textDim,
     textAlign: "center",
     paddingVertical: spacing.lg,
+  },
+  visibilityCard: {
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  visibilityTitle: {
+    ...typography.label,
+    color: colors.text,
+  },
+  visibilityHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  visibilityError: {
+    ...typography.caption,
+    color: colors.error,
+    textAlign: "center",
   },
 });

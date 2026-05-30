@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { StyleSheet, Text, View } from "react-native";
 
 import { colors, spacing, typography } from "../lib/theme";
+import { isPrivateEvent } from "../lib/eventAccess";
 import { getEventStatus } from "../lib/gameEvents";
 import { GameEvent } from "../lib/types";
 import { Badge, Card } from "./ui";
@@ -31,6 +32,10 @@ export function EventCard({
     ) : status === "done" ? (
       <Badge label="Done" color={colors.textMuted} />
     ) : null;
+
+  const visibilityBadge = isPrivateEvent(event) ? (
+    <Badge label="Private" color={colors.warning} />
+  ) : null;
 
   const rosterBadge = event.shuffled ? (
     <Badge label="Teams set" color={colors.accent} />
@@ -100,7 +105,10 @@ export function EventCard({
             {event.participantIds.length}/{event.maxPlayers} players
           </Text>
         </View>
-        {rosterBadge}
+        <View style={styles.badgeRow}>
+          {visibilityBadge}
+          {rosterBadge}
+        </View>
       </View>
     </Card>
   );
@@ -212,5 +220,10 @@ const styles = StyleSheet.create({
   },
   spotsFull: {
     color: colors.warning,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
   },
 });

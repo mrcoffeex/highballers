@@ -23,6 +23,14 @@ export function isLooseCourtGame(game: CourtGame | null | undefined): boolean {
   return game.teamA.length > 0 || game.teamB.length > 0;
 }
 
+/** A court counts toward game tabs, shuffle state, and scorekeeper when fully staffed. */
+export function isActiveCourtGame(
+  game: CourtGame | null | undefined,
+  playersPerGame: number,
+): boolean {
+  return isValidCourtGame(game, playersPerGame);
+}
+
 export function isValidCourtGame(
   game: CourtGame | null | undefined,
   playersPerGame?: number,
@@ -126,10 +134,13 @@ export function normalizeEventCourts(event: GameEvent): GameEvent {
     normalizeCourtGames(event.courtGames, playersPerGame, false) ??
     normalizeCourtGames(event.courtGames, playersPerGame, true);
   if (normalized) {
+    const hasFullCourts = normalized.some((game) =>
+      isActiveCourtGame(game, playersPerGame),
+    );
     return {
       ...event,
       courtGames: normalized,
-      shuffled: event.shuffled && normalized.length > 0,
+      shuffled: event.shuffled && hasFullCourts,
     };
   }
 
@@ -148,14 +159,23 @@ export function normalizeEventCourts(event: GameEvent): GameEvent {
 
 export function hasActiveRoster(event: GameEvent): boolean {
   const eventCourts = normalizeEventCourts(event);
+  const playersPerGame = getPlayersPerGame(eventCourts);
   return Boolean(
-    eventCourts.shuffled && eventCourts.courtGames?.some(isLooseCourtGame),
+    eventCourts.shuffled &&
+      eventCourts.courtGames?.some((game) =>
+        isActiveCourtGame(game, playersPerGame),
+      ),
   );
 }
 
 export function getCourtGameCount(event: GameEvent): number {
   const courts = normalizeEventCourts(event);
-  return courts.courtGames?.filter(isLooseCourtGame).length ?? 0;
+  const playersPerGame = getPlayersPerGame(courts);
+  return (
+    courts.courtGames?.filter((game) =>
+      isActiveCourtGame(game, playersPerGame),
+    ).length ?? 0
+  );
 }
 
 export function getUnassignedRosterIds(event: GameEvent): string[] {
@@ -173,16 +193,20 @@ export function getCourtGameRosterIds(
   }
 
   const courts = normalizeEventCourts(event);
+  const playersPerGame = getPlayersPerGame(courts);
   const game = courts.courtGames?.[courtGameIndex];
-  if (!game || !isLooseCourtGame(game)) return [];
+  if (!game || !isActiveCourtGame(game, playersPerGame)) return [];
   return [...game.teamA, ...game.teamB];
 }
 
 export function getAllCourtPlayerIds(event: GameEvent): string[] {
   const courts = normalizeEventCourts(event);
+  const playersPerGame = getPlayersPerGame(courts);
   if (!courts.courtGames) return [];
   return courts.courtGames.flatMap((game) =>
-    isLooseCourtGame(game) ? [...game.teamA, ...game.teamB] : [],
+    isActiveCourtGame(game, playersPerGame)
+      ? [...game.teamA, ...game.teamB]
+      : [],
   );
 }
 
@@ -246,17 +270,19 @@ export function resolveCourtGames(
   teamB: UserProfile[];
 }> {
   const courts = normalizeEventCourts(event);
+  const playersPerGame = getPlayersPerGame(courts);
 
   return (courts.courtGames ?? [])
     .map((game, index) => {
+      if (!isActiveCourtGame(game, playersPerGame)) return null;
       const teams = resolveCourtGamePlayers(game, users);
       return {
         index,
-        label: `Game ${index + 1}`,
+        label: getCourtGameLabel(index),
         ...teams,
       };
     })
-    .filter((game) => game.teamA.length > 0 || game.teamB.length > 0);
+    .filter((game): game is NonNullable<typeof game> => game != null);
 }
 
 export function resolveActiveRosterPlayers(

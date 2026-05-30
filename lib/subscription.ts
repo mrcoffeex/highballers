@@ -51,6 +51,10 @@ const BASIC_FEATURES: ProFeature[] = [
   "scorekeeper",
   "send_chat",
   "invite_players",
+  "push_notifications",
+  "private_clubs",
+  "shuffle_teams",
+  "edit_courts",
 ];
 
 export function canAccessFeature(
@@ -164,12 +168,10 @@ export function canJoinEvent(
 }
 
 export const ALL_STAR_FEATURES: Array<{ icon: string; label: string }> = [
-  { icon: "shuffle-outline", label: "Team shuffle & court editor" },
-  { icon: "chatbubbles-outline", label: "Chat push alerts" },
-  { icon: "notifications-outline", label: "Push notifications" },
   { icon: "people-outline", label: "Unlimited clubs & large crews" },
-  { icon: "lock-open-outline", label: "Private clubs" },
+  { icon: "lock-closed-outline", label: "Create private clubs" },
   { icon: "stats-chart-outline", label: "Full game history" },
+  { icon: "basketball-outline", label: "Join large games (10+ cap)" },
 ];
 
 export const ALL_STAR_TAGLINE = "Run your crew. Own game night.";
@@ -187,10 +189,19 @@ export const TIER_COMPARISON: Array<{
   { label: "Games", basic: "Create & join up to 10", allStar: "Join any size" },
   {
     label: "Organizer tools",
-    basic: "Scorekeeper & box scores",
-    allStar: "Shuffle · courts · edits",
+    basic: "Create · edit · finish · shuffle · courts",
+    allStar: "Same — larger events & clubs",
   },
-  { label: "Club chat", basic: "Send messages", allStar: "Push alerts" },
+  {
+    label: "Club chat & alerts",
+    basic: "Read, send & push alerts",
+    allStar: "Same for every club you're in",
+  },
+  {
+    label: "Private clubs",
+    basic: "Request to join",
+    allStar: "Create private clubs",
+  },
   { label: "History", basic: "Last 3 games", allStar: "Full career log" },
 ];
 

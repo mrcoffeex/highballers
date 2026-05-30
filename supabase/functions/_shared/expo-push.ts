@@ -51,7 +51,6 @@ export async function fetchMemberPushTokens(
     .from("profiles")
     .select("push_token")
     .in("id", memberIds)
-    .eq("subscription_tier", "all_star")
     .not("push_token", "is", null);
 
   return [

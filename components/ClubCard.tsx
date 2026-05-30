@@ -10,6 +10,8 @@ interface ClubCardProps {
   club: Club;
   memberCount?: number;
   isMember?: boolean;
+  /** User has a pending request to join this private club. */
+  hasPendingRequest?: boolean;
   onPress?: () => void;
 }
 
@@ -17,6 +19,7 @@ export function ClubCard({
   club,
   memberCount,
   isMember,
+  hasPendingRequest,
   onPress,
 }: ClubCardProps) {
   return (
@@ -40,10 +43,13 @@ export function ClubCard({
           </View>
         </View>
         {isMember ? <Badge label="Member" color={colors.success} /> : null}
-        {!isMember && club.visibility === "private" ? (
+        {!isMember && hasPendingRequest ? (
+          <Badge label="Requested" color={colors.accent} />
+        ) : null}
+        {!isMember && !hasPendingRequest && club.visibility === "private" ? (
           <Badge label="Private" color={colors.warning} />
         ) : null}
-        {!isMember && club.visibility === "open" ? (
+        {!isMember && !hasPendingRequest && club.visibility === "open" ? (
           <Badge label="Open" color={colors.accent} />
         ) : null}
       </View>
