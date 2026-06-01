@@ -4,12 +4,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Skeleton, SkeletonCircle } from "../components/ui";
+import { AppSplashScreen } from "../components/AppSplashScreen";
 
 import {
   clearOAuthCallbackUrl,
   createSessionFromUrl,
   getOAuthRedirectUri,
+  paramsHaveOAuthPayload,
   resolveOAuthCallbackHref,
   serializeOAuthParams,
   urlHasOAuthPayload,
@@ -25,40 +26,59 @@ export default function OAuthCallbackScreen() {
   const finishOAuthSignIn = useAppStore((state) => state.finishOAuthSignIn);
   const [error, setError] = useState<string | null>(null);
   const finishedRef = useRef(false);
-  const processingRef = useRef(false);
+  const processingKeyRef = useRef<string | null>(null);
+
+  const finishOAuthSignInRef = useRef(finishOAuthSignIn);
+  finishOAuthSignInRef.current = finishOAuthSignIn;
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const linkingUrlRef = useRef(linkingUrl);
+  linkingUrlRef.current = linkingUrl;
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
 
   const oauthParamsKey = serializeOAuthParams(params);
 
-  const tryNavigateHome = async (): Promise<boolean> => {
-    const session = await finishOAuthSignIn();
+  const completeSignIn = async (): Promise<boolean> => {
+    const session = await finishOAuthSignInRef.current();
     if (!session) return false;
 
     finishedRef.current = true;
     clearOAuthCallbackUrl();
-    router.replace("/");
+    routerRef.current.replace("/");
     return true;
   };
 
   useEffect(() => {
     let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
 
     const finish = async (incomingUrl?: string | null) => {
-      if (finishedRef.current || cancelled || processingRef.current) return;
-      processingRef.current = true;
+      if (finishedRef.current || cancelled) return;
+
+      const currentParams = paramsRef.current;
+      const paramsKey = serializeOAuthParams(currentParams);
+      const hasPayload =
+        paramsHaveOAuthPayload(currentParams) ||
+        (incomingUrl ? urlHasOAuthPayload(incomingUrl) : false) ||
+        (Platform.OS === "web" &&
+          typeof window !== "undefined" &&
+          urlHasOAuthPayload(window.location.href));
+
+      if (!hasPayload) return;
+
+      if (processingKeyRef.current === paramsKey) return;
+      processingKeyRef.current = paramsKey;
 
       try {
-        if (!finishedRef.current && (await tryNavigateHome())) {
-          return;
-        }
+        if (await completeSignIn()) return;
 
         const href = await resolveOAuthCallbackHref({
-          linkingUrl: incomingUrl ?? linkingUrl,
-          params,
+          linkingUrl: incomingUrl ?? linkingUrlRef.current,
+          params: currentParams,
         });
 
-        if (!href || !urlHasOAuthPayload(href)) {
-          return;
-        }
+        if (!href || !urlHasOAuthPayload(href)) return;
 
         const message = await createSessionFromUrl(href);
         if (message) {
@@ -66,7 +86,7 @@ export default function OAuthCallbackScreen() {
           return;
         }
 
-        const hasSession = await waitForSupabaseSession(12, 300);
+        const hasSession = await waitForSupabaseSession();
         if (!hasSession) {
           if (!cancelled) {
             setError(
@@ -76,25 +96,27 @@ export default function OAuthCallbackScreen() {
           return;
         }
 
-        if (!(await tryNavigateHome()) && !cancelled) {
+        if (!(await completeSignIn()) && !cancelled) {
           setError(
             "Signed in with Google but no session was created. Please try again.",
           );
         }
       } finally {
-        processingRef.current = false;
+        if (processingKeyRef.current === paramsKey) {
+          processingKeyRef.current = null;
+        }
       }
     };
 
-    const timeout = setTimeout(() => {
+    void finish();
+
+    timeout = setTimeout(() => {
       if (!finishedRef.current && !cancelled) {
         setError(
           `Sign in timed out. Add this redirect URL in Supabase Auth → URL Configuration:\n${getOAuthRedirectUri()}`,
         );
       }
-    }, 15000);
-
-    void finish();
+    }, 20000);
 
     const subscription = Linking.addEventListener("url", ({ url }) => {
       void finish(url);
@@ -110,11 +132,11 @@ export default function OAuthCallbackScreen() {
 
     return () => {
       cancelled = true;
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
       subscription.remove();
       removeHashListener?.();
     };
-  }, [linkingUrl, oauthParamsKey, finishOAuthSignIn, router]);
+  }, [oauthParamsKey]);
 
   return (
     <View style={styles.container}>
@@ -130,11 +152,7 @@ export default function OAuthCallbackScreen() {
           </Pressable>
         </>
       ) : (
-        <View style={styles.loadingWrap}>
-          <SkeletonCircle size={64} />
-          <Skeleton width={220} height={14} style={styles.loadingBar} />
-          <Text style={styles.loadingText}>Finishing Google sign in...</Text>
-        </View>
+        <AppSplashScreen message="Finishing Google sign in…" />
       )}
     </View>
   );
@@ -147,19 +165,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
-  },
-  loadingWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-  },
-  loadingBar: {
-    marginTop: spacing.lg,
-  },
-  loadingText: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginTop: spacing.md,
   },
   errorTitle: {
     ...typography.heading,

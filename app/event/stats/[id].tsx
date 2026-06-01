@@ -5,11 +5,13 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GameStatsRecorder } from "../../../components/GameStatsRecorder";
+import { ScoreboardDrawer } from "../../../components/ScoreboardDrawer";
+import { useScoreboard } from "../../../hooks/useScoreboard";
 import { ScorekeeperSkeleton } from "../../../components/ui";
 import { shouldShowEntitySkeleton } from "../../../lib/entityLoading";
 import { canManageEventStats } from "../../../lib/gameEvents";
 import {
-  hasActiveRoster,
+  resolveAllParticipantPlayers,
   UNASSIGNED_ROSTER_INDEX,
   UNASSIGNED_ROSTER_LABEL,
 } from "../../../lib/eventRoster";
@@ -45,6 +47,7 @@ export default function EventStatsScreen() {
   const [savingStats, setSavingStats] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedTabIndex, setSavedTabIndex] = useState<number | null>(null);
+  const [scoreboardOpen, setScoreboardOpen] = useState(false);
   const { refreshControl } = useRefreshControl();
 
   const courtGames = useCourtGames(event, users);
@@ -63,15 +66,29 @@ export default function EventStatsScreen() {
       });
     }
 
+    if (items.length === 0 && event && event.participantIds.length > 0) {
+      return [{ index: 0, label: "All Players" }];
+    }
+
     return items;
-  }, [courtGames, waitlist.length]);
+  }, [courtGames, event, waitlist.length]);
 
   const selectedTab =
     tabs.find((tab) => tab.index === selectedTabIndex) ?? tabs[0];
   const activeTabIndex = selectedTab?.index ?? 0;
   const isUnassignedTab = activeTabIndex === UNASSIGNED_ROSTER_INDEX;
-  const activeRoster = useActiveRoster(event, users, activeTabIndex);
+  const shuffledRoster = useActiveRoster(event, users, activeTabIndex);
+  const activeRoster = useMemo(() => {
+    if (!event) return [];
+    if (courtGames.length === 0) {
+      return resolveAllParticipantPlayers(event, users);
+    }
+    return shuffledRoster;
+  }, [courtGames.length, event, shuffledRoster, users]);
   const selectedGame = courtGames.find((game) => game.index === activeTabIndex);
+
+  const scoreboardKey = id ? `scoreboard:${id}:${activeTabIndex}` : "";
+  const scoreboard = useScoreboard(scoreboardKey || "scoreboard:local");
 
   const eventStats = useMemo(() => {
     const map: Record<string, BoxScoreStats> = {};
@@ -84,7 +101,7 @@ export default function EventStatsScreen() {
   }, [gameStatRecords, id]);
 
   const canManage = event
-    ? canManageEventStats(event, currentUserId, club?.adminId)
+    ? canManageEventStats(event, currentUserId, club)
     : false;
 
   const handleSave = async (statsByPlayer: Record<string, BoxScoreStats>) => {
@@ -147,16 +164,15 @@ export default function EventStatsScreen() {
     );
   }
 
-  if (!hasActiveRoster(event)) {
+  if (event.participantIds.length === 0) {
     return (
       <>
         <Stack.Screen options={{ headerTitle: "Scorekeeper" }} />
         <View style={[styles.blocked, { paddingBottom: insets.bottom }]}>
           <Ionicons name="people-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.blockedTitle}>Shuffle courts first</Text>
+          <Text style={styles.blockedTitle}>No players yet</Text>
           <Text style={styles.blockedText}>
-            Shuffle players into courts first. The scorekeeper tracks one court
-            at a time.
+            At least one player must join before you can record stats.
           </Text>
         </View>
       </>
@@ -240,6 +256,33 @@ export default function EventStatsScreen() {
             refreshControl={refreshControl}
             onSave={handleSave}
           />
+          {!isUnassignedTab ? (
+            <ScoreboardDrawer
+              visible={scoreboardOpen}
+              onOpen={() => setScoreboardOpen(true)}
+              onClose={() => setScoreboardOpen(false)}
+              teamALabel="Team A"
+              teamBLabel="Team B"
+              controls={{
+                state: scoreboard.state,
+                adjustTeamAScore: scoreboard.adjustTeamAScore,
+                adjustTeamBScore: scoreboard.adjustTeamBScore,
+                toggleGameClock: scoreboard.toggleGameClock,
+                toggleShotClock: scoreboard.toggleShotClock,
+                resetGameClock: scoreboard.resetGameClock,
+                setGameClockSeconds: scoreboard.setGameClockSeconds,
+                setShotClockSeconds: scoreboard.setShotClockSeconds,
+                resetShotClock: scoreboard.resetShotClock,
+                setQuarterMinutes: scoreboard.setQuarterMinutes,
+                nextPeriod: scoreboard.nextPeriod,
+                setPeriod: scoreboard.setPeriod,
+                startBuzzerHold: scoreboard.startBuzzerHold,
+                stopBuzzerHold: scoreboard.stopBuzzerHold,
+                triggerBuzzer: scoreboard.triggerBuzzer,
+                resetAll: scoreboard.resetAll,
+              }}
+            />
+          ) : null}
         </View>
       </View>
     </>
@@ -254,6 +297,7 @@ const styles = StyleSheet.create({
   recorderWrap: {
     flex: 1,
     minHeight: 0,
+    position: "relative",
   },
   notFound: {
     flex: 1,

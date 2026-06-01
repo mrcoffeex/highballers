@@ -212,6 +212,24 @@ function groupEventInvites(rows: { event_id: string; user_id: string }[]) {
   return map;
 }
 
+export async function fetchProfileById(
+  userId: string,
+): Promise<UserProfile | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return profileFromRow(data as ProfileRow);
+}
+
 export async function upsertProfile(profile: UserProfile) {
   const supabase = getSupabase();
   if (!supabase) return;
@@ -740,6 +758,47 @@ export async function joinEventRemote(eventId: string, userId: string) {
   if (error && error.code !== "23505") throw error;
 }
 
+export async function addEventParticipantsRemote(
+  eventId: string,
+  userIds: string[],
+) {
+  const supabase = getSupabase();
+  if (!supabase || userIds.length === 0) return;
+
+  const { error } = await withTimeout(() =>
+    supabase.from("event_participants").insert(
+      userIds.map((userId) => ({
+        event_id: eventId,
+        user_id: userId,
+      })),
+    ),
+  );
+
+  if (error && error.code !== "23505") throw error;
+}
+
+export async function addEventInvitesRemote(eventId: string, userIds: string[]) {
+  const supabase = getSupabase();
+  if (!supabase || userIds.length === 0) return;
+
+  const { error } = await withTimeout(() =>
+    supabase.from("event_invites").insert(
+      userIds.map((userId) => ({
+        event_id: eventId,
+        user_id: userId,
+      })),
+    ),
+  );
+
+  if (error && error.code !== "23505") {
+    const inviteMessage = String(error.message ?? "").toLowerCase();
+    const invitesTableMissing =
+      inviteMessage.includes("event_invites") &&
+      inviteMessage.includes("does not exist");
+    if (!invitesTableMissing) throw error;
+  }
+}
+
 export async function leaveEventRemote(eventId: string, userId: string) {
   const supabase = getSupabase();
   if (!supabase) return;
@@ -903,9 +962,16 @@ export async function sendClubChatMessage(
   return message;
 }
 
+type RealtimeChannelStatus =
+  | "SUBSCRIBED"
+  | "TIMED_OUT"
+  | "CLOSED"
+  | "CHANNEL_ERROR";
+
 export function subscribeToClubChat(
   clubId: string,
   onMessage: (message: ClubChatMessage) => void,
+  onStatus?: (status: RealtimeChannelStatus) => void,
 ) {
   const supabase = getSupabase();
   if (!supabase) return () => {};
@@ -924,10 +990,12 @@ export function subscribeToClubChat(
         onMessage(clubChatMessageFromRow(payload.new as ClubChatMessageRow));
       },
     )
-    .subscribe();
+    .subscribe((status) => {
+      onStatus?.(status as RealtimeChannelStatus);
+    });
 
   return () => {
-    supabase.removeChannel(channel);
+    void supabase.removeChannel(channel);
   };
 }
 

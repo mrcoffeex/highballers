@@ -1,5 +1,6 @@
 import { Redirect, useGlobalSearchParams } from "expo-router";
 
+import { AppSplashScreen } from "../components/AppSplashScreen";
 import { isSupabaseEnabled } from "../lib/config";
 import { paramsHaveOAuthPayload } from "../lib/googleAuth";
 import { useAppStore } from "../store/useAppStore";
@@ -7,6 +8,7 @@ import { useAppStore } from "../store/useAppStore";
 export default function Index() {
   const params = useGlobalSearchParams();
   const session = useAppStore((state) => state.session);
+  const authReady = useAppStore((state) => state.authReady);
   const onboardingComplete = useAppStore((state) => state.onboardingComplete);
 
   if (paramsHaveOAuthPayload(params)) {
@@ -25,6 +27,10 @@ export default function Index() {
 
   if (isSupabaseEnabled && !session) {
     return <Redirect href="/auth" />;
+  }
+
+  if (isSupabaseEnabled && session && !authReady) {
+    return <AppSplashScreen message="Loading your profile…" />;
   }
 
   if (!onboardingComplete) {

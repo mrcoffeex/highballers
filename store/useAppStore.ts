@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import {
   resetOAuthExchangeState,
+  clearOAuthCallbackUrl,
   signInWithGoogle as startGoogleSignIn,
 } from "../lib/googleAuth";
 import { isSupabaseEnabled } from "../lib/config";
@@ -28,6 +29,7 @@ import {
   replaceClubSubCaptains,
   deleteJoinRequest,
   fetchAllData,
+  fetchProfileById,
   insertClubBan,
   deleteEventRemote,
   finishEventRemote,
@@ -35,6 +37,8 @@ import {
   insertEvent,
   insertJoinRequest,
   joinClubRemote,
+  addEventInvitesRemote,
+  addEventParticipantsRemote,
   joinEventRemote,
   leaveClubRemote,
   leaveEventRemote,
@@ -53,7 +57,12 @@ import {
   isClubCaptain,
   MAX_SUB_CAPTAINS,
 } from "../lib/clubRoles";
-import { canUserJoinEvent } from "../lib/eventAccess";
+import { canUserJoinEvent, isPrivateEvent } from "../lib/eventAccess";
+import {
+  InvitePlayerResult,
+  resolvePlayersToInvite,
+} from "../lib/eventInvite";
+import { assertEventMaxPlayersAllowed } from "../lib/eventCapacity";
 import {
   assertFeatureAccess,
   canAddClubMember,
@@ -72,6 +81,7 @@ import {
   isEventOptionsLocked,
   hasEventStarted,
   canManageEvent,
+  eventHasRecordedStats,
 } from "../lib/gameEvents";
 import {
   buildCourtGames,
@@ -118,6 +128,7 @@ interface AppState {
   signUp: (email: string, password: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
   syncSessionFromSupabase: () => Promise<Session | null>;
+  hydrateSessionUser: (userId: string) => Promise<void>;
   finishOAuthSignIn: () => Promise<Session | null>;
   signOut: () => Promise<void>;
   refreshFromServer: () => Promise<void>;
@@ -158,6 +169,10 @@ interface AppState {
 
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
+  invitePlayersToEvent: (
+    eventId: string,
+    memberIds: string[],
+  ) => Promise<InvitePlayerResult>;
   createEvent: (
     event: Omit<
       GameEvent,
@@ -264,29 +279,22 @@ export const useAppStore = create<AppState>()(
         set({ session: data.session });
 
         if (data.session?.user) {
-          await get().syncSessionFromSupabase();
+          set({ authReady: false });
+          await get().hydrateSessionUser(data.session.user.id);
+        } else {
+          set({ authReady: true });
         }
-
-        set({ authReady: true });
 
         if (!authListenerRegistered) {
           authListenerRegistered = true;
           supabase.auth.onAuthStateChange(async (_event, session) => {
             set({ session });
             if (session?.user) {
-              await get()
-                .refreshFromServer()
-                .catch(() => undefined);
-              const profile = get().users.find(
-                (user) => user.id === session.user.id,
-              );
-              set({
-                currentUserId: session.user.id,
-                onboardingComplete: Boolean(profile),
-              });
-              await registerForPushNotifications(session.user.id);
+              set({ authReady: false });
+              await get().hydrateSessionUser(session.user.id);
             } else {
               set({
+                authReady: true,
                 currentUserId: null,
                 onboardingComplete: false,
                 users: isSupabaseEnabled ? [] : SEED_PLAYERS,
@@ -301,27 +309,64 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      hydrateSessionUser: async (userId: string) => {
+        if (!isSupabaseEnabled) {
+          const profile = get().users.find((user) => user.id === userId);
+          set({
+            currentUserId: userId,
+            onboardingComplete: Boolean(profile),
+            authReady: true,
+          });
+          return;
+        }
+
+        try {
+          await get().refreshFromServer();
+        } catch {
+          // Fall back to a direct profile lookup below.
+        }
+
+        let profile = get().users.find((user) => user.id === userId) ?? null;
+
+        if (!profile) {
+          try {
+            profile = await fetchProfileById(userId);
+            if (profile) {
+              set({
+                users: [
+                  ...get().users.filter((user) => user.id !== userId),
+                  profile,
+                ],
+              });
+            }
+          } catch {
+            profile = null;
+          }
+        }
+
+        set({
+          currentUserId: userId,
+          onboardingComplete: Boolean(profile),
+          authReady: true,
+        });
+
+        if (profile) {
+          await registerForPushNotifications(userId).catch(() => undefined);
+        }
+      },
+
       syncSessionFromSupabase: async () => {
         const supabase = getSupabase();
         if (!supabase) return null;
 
         const { data } = await supabase.auth.getSession();
-        set({ session: data.session, authReady: true });
+        set({ session: data.session });
 
         if (data.session?.user) {
-          await get()
-            .refreshFromServer()
-            .catch(() => undefined);
-          const profile = get().users.find(
-            (user) => user.id === data.session!.user.id,
-          );
-          set({
-            currentUserId: data.session.user.id,
-            onboardingComplete: Boolean(profile),
-          });
-          await registerForPushNotifications(data.session.user.id).catch(
-            () => undefined,
-          );
+          set({ authReady: false });
+          await get().hydrateSessionUser(data.session.user.id);
+        } else {
+          set({ authReady: true });
         }
 
         return data.session;
@@ -331,38 +376,19 @@ export const useAppStore = create<AppState>()(
         const supabase = getSupabase();
         if (!supabase) return null;
 
-        const { data } = await supabase.auth.getSession();
-        if (!data.session?.user) return null;
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+          const { data } = await supabase.auth.getSession();
+          if (data.session?.user) {
+            set({ session: data.session, authReady: false });
+            await get().hydrateSessionUser(data.session.user.id);
+            return data.session;
+          }
+          if (attempt < 11) {
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
+        }
 
-        set({
-          session: data.session,
-          authReady: true,
-          currentUserId: data.session.user.id,
-        });
-
-        const profile = get().users.find(
-          (user) => user.id === data.session!.user.id,
-        );
-        set({ onboardingComplete: Boolean(profile) });
-
-        void get()
-          .refreshFromServer()
-          .then(() => {
-            const refreshedProfile = get().users.find(
-              (user) => user.id === data.session!.user.id,
-            );
-            set({
-              currentUserId: data.session!.user.id,
-              onboardingComplete: Boolean(refreshedProfile),
-            });
-          })
-          .catch(() => undefined);
-
-        void registerForPushNotifications(data.session.user.id).catch(
-          () => undefined,
-        );
-
-        return data.session;
+        return null;
       },
 
       signIn: async (email, password) => {
@@ -388,12 +414,20 @@ export const useAppStore = create<AppState>()(
 
       signOut: async () => {
         const supabase = getSupabase();
-        await supabase?.auth.signOut();
+        if (supabase) {
+          const { error } = await supabase.auth.signOut();
+          if (error) {
+            await supabase.auth.signOut({ scope: "local" });
+          }
+        }
+
         resetOAuthExchangeState();
+        clearOAuthCallbackUrl();
         clearRemoteCache();
         clearTabFetchSession();
         set({
           session: null,
+          authReady: true,
           currentUserId: null,
           onboardingComplete: false,
           users: isSupabaseEnabled ? [] : SEED_PLAYERS,
@@ -403,6 +437,7 @@ export const useAppStore = create<AppState>()(
           clubBans: [],
           gameStatRecords: [],
         });
+        await useAppStore.persist.clearStorage();
       },
 
       refreshFromServer: async () => {
@@ -1039,6 +1074,79 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      invitePlayersToEvent: async (eventId, memberIds) => {
+        const { currentUserId, events, clubs, users, clubBans } = get();
+        const event = events.find((item) => item.id === eventId);
+        if (!event) {
+          throw new Error("Game not found.");
+        }
+
+        const club = clubs.find((item) => item.id === event.clubId);
+        if (!canManageEvent(event, currentUserId, club)) {
+          throw new Error(
+            "Only the game creator, captain, or sub-captain can invite players.",
+          );
+        }
+        if (isEventOptionsLocked(event)) {
+          throw new Error("This game is closed.");
+        }
+
+        assertFeatureAccess(getCurrentUserTier(get), "invite_players");
+
+        const { addedIds, skipped } = resolvePlayersToInvite(
+          event,
+          club,
+          users,
+          clubBans,
+          memberIds,
+        );
+
+        if (addedIds.length === 0) {
+          const firstReason = skipped[0]?.reason;
+          throw new Error(
+            firstReason ?? "No players could be added to this game.",
+          );
+        }
+
+        const invitedMemberIds = isPrivateEvent(event)
+          ? [
+              ...new Set([...(event.invitedMemberIds ?? []), ...addedIds]),
+            ]
+          : event.invitedMemberIds;
+
+        const updatedEvent: GameEvent = {
+          ...event,
+          participantIds: [...event.participantIds, ...addedIds],
+          invitedMemberIds,
+        };
+
+        set({
+          events: events.map((item) =>
+            item.id === eventId ? updatedEvent : item,
+          ),
+        });
+
+        if (isSupabaseEnabled) {
+          try {
+            await addEventParticipantsRemote(eventId, addedIds);
+            if (isPrivateEvent(event)) {
+              await addEventInvitesRemote(eventId, addedIds);
+            }
+          } catch (error) {
+            set({
+              events: events.map((item) =>
+                item.id === eventId ? event : item,
+              ),
+            });
+            throw new Error(
+              formatSyncError(error, "Could not add players to this game."),
+            );
+          }
+        }
+
+        return { addedIds, skipped };
+      },
+
       leaveEvent: async (eventId) => {
         const { currentUserId, events } = get();
         if (!currentUserId) return;
@@ -1092,7 +1200,9 @@ export const useAppStore = create<AppState>()(
           throw new Error("Join this club before creating a game.");
         }
 
-        assertFeatureAccess(getCurrentUserTier(get), "create_event");
+        const tier = getCurrentUserTier(get);
+        assertFeatureAccess(tier, "create_event");
+        assertEventMaxPlayersAllowed(tier, eventData.maxPlayers);
 
         const id = uuidv4();
         const visibility = eventData.visibility ?? "open";
@@ -1148,9 +1258,11 @@ export const useAppStore = create<AppState>()(
         if (!event || isEventOptionsLocked(event)) return false;
 
         const club = clubs.find((item) => item.id === event.clubId);
-        if (!canManageEvent(event, currentUserId, club?.adminId)) return false;
+        if (!canManageEvent(event, currentUserId, club)) return false;
 
-        assertFeatureAccess(getCurrentUserTier(get), "create_event");
+        const tier = getCurrentUserTier(get);
+        assertFeatureAccess(tier, "create_event");
+        assertEventMaxPlayersAllowed(tier, updates.maxPlayers);
 
         if (updates.maxPlayers < event.participantIds.length) return false;
 
@@ -1200,9 +1312,15 @@ export const useAppStore = create<AppState>()(
       },
 
       shuffleTeams: async (eventId, playersPerGame) => {
-        const { events, users } = get();
+        const { events, users, gameStatRecords } = get();
         const event = events.find((item) => item.id === eventId);
         if (!event || isEventOptionsLocked(event)) return;
+
+        if (eventHasRecordedStats(eventId, gameStatRecords)) {
+          throw new Error(
+            "Re-shuffle is locked after scores are saved. Edit court assignments instead.",
+          );
+        }
 
         assertFeatureAccess(getCurrentUserTier(get), "shuffle_teams");
 
@@ -1243,9 +1361,9 @@ export const useAppStore = create<AppState>()(
         }
 
         const club = clubs.find((item) => item.id === event.clubId);
-        if (!canManageEvent(event, currentUserId, club?.adminId)) {
+        if (!canManageEvent(event, currentUserId, club)) {
           throw new Error(
-            "Only the game creator or club captain can save court assignments.",
+            "Only the game creator, captain, or sub-captain can save court assignments.",
           );
         }
 
@@ -1291,9 +1409,7 @@ export const useAppStore = create<AppState>()(
           return;
 
         const club = clubs.find((item) => item.id === event.clubId);
-        const canFinish =
-          currentUserId === event.createdBy || currentUserId === club?.adminId;
-        if (!canFinish) return;
+        if (!canManageEvent(event, currentUserId, club)) return;
 
         assertFeatureAccess(getCurrentUserTier(get), "scorekeeper");
 
@@ -1322,9 +1438,9 @@ export const useAppStore = create<AppState>()(
         }
 
         const club = clubs.find((item) => item.id === event.clubId);
-        if (!canManageEvent(event, currentUserId, club?.adminId)) {
+        if (!canManageEvent(event, currentUserId, club)) {
           throw new Error(
-            "Only the club captain or game creator can cancel this game.",
+            "Only the game creator, captain, or sub-captain can cancel this game.",
           );
         }
 
@@ -1370,10 +1486,8 @@ export const useAppStore = create<AppState>()(
 
         const event = normalizeEventCourts(rawEvent);
         const club = clubs.find((item) => item.id === event.clubId);
-        const canSave =
-          currentUserId === event.createdBy || currentUserId === club?.adminId;
-        if (!canSave) {
-          return "Only the game creator or club captain can save stats.";
+        if (!canManageEvent(event, currentUserId, club)) {
+          return "Only the game creator, captain, or sub-captain can save stats.";
         }
 
         try {

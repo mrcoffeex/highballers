@@ -32,6 +32,9 @@ export default function AuthScreen() {
   const signUp = useAppStore((state) => state.signUp);
   const signInWithGoogle = useAppStore((state) => state.signInWithGoogle);
   const finishOAuthSignIn = useAppStore((state) => state.finishOAuthSignIn);
+  const syncSessionFromSupabase = useAppStore(
+    (state) => state.syncSessionFromSupabase,
+  );
 
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
   const [email, setEmail] = useState("");
@@ -82,6 +85,7 @@ export default function AuthScreen() {
       await setAcceptedLegalVersion();
     }
 
+    await syncSessionFromSupabase();
     router.replace("/");
   };
 

@@ -1,35 +1,25 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import {
+  EventMaxPlayersPicker,
+  isEventMaxPlayerPreset,
+  useResolvedEventMaxPlayers,
+} from "../../../components/EventMaxPlayersPicker";
 import { DateTimePickerField } from "../../../components/DateTimePickerField";
+import { UpgradeModal } from "../../../components/UpgradeModal";
 import { LocationPicker } from "../../../components/LocationPicker";
 import { Button, FormScreenSkeleton, Input } from "../../../components/ui";
 import { shouldShowEntitySkeleton } from "../../../lib/entityLoading";
+import { clampEventMaxPlayers } from "../../../lib/eventCapacity";
 import { canEditEvent, hasEventStarted } from "../../../lib/gameEvents";
 import { EventLocation } from "../../../lib/location";
 import { colors, radius, spacing, typography } from "../../../lib/theme";
 import { useRefreshControl } from "../../../lib/useRefreshControl";
-import { useClub, useEvent } from "../../../store/hooks";
+import { useUpgradePrompt } from "../../../lib/useUpgradePrompt";
+import { useClub, useEvent, useSubscriptionTier } from "../../../store/hooks";
 import { useAppStore } from "../../../store/useAppStore";
-
-const PLAYER_PRESETS = [10, 20, 30, 40] as const;
-const MIN_PLAYERS = 10;
-const MAX_PLAYERS = 40;
-
-function clampMaxPlayers(value: number) {
-  return Math.min(Math.max(value, MIN_PLAYERS), MAX_PLAYERS);
-}
-
-function parseCustomMaxPlayers(value: string) {
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed)) return null;
-  return clampMaxPlayers(parsed);
-}
-
-function isPresetCount(count: number) {
-  return PLAYER_PRESETS.includes(count as (typeof PLAYER_PRESETS)[number]);
-}
 
 export default function EditEventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -38,8 +28,16 @@ export default function EditEventScreen() {
   const club = useClub(event?.clubId ?? "");
   const currentUserId = useAppStore((state) => state.currentUserId);
   const editEvent = useAppStore((state) => state.editEvent);
+  const upgradeToAllStar = useAppStore((state) => state.upgradeToAllStar);
   const events = useAppStore((state) => state.events);
   const hydrated = useAppStore((state) => state.hydrated);
+  const tier = useSubscriptionTier();
+  const {
+    upgradeVisible,
+    upgradeReason,
+    promptUpgrade,
+    closeUpgrade,
+  } = useUpgradePrompt();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -55,7 +53,7 @@ export default function EditEventScreen() {
   const { refreshControl } = useRefreshControl();
 
   const canEdit = event
-    ? canEditEvent(event, currentUserId, club?.adminId)
+    ? canEditEvent(event, currentUserId, club)
     : false;
   const eventStarted = event ? hasEventStarted(event) : false;
   const joinedCount = event?.participantIds.length ?? 0;
@@ -72,21 +70,26 @@ export default function EditEventScreen() {
       longitude: event.longitude ?? 0,
     });
 
-    if (isPresetCount(event.maxPlayers)) {
-      setMaxPlayers(event.maxPlayers);
+    const cappedMax = clampEventMaxPlayers(event.maxPlayers, tier);
+
+    if (isEventMaxPlayerPreset(cappedMax)) {
+      setMaxPlayers(cappedMax);
       setUseCustomMax(false);
     } else {
       setUseCustomMax(true);
-      setCustomMaxPlayers(String(event.maxPlayers));
+      setCustomMaxPlayers(String(cappedMax));
     }
 
     setInitialized(true);
-  }, [event, initialized]);
+  }, [event, initialized, tier]);
 
-  const resolvedMaxPlayers = useMemo(() => {
-    if (!useCustomMax) return maxPlayers;
-    return parseCustomMaxPlayers(customMaxPlayers);
-  }, [customMaxPlayers, maxPlayers, useCustomMax]);
+  const resolvedMaxPlayers = useResolvedEventMaxPlayers(
+    tier,
+    maxPlayers,
+    customMaxPlayers,
+    useCustomMax,
+    joinedCount,
+  );
 
   const isValidDate = eventStarted || dateTime.getTime() > Date.now();
   const maxPlayersOk =
@@ -210,67 +213,17 @@ export default function EditEventScreen() {
         />
 
         <Text style={styles.label}>Max Players</Text>
-        <View style={styles.playerPicker}>
-          {PLAYER_PRESETS.map((count) => (
-            <Pressable
-              key={count}
-              onPress={() => {
-                setUseCustomMax(false);
-                setMaxPlayers(count);
-              }}
-              style={[
-                styles.playerOption,
-                !useCustomMax &&
-                  maxPlayers === count &&
-                  styles.playerOptionActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.playerOptionValue,
-                  !useCustomMax &&
-                    maxPlayers === count &&
-                    styles.playerOptionValueActive,
-                ]}
-              >
-                {count}
-              </Text>
-            </Pressable>
-          ))}
-          <Pressable
-            onPress={() => setUseCustomMax(true)}
-            style={[
-              styles.playerOption,
-              useCustomMax && styles.playerOptionActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.playerOptionValue,
-                useCustomMax && styles.playerOptionValueActive,
-              ]}
-            >
-              Custom
-            </Text>
-          </Pressable>
-        </View>
-
-        {useCustomMax ? (
-          <View style={styles.customWrap}>
-            <Input
-              placeholder={`${MIN_PLAYERS}-${MAX_PLAYERS}`}
-              value={customMaxPlayers}
-              onChangeText={setCustomMaxPlayers}
-              keyboardType="number-pad"
-              style={styles.field}
-            />
-            <Text style={styles.customHint}>
-              {resolvedMaxPlayers == null
-                ? `Enter a number between ${MIN_PLAYERS} and ${MAX_PLAYERS}.`
-                : `${resolvedMaxPlayers} players`}
-            </Text>
-          </View>
-        ) : null}
+        <EventMaxPlayersPicker
+          tier={tier}
+          maxPlayers={maxPlayers}
+          customMaxPlayers={customMaxPlayers}
+          useCustomMax={useCustomMax}
+          onMaxPlayersChange={setMaxPlayers}
+          onCustomMaxPlayersChange={setCustomMaxPlayers}
+          onUseCustomMaxChange={setUseCustomMax}
+          onRequireUpgrade={promptUpgrade}
+          minPlayers={joinedCount}
+        />
 
         {!maxPlayersOk ? (
           <Text style={styles.errorHint}>
@@ -288,6 +241,15 @@ export default function EditEventScreen() {
           style={styles.submit}
         />
       </ScrollView>
+
+      <UpgradeModal
+        visible={upgradeVisible}
+        reason={upgradeReason}
+        onClose={closeUpgrade}
+        onPurchased={() => {
+          void upgradeToAllStar();
+        }}
+      />
     </>
   );
 }
@@ -345,43 +307,6 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 88,
     textAlignVertical: "top",
-  },
-  playerPicker: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  playerOption: {
-    minWidth: 72,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    alignItems: "center",
-    gap: 2,
-  },
-  playerOptionActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}15`,
-  },
-  playerOptionValue: {
-    ...typography.heading,
-    color: colors.textMuted,
-    fontSize: 18,
-  },
-  playerOptionValueActive: {
-    color: colors.primary,
-  },
-  customWrap: {
-    marginBottom: spacing.sm,
-  },
-  customHint: {
-    ...typography.caption,
-    color: colors.textDim,
-    marginBottom: spacing.sm,
   },
   errorHint: {
     ...typography.caption,

@@ -146,23 +146,31 @@ export default function ClubChatScreen() {
   }, [loadInitial]);
 
   useEffect(() => {
-    if (!clubId || !isSupabaseEnabled) return undefined;
+    if (!clubId || !isSupabaseEnabled || !currentUserId) return undefined;
 
-    return subscribeToClubChat(clubId, (message) => {
-      setThreadMessages((prev) => {
-        if (prev.some((item) => item.id === message.id)) return prev;
-        const withoutPending = prev.filter(
-          (item) =>
-            !(
-              isPendingChatMessageId(item.id) &&
-              item.userId === message.userId &&
-              item.body === message.body
-            ),
-        );
-        return [...withoutPending, message];
-      });
-    });
-  }, [clubId, setThreadMessages]);
+    return subscribeToClubChat(
+      clubId,
+      (message) => {
+        setThreadMessages((prev) => {
+          if (prev.some((item) => item.id === message.id)) return prev;
+          const withoutPending = prev.filter(
+            (item) =>
+              !(
+                isPendingChatMessageId(item.id) &&
+                item.userId === message.userId &&
+                item.body === message.body
+              ),
+          );
+          return [...withoutPending, message];
+        });
+      },
+      (status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          void loadInitial(true);
+        }
+      },
+    );
+  }, [clubId, currentUserId, loadInitial, setThreadMessages]);
 
   const postMessage = async (body: string) => {
     if (

@@ -1,5 +1,8 @@
-import { GameEvent } from "./types";
-import { hasActiveRoster } from "./eventRoster";
+import { canLeadClub } from "./clubRoles";
+import { Club, GameEvent, GameStatRecord } from "./types";
+
+/** Club fields needed to resolve captain / sub-captain game permissions. */
+export type EventClubContext = Pick<Club, "adminId" | "subCaptainIds">;
 
 export type EventStatus = "upcoming" | "ongoing" | "done";
 
@@ -48,59 +51,70 @@ export function isEventOptionsLocked(event: GameEvent): boolean {
   return Date.now() >= getEventLockTime(event);
 }
 
+/** True when any box score has been saved for this game. */
+export function eventHasRecordedStats(
+  eventId: string,
+  records: GameStatRecord[],
+): boolean {
+  return records.some((record) => record.eventId === eventId);
+}
+
 export function canManageEvent(
   event: GameEvent,
   userId: string | null | undefined,
-  clubAdminId?: string,
+  club?: EventClubContext | null,
 ): boolean {
   if (!userId) return false;
-  return userId === event.createdBy || userId === clubAdminId;
+  if (userId === event.createdBy) return true;
+  if (!club) return false;
+  return canLeadClub(club as Club, userId);
 }
 
 export function canManageEventStats(
   event: GameEvent,
   userId: string | null | undefined,
-  clubAdminId?: string,
+  club?: EventClubContext | null,
 ): boolean {
   if (isEventOptionsLocked(event)) return false;
-  return canManageEvent(event, userId, clubAdminId);
+  return canManageEvent(event, userId, club);
 }
 
 export function canMarkEventFinished(
   event: GameEvent,
   userId: string | null | undefined,
-  clubAdminId?: string,
+  club?: EventClubContext | null,
 ): boolean {
   if (isEventOptionsLocked(event)) return false;
   if (!hasEventStarted(event)) return false;
-  return canManageEvent(event, userId, clubAdminId);
+  return canManageEvent(event, userId, club);
 }
 
 export function canEditEvent(
   event: GameEvent,
   userId: string | null | undefined,
-  clubAdminId?: string,
+  club?: EventClubContext | null,
 ): boolean {
   if (isEventOptionsLocked(event)) return false;
-  return canManageEvent(event, userId, clubAdminId);
+  return canManageEvent(event, userId, club);
 }
 
 /** Remove a scheduled game before it is marked finished. */
 export function canCancelEvent(
   event: GameEvent,
   userId: string | null | undefined,
-  clubAdminId?: string,
+  club?: EventClubContext | null,
 ): boolean {
   if (event.finishedAt) return false;
-  return canManageEvent(event, userId, clubAdminId);
+  return canManageEvent(event, userId, club);
 }
 
 export function canRecordEventStats(
   event: GameEvent,
   userId: string | null | undefined,
-  clubAdminId?: string,
+  club?: EventClubContext | null,
 ): boolean {
   return (
-    canManageEventStats(event, userId, clubAdminId) && hasActiveRoster(event)
+    canManageEventStats(event, userId, club) &&
+    event.participantIds.length > 0
   );
 }

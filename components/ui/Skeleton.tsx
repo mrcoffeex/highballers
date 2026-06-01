@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import { useEffect, useRef } from "react";
 import {
   Animated,
@@ -509,7 +510,12 @@ export function HomeScreenSkeleton() {
 export function AppBootstrapSkeleton() {
   return (
     <View style={styles.bootstrap}>
-      <SkeletonCircle size={72} />
+      <Image
+        source={require("../../assets/splash-icon.png")}
+        style={styles.bootstrapLogo}
+        contentFit="contain"
+        accessibilityLabel="HighBallers logo"
+      />
       <Skeleton width={180} height={22} style={styles.bootstrapTitle} />
       <Skeleton width={240} height={14} />
       <View style={styles.bootstrapCards}>
@@ -734,6 +740,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xl,
+  },
+  bootstrapLogo: {
+    width: 140,
+    height: 140,
   },
   bootstrapTitle: {
     marginTop: spacing.lg,

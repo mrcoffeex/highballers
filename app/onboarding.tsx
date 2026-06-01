@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppSplashScreen } from "../components/AppSplashScreen";
 import { LegalConsent } from "../components/LegalConsent";
 import { StatSlider } from "../components/StatSlider";
 import {
@@ -22,6 +23,8 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
+  const authReady = useAppStore((state) => state.authReady);
+  const onboardingComplete = useAppStore((state) => state.onboardingComplete);
   const session = useAppStore((state) => state.session);
   const googleHints = useMemo(() => getGoogleProfileHints(session), [session]);
 
@@ -47,6 +50,20 @@ export default function OnboardingScreen() {
       if (accepted) setLegalAccepted(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (authReady && onboardingComplete) {
+      router.replace("/(tabs)");
+    }
+  }, [authReady, onboardingComplete, router]);
+
+  if (!authReady) {
+    return <AppSplashScreen message="Loading your profile…" />;
+  }
+
+  if (onboardingComplete) {
+    return null;
+  }
 
   const handleFinish = async () => {
     setError(null);

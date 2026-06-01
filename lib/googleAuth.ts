@@ -61,21 +61,45 @@ export function getOAuthRedirectUri() {
 
 /** Wait for Supabase to persist the session after code exchange (AsyncStorage). */
 export async function waitForSupabaseSession(
-  attempts = 8,
+  attempts = 24,
   delayMs = 250,
 ): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase) return false;
 
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) return true;
-    if (attempt < attempts - 1) {
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-  }
+  const { data: initial } = await supabase.auth.getSession();
+  if (initial.session) return true;
 
-  return false;
+  return new Promise((resolve) => {
+    let settled = false;
+    let pollCount = 0;
+
+    const finish = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      subscription.unsubscribe();
+      clearInterval(interval);
+      resolve(value);
+    };
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) finish(true);
+    });
+
+    const interval = setInterval(async () => {
+      pollCount += 1;
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        finish(true);
+        return;
+      }
+      if (pollCount >= attempts) {
+        finish(false);
+      }
+    }, delayMs);
+  });
 }
 
 export function buildCallbackHrefFromParams(
@@ -182,8 +206,8 @@ export async function createSessionFromUrl(
 
   if (params.code) {
     if (exchangedCodes.has(params.code)) {
-      const { data } = await supabase.auth.getSession();
-      return data.session ? null : "Sign in session expired. Please try again.";
+      const hasSession = await waitForSupabaseSession();
+      return hasSession ? null : "Sign in session expired. Please try again.";
     }
 
     exchangedCodes.add(params.code);
@@ -191,12 +215,13 @@ export async function createSessionFromUrl(
     const { error } = await supabase.auth.exchangeCodeForSession(params.code);
     if (error) {
       exchangedCodes.delete(params.code);
-      const { data } = await supabase.auth.getSession();
-      if (data.session) return null;
+      const hasSession = await waitForSupabaseSession(8, 200);
+      if (hasSession) return null;
       return error.message;
     }
 
-    return null;
+    const hasSession = await waitForSupabaseSession();
+    return hasSession ? null : "Sign in session expired. Please try again.";
   }
 
   const accessToken = params.access_token;

@@ -176,7 +176,9 @@ export function ActivityStoriesViewer({
           <Pressable
             onPress={onClose}
             hitSlop={12}
+            accessibilityRole="button"
             accessibilityLabel="Close stories"
+            style={styles.closeBtn}
           >
             <Ionicons name="close" size={28} color={colors.text} />
           </Pressable>
@@ -188,21 +190,20 @@ export function ActivityStoriesViewer({
             slide={slide}
             user={group.user}
           />
-        </View>
-
-        <View style={styles.tapZones}>
-          <Pressable
-            style={styles.tapLeft}
-            onPress={goPrev}
-            onLongPress={() => setPaused(true)}
-            onPressOut={() => setPaused(false)}
-          />
-          <Pressable
-            style={styles.tapRight}
-            onPress={goNext}
-            onLongPress={() => setPaused(true)}
-            onPressOut={() => setPaused(false)}
-          />
+          <View style={styles.tapZones} pointerEvents="box-none">
+            <Pressable
+              style={styles.tapLeft}
+              onPress={goPrev}
+              onLongPress={() => setPaused(true)}
+              onPressOut={() => setPaused(false)}
+            />
+            <Pressable
+              style={styles.tapRight}
+              onPress={goNext}
+              onLongPress={() => setPaused(true)}
+              onPressOut={() => setPaused(false)}
+            />
+          </View>
         </View>
 
         <View style={styles.footer}>
@@ -255,7 +256,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
-    zIndex: 2,
+    zIndex: 3,
   },
   viewerUser: {
     flexDirection: "row",
@@ -273,16 +274,19 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
+  closeBtn: {
+    zIndex: 4,
+  },
   slideArea: {
     flex: 1,
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
+    position: "relative",
     zIndex: 1,
   },
   tapZones: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     flexDirection: "row",
-    zIndex: 2,
   },
   tapLeft: {
     flex: 1,

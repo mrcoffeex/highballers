@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -10,68 +9,71 @@ import {
 } from "react-native";
 
 import { colors, radius, spacing, typography } from "../lib/theme";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface SignOutButtonProps {
   onSignOut: () => void | Promise<void>;
 }
 
 export function SignOutButton({ onSignOut }: SignOutButtonProps) {
+  const [confirmVisible, setConfirmVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handlePress = () => {
-    Alert.alert(
-      "Sign out?",
-      "You'll need to sign in again to sync clubs, games, and stats.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Sign out",
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              setLoading(true);
-              try {
-                await onSignOut();
-              } finally {
-                setLoading(false);
-              }
-            })();
-          },
-        },
-      ],
-    );
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      await onSignOut();
+      setConfirmVisible(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Sign out"
-      accessibilityHint="Ends your session on this device"
-      disabled={loading}
-      onPress={handlePress}
-      style={({ pressed }) => [
-        styles.card,
-        pressed && !loading && styles.cardPressed,
-        loading && styles.cardDisabled,
-      ]}
-    >
-      <View style={styles.iconWrap}>
-        {loading ? (
-          <ActivityIndicator size="small" color={colors.error} />
-        ) : (
-          <Ionicons name="log-out-outline" size={22} color={colors.error} />
-        )}
-      </View>
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Sign out"
+        accessibilityHint="Ends your session on this device"
+        disabled={loading}
+        onPress={() => setConfirmVisible(true)}
+        style={({ pressed }) => [
+          styles.card,
+          pressed && !loading && styles.cardPressed,
+          loading && styles.cardDisabled,
+        ]}
+      >
+        <View style={styles.iconWrap}>
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.error} />
+          ) : (
+            <Ionicons name="log-out-outline" size={22} color={colors.error} />
+          )}
+        </View>
 
-      <View style={styles.copy}>
-        <Text style={styles.title}>Sign out</Text>
-        <Text style={styles.subtitle}>End session on this device</Text>
-      </View>
+        <View style={styles.copy}>
+          <Text style={styles.title}>Sign out</Text>
+          <Text style={styles.subtitle}>End session on this device</Text>
+        </View>
 
-      {!loading ? (
-        <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
-      ) : null}
-    </Pressable>
+        {!loading ? (
+          <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+        ) : null}
+      </Pressable>
+
+      <ConfirmModal
+        visible={confirmVisible}
+        title="Sign out?"
+        message="You'll need to sign in again to sync clubs, games, and stats."
+        confirmLabel="Sign out"
+        cancelLabel="Cancel"
+        loading={loading}
+        onClose={() => {
+          if (!loading) setConfirmVisible(false);
+        }}
+        onConfirm={() => void handleConfirm()}
+      />
+    </>
   );
 }
 

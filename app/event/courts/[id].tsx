@@ -42,7 +42,7 @@ export default function EditEventCourtsScreen() {
   );
 
   const canEdit = event
-    ? canEditEvent(event, currentUserId, club?.adminId)
+    ? canEditEvent(event, currentUserId, club)
     : false;
   const playersPerGame = event ? getPlayersPerGame(event) : 10;
   const initialCourtGames = useMemo<CourtGame[]>(

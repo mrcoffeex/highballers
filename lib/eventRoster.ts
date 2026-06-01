@@ -209,12 +209,26 @@ export function getAllCourtPlayerIds(event: GameEvent): string[] {
   );
 }
 
+/** Show shuffle control when at least one player has joined. */
+export function canShowShuffleButton(event: GameEvent): boolean {
+  return event.participantIds.length > 0;
+}
+
 export function canShuffleEvent(
   event: GameEvent,
   playersPerGame?: number,
 ): boolean {
   const size = playersPerGame ?? getPlayersPerGame(event);
   return event.participantIds.length >= size;
+}
+
+export function resolveAllParticipantPlayers(
+  event: GameEvent,
+  users: UserProfile[],
+): UserProfile[] {
+  return event.participantIds
+    .map((id) => users.find((user) => user.id === id))
+    .filter((player): player is UserProfile => Boolean(player));
 }
 
 /** Shuffle joined players into balanced court games. */

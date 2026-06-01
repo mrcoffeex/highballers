@@ -12,6 +12,7 @@ import {
   addNotificationResponseListener,
   registerForPushNotifications,
 } from "../lib/notifications";
+import { isSupabaseEnabled } from "../lib/config";
 import { colors } from "../lib/theme";
 import { useAppStore } from "../store/useAppStore";
 
@@ -53,9 +54,13 @@ export default function RootLayout() {
   }, [initAuth]);
 
   useEffect(() => {
+    if (!isSupabaseEnabled || !authReady || !currentUserId) {
+      return undefined;
+    }
+
     const unsubscribe = startSync();
     return unsubscribe;
-  }, [startSync]);
+  }, [authReady, currentUserId, startSync]);
 
   useEffect(() => {
     if (!hydrated || !authReady) return;

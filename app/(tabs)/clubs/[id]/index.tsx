@@ -144,7 +144,7 @@ export default function ClubDetailScreen() {
   const clubEvents = events
     .filter((event) => event.clubId === club.id)
     .sort(
-      (a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime(),
+      (a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime(),
     );
 
   const isBanned =

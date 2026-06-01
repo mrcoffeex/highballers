@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { BoxScoreTable } from "../../components/BoxScoreTable";
 import { ConfirmModal } from "../../components/ConfirmModal";
+import { EventInviteSection } from "../../components/EventInviteSection";
 import { EventLocationCard } from "../../components/EventLocationCard";
 import { EventGameStories } from "../../components/EventGameStories";
 import { PlayerCard } from "../../components/PlayerCard";
@@ -27,7 +28,6 @@ import { canUserJoinEvent, isPrivateEvent } from "../../lib/eventAccess";
 import {
   canCancelEvent,
   canEditEvent,
-  canManageEventStats,
   canMarkEventFinished,
   canRecordEventStats,
   hasEventStarted,
@@ -35,6 +35,7 @@ import {
 } from "../../lib/gameEvents";
 import { formatSyncError } from "../../lib/syncErrors";
 import {
+  canShowShuffleButton,
   canShuffleEvent,
   getCourtGameCount,
   formatRosterRating,
@@ -70,6 +71,10 @@ export default function EventDetailScreen() {
   const hydrated = useAppStore((state) => state.hydrated);
   const joinEvent = useAppStore((state) => state.joinEvent);
   const leaveEvent = useAppStore((state) => state.leaveEvent);
+  const invitePlayersToEvent = useAppStore(
+    (state) => state.invitePlayersToEvent,
+  );
+  const clubBans = useAppStore((state) => state.clubBans);
   const shuffleTeams = useAppStore((state) => state.shuffleTeams);
   const finishEvent = useAppStore((state) => state.finishEvent);
   const cancelEvent = useAppStore((state) => state.cancelEvent);
@@ -87,7 +92,10 @@ export default function EventDetailScreen() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [shuffleError, setShuffleError] = useState<string | null>(null);
   const [shuffling, setShuffling] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [playersPerGame, setPlayersPerGame] = useState(
     DEFAULT_PLAYERS_PER_GAME,
   );
@@ -161,29 +169,30 @@ export default function EventDetailScreen() {
   const gameSizeLabel = formatGameSizeLabel(playersPerGame);
   const optionsLocked = isEventOptionsLocked(event);
   const eventStarted = hasEventStarted(event);
-  const canEdit = canEditEvent(event, currentUserId, club?.adminId);
-  const canRecordStats = canRecordEventStats(
-    event,
-    currentUserId,
-    club?.adminId,
-  );
-  const canManageStats = canManageEventStats(
-    event,
-    currentUserId,
-    club?.adminId,
-  );
-  const canFinish = canMarkEventFinished(event, currentUserId, club?.adminId);
-  const canCancel = canCancelEvent(event, currentUserId, club?.adminId);
+  const canEdit = canEditEvent(event, currentUserId, club);
+  const canRecordStats = canRecordEventStats(event, currentUserId, club);
+  const canFinish = canMarkEventFinished(event, currentUserId, club);
+  const canCancel = canCancelEvent(event, currentUserId, club);
   const hasEventStats = Object.keys(eventStats).length > 0;
+  const showShuffleUi = canShowShuffleButton(event);
+  const canRunShuffle =
+    (isJoined || canEdit) && showShuffleUi && !hasEventStats;
 
   const handleShuffle = async () => {
     setShuffling(true);
+    setShuffleError(null);
     try {
       await shuffleTeams(event.id, playersPerGame);
       await triggerShuffleHaptic();
       setReshuffleModalVisible(false);
     } catch (error) {
-      handleSubscriptionError(error);
+      if (!handleSubscriptionError(error)) {
+        setShuffleError(
+          error instanceof Error
+            ? error.message
+            : "Could not shuffle teams.",
+        );
+      }
     } finally {
       setShuffling(false);
     }
@@ -195,6 +204,29 @@ export default function EventDetailScreen() {
       return;
     }
     void handleShuffle();
+  };
+
+  const handleInvitePlayers = async (memberIds: string[]) => {
+    setInviting(true);
+    setInviteError(null);
+    try {
+      const result = await invitePlayersToEvent(event.id, memberIds);
+      if (result.skipped.length > 0 && result.addedIds.length > 0) {
+        setInviteError(
+          `Added ${result.addedIds.length}. ${result.skipped.length} could not be added.`,
+        );
+      }
+    } catch (error) {
+      if (!handleSubscriptionError(error)) {
+        setInviteError(
+          error instanceof Error
+            ? error.message
+            : "Could not add players to this game.",
+        );
+      }
+    } finally {
+      setInviting(false);
+    }
   };
 
   const handleLeaveGame = async () => {
@@ -378,7 +410,7 @@ export default function EventDetailScreen() {
           </Text>
         )}
 
-        {isJoined && !optionsLocked ? (
+        {(isJoined || canEdit) && !optionsLocked ? (
           <>
             <Text style={styles.sectionLabel}>Players per court</Text>
             <PlayersPerGamePicker
@@ -399,22 +431,37 @@ export default function EventDetailScreen() {
           </>
         ) : null}
 
-        {isJoined && shuffleReady && !optionsLocked ? (
-          <Button
-            title={
-              event.shuffled
-                ? `Re-shuffle into ${gameSizeLabel} courts`
-                : `Shuffle into ${gameSizeLabel} courts`
-            }
-            variant="secondary"
-            onPress={handleShufflePress}
-            icon={<Ionicons name="shuffle" size={18} color={colors.text} />}
-            style={styles.action}
-          />
-        ) : isJoined && !shuffleReady && !optionsLocked ? (
+        {canRunShuffle && !optionsLocked ? (
+          <>
+            <Button
+              title={
+                event.shuffled
+                  ? `Re-shuffle into ${gameSizeLabel} courts`
+                  : `Shuffle into ${gameSizeLabel} courts`
+              }
+              variant="secondary"
+              onPress={handleShufflePress}
+              disabled={!shuffleReady || shuffling}
+              icon={<Ionicons name="shuffle" size={18} color={colors.text} />}
+              style={styles.action}
+            />
+            {!shuffleReady ? (
+              <Text style={styles.shuffleHint}>
+                Need at least {playersPerGame} players for {gameSizeLabel} (
+                {event.participantIds.length}/{playersPerGame}).
+              </Text>
+            ) : null}
+          </>
+        ) : null}
+
+        {shuffleError ? (
+          <Text style={styles.shuffleHint}>{shuffleError}</Text>
+        ) : null}
+
+        {hasEventStats && (isJoined || canEdit) && !optionsLocked ? (
           <Text style={styles.shuffleHint}>
-            Need at least {playersPerGame} players for {gameSizeLabel} (
-            {event.participantIds.length}/{playersPerGame}).
+            Re-shuffle is locked after scores are saved. You can still edit court
+            assignments below.
           </Text>
         ) : null}
 
@@ -486,10 +533,6 @@ export default function EventDetailScreen() {
             }
             style={styles.action}
           />
-        ) : canManageStats && !event.shuffled ? (
-          <Text style={styles.shuffleHint}>
-            Shuffle courts before opening the scorekeeper.
-          </Text>
         ) : null}
 
         {hasEventStats ? <EventGameStories event={event} club={club} /> : null}
@@ -578,6 +621,19 @@ export default function EventDetailScreen() {
               ))
             )}
           </>
+        ) : null}
+
+        {!optionsLocked ? (
+          <EventInviteSection
+            event={event}
+            club={club}
+            users={users}
+            clubBans={clubBans}
+            currentUserId={currentUserId}
+            inviting={inviting}
+            inviteError={inviteError}
+            onInvite={handleInvitePlayers}
+          />
         ) : null}
 
         {courtGames.length === 0 ? (
