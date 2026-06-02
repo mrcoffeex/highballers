@@ -30,7 +30,13 @@ import {
 } from "../../../../lib/supabaseSync";
 import { getRemoteCache, setRemoteCache } from "../../../../lib/remoteCache";
 import { formatSyncError } from "../../../../lib/syncErrors";
-import { colors, radius, spacing, typography } from "../../../../lib/theme";
+import {
+  colors,
+  getScreenGradient,
+  radius,
+  spacing,
+  typography,
+} from "../../../../lib/theme";
 import { useTabBarPadding } from "../../../../lib/tabBar";
 import { useRefreshControl } from "../../../../lib/useRefreshControl";
 import { isClubCaptain, MAX_SUB_CAPTAINS } from "../../../../lib/clubRoles";
@@ -429,7 +435,7 @@ export default function ClubMembersScreen() {
 
     return (
       <LinearGradient
-        colors={[colors.background, "#0F1520"]}
+        colors={getScreenGradient(colors)}
         style={styles.centered}
       >
         <EmptyState
@@ -448,7 +454,7 @@ export default function ClubMembersScreen() {
   }
 
   return (
-    <LinearGradient colors={[colors.background, "#0F1520"]} style={styles.flex}>
+    <LinearGradient colors={getScreenGradient(colors)} style={styles.flex}>
       {loading && members.length === 0 ? (
         <ScrollView
           style={styles.flex}

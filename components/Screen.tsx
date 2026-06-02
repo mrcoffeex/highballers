@@ -9,8 +9,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
 import { useRefreshControl } from "../lib/useRefreshControl";
-import { colors, spacing, typography } from "../lib/theme";
+import { spacing, typography, type ThemeColors } from "../lib/theme";
 import { useTabBarPadding } from "../lib/tabBar";
 
 interface ScreenProps extends ScrollViewProps {
@@ -39,6 +40,8 @@ export function Screen({
   ...props
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const bottomPadding = useTabBarPadding(spacing.lg);
   const { refreshControl: defaultRefreshControl } = useRefreshControl(
     onRefreshExtra,
@@ -73,7 +76,7 @@ export function Screen({
   if (!scroll) {
     return (
       <LinearGradient
-        colors={[colors.background, "#0F1520"]}
+        colors={[colors.background, colors.screenGradientEnd]}
         style={containerStyle}
       >
         {content}
@@ -82,7 +85,10 @@ export function Screen({
   }
 
   return (
-    <LinearGradient colors={[colors.background, "#0F1520"]} style={styles.flex}>
+    <LinearGradient
+      colors={[colors.background, colors.screenGradientEnd]}
+      style={styles.flex}
+    >
       <ScrollView
         style={[styles.flex, styles.scroll]}
         contentContainerStyle={[
@@ -103,33 +109,35 @@ export function Screen({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  scroll: {
-    backgroundColor: "transparent",
-  },
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: spacing.lg,
-    gap: spacing.md,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    ...typography.title,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    scroll: {
+      backgroundColor: "transparent",
+    },
+    container: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      marginBottom: spacing.lg,
+      gap: spacing.md,
+    },
+    headerText: {
+      flex: 1,
+    },
+    title: {
+      ...typography.title,
+      color: colors.text,
+    },
+    subtitle: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginTop: spacing.xs,
+    },
+  });
+}

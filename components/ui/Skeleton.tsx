@@ -9,7 +9,12 @@ import {
   ViewStyle,
 } from "react-native";
 
-import { colors, radius, spacing } from "../../lib/theme";
+import { useThemedStyles } from "../../lib/ThemeProvider";
+import { radius, spacing, type ThemeColors } from "../../lib/theme";
+
+function useStyles() {
+  return useThemedStyles(createStyles);
+}
 
 interface SkeletonProps {
   width?: number | `${number}%`;
@@ -26,6 +31,7 @@ export function Skeleton({
   borderRadius = radius.sm,
   style,
 }: SkeletonProps) {
+  const styles = useStyles();
   const opacity = useRef(new Animated.Value(0.35)).current;
 
   useEffect(() => {
@@ -98,13 +104,17 @@ export function SkeletonButtonLabel({
   return <Skeleton width={width} height={14} borderRadius={radius.sm} />;
 }
 
-function cardShell(style?: ViewStyle) {
+function cardShell(
+  styles: ReturnType<typeof createStyles>,
+  style?: ViewStyle,
+) {
   return [styles.cardShell, style];
 }
 
 export function ChatListItemSkeleton() {
+  const styles = useStyles();
   return (
-    <View style={cardShell(styles.chatItem)}>
+    <View style={cardShell(styles, styles.chatItem)}>
       <SkeletonCircle size={48} />
       <View style={styles.chatContent}>
         <View style={styles.chatTopRow}>
@@ -120,6 +130,7 @@ export function ChatListItemSkeleton() {
 }
 
 export function ChatListSkeleton({ count = 5 }: { count?: number }) {
+  const styles = useStyles();
   return (
     <View style={styles.listGap}>
       {Array.from({ length: count }, (_, index) => (
@@ -129,7 +140,13 @@ export function ChatListSkeleton({ count = 5 }: { count?: number }) {
   );
 }
 
-function ChatBubbleSkeleton({ align }: { align: "left" | "right" }) {
+function ChatBubbleSkeleton({
+  align,
+  styles,
+}: {
+  align: "left" | "right";
+  styles: ReturnType<typeof createStyles>;
+}) {
   const isLeft = align === "left";
 
   return (
@@ -162,6 +179,7 @@ function ChatBubbleSkeleton({ align }: { align: "left" | "right" }) {
 }
 
 export function ChatThreadSkeleton({ count = 6 }: { count?: number }) {
+  const styles = useStyles();
   const pattern: Array<"left" | "right"> = [
     "left",
     "right",
@@ -177,6 +195,7 @@ export function ChatThreadSkeleton({ count = 6 }: { count?: number }) {
         <ChatBubbleSkeleton
           key={index}
           align={pattern[index % pattern.length]}
+          styles={styles}
         />
       ))}
     </View>
@@ -184,8 +203,9 @@ export function ChatThreadSkeleton({ count = 6 }: { count?: number }) {
 }
 
 export function MemberRowSkeleton() {
+  const styles = useStyles();
   return (
-    <View style={cardShell(styles.memberRow)}>
+    <View style={cardShell(styles, styles.memberRow)}>
       <SkeletonCircle size={40} />
       <View style={styles.memberLines}>
         <Skeleton width="45%" height={14} />
@@ -197,6 +217,7 @@ export function MemberRowSkeleton() {
 }
 
 export function MemberListSkeleton({ count = 6 }: { count?: number }) {
+  const styles = useStyles();
   return (
     <View style={styles.listGap}>
       {Array.from({ length: count }, (_, index) => (
@@ -207,6 +228,7 @@ export function MemberListSkeleton({ count = 6 }: { count?: number }) {
 }
 
 export function LoadMoreSkeleton({ rows = 2 }: { rows?: number }) {
+  const styles = useStyles();
   return (
     <View style={styles.loadMoreWrap}>
       {Array.from({ length: rows }, (_, index) => (
@@ -217,8 +239,9 @@ export function LoadMoreSkeleton({ rows = 2 }: { rows?: number }) {
 }
 
 export function ClubCardSkeleton() {
+  const styles = useStyles();
   return (
-    <View style={cardShell(styles.clubCard)}>
+    <View style={cardShell(styles, styles.clubCard)}>
       <View style={styles.clubHeader}>
         <SkeletonCircle size={48} />
         <View style={styles.flex}>
@@ -235,6 +258,7 @@ export function ClubCardSkeleton() {
 }
 
 export function ClubsListSkeleton({ count = 4 }: { count?: number }) {
+  const styles = useStyles();
   return (
     <View style={styles.listGap}>
       {Array.from({ length: count }, (_, index) => (
@@ -245,8 +269,9 @@ export function ClubsListSkeleton({ count = 4 }: { count?: number }) {
 }
 
 export function EventCardSkeleton() {
+  const styles = useStyles();
   return (
-    <View style={cardShell(styles.eventCard)}>
+    <View style={cardShell(styles, styles.eventCard)}>
       <View style={styles.eventTopRow}>
         <Skeleton width={56} height={56} borderRadius={radius.md} />
         <View style={styles.flex}>
@@ -264,6 +289,7 @@ export function EventCardSkeleton() {
 }
 
 export function EventListSkeleton({ count = 3 }: { count?: number }) {
+  const styles = useStyles();
   return (
     <View style={styles.listGap}>
       {Array.from({ length: count }, (_, index) => (
@@ -274,8 +300,9 @@ export function EventListSkeleton({ count = 3 }: { count?: number }) {
 }
 
 export function LeaderboardRowSkeleton() {
+  const styles = useStyles();
   return (
-    <View style={cardShell(styles.leaderboardRow)}>
+    <View style={cardShell(styles, styles.leaderboardRow)}>
       <SkeletonCircle size={32} />
       <SkeletonCircle size={42} />
       <View style={styles.flex}>
@@ -291,6 +318,7 @@ export function LeaderboardRowSkeleton() {
 }
 
 export function LeaderboardListSkeleton({ count = 8 }: { count?: number }) {
+  const styles = useStyles();
   return (
     <View style={styles.listGap}>
       {Array.from({ length: count }, (_, index) => (
@@ -301,25 +329,36 @@ export function LeaderboardListSkeleton({ count = 8 }: { count?: number }) {
 }
 
 export function ProfileScreenSkeleton() {
+  const styles = useStyles();
   return (
     <ScrollView
       style={styles.flex}
       contentContainerStyle={styles.profileContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={cardShell(styles.profileHero)}>
+      <View style={cardShell(styles, styles.profileHero)}>
         <SkeletonCircle size={84} />
-        <View style={styles.flex}>
-          <Skeleton width="55%" height={20} />
-          <Skeleton width="40%" height={12} style={styles.lineGap} />
-          <Skeleton
-            width={72}
-            height={22}
-            borderRadius={radius.full}
-            style={styles.sectionGap}
-          />
+        <Skeleton width={64} height={28} borderRadius={radius.full} />
+        <Skeleton width="70%" height={22} />
+        <Skeleton width="45%" height={12} style={styles.lineGap} />
+        <View style={styles.profileTagRow}>
+          <Skeleton width={88} height={28} borderRadius={radius.full} />
+          <Skeleton width={96} height={28} borderRadius={radius.full} />
         </View>
-        <SkeletonCircle size={58} />
+        <View style={styles.profileMetaGrid}>
+          {Array.from({ length: 4 }, (_, index) => (
+            <Skeleton
+              key={index}
+              width="48%"
+              height={36}
+              borderRadius={radius.md}
+            />
+          ))}
+        </View>
+        <View style={styles.gridRow}>
+          <Skeleton width="48%" height={40} borderRadius={radius.md} />
+          <Skeleton width="48%" height={40} borderRadius={radius.md} />
+        </View>
       </View>
       <Skeleton width="35%" height={14} style={styles.sectionGap} />
       <View style={styles.statGrid}>
@@ -337,13 +376,14 @@ export function ProfileScreenSkeleton() {
 }
 
 export function ClubDetailSkeleton() {
+  const styles = useStyles();
   return (
     <ScrollView
       style={styles.flex}
       contentContainerStyle={styles.screenContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={cardShell(styles.clubHero)}>
+      <View style={cardShell(styles, styles.clubHero)}>
         <SkeletonCircle size={72} />
         <View style={styles.flex}>
           <Skeleton width="58%" height={22} />
@@ -360,13 +400,14 @@ export function ClubDetailSkeleton() {
 }
 
 export function EventDetailSkeleton() {
+  const styles = useStyles();
   return (
     <ScrollView
       style={styles.flex}
       contentContainerStyle={styles.screenContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={cardShell(styles.eventHero)}>
+      <View style={cardShell(styles, styles.eventHero)}>
         <Skeleton width="70%" height={24} />
         <Skeleton width="45%" height={12} style={styles.lineGap} />
         <Skeleton
@@ -387,6 +428,7 @@ export function EventDetailSkeleton() {
 }
 
 export function FormScreenSkeleton({ fields = 5 }: { fields?: number }) {
+  const styles = useStyles();
   return (
     <ScrollView
       style={styles.flex}
@@ -421,6 +463,7 @@ export function FormScreenSkeleton({ fields = 5 }: { fields?: number }) {
 }
 
 export function ScorekeeperSkeleton() {
+  const styles = useStyles();
   return (
     <ScrollView
       style={styles.flex}
@@ -437,7 +480,7 @@ export function ScorekeeperSkeleton() {
           />
         ))}
       </View>
-      <View style={cardShell(styles.scoreGrid)}>
+      <View style={cardShell(styles, styles.scoreGrid)}>
         <Skeleton width="100%" height={72} borderRadius={radius.lg} />
         <View style={styles.gridRow}>
           <Skeleton width="48%" height={64} borderRadius={radius.md} />
@@ -459,6 +502,7 @@ export function ScorekeeperSkeleton() {
 }
 
 export function LocationResultsSkeleton({ count = 3 }: { count?: number }) {
+  const styles = useStyles();
   return (
     <View style={styles.locationResults}>
       {Array.from({ length: count }, (_, index) => (
@@ -475,6 +519,7 @@ export function LocationResultsSkeleton({ count = 3 }: { count?: number }) {
 }
 
 export function LocationPickerSkeleton() {
+  const styles = useStyles();
   return (
     <View style={styles.listGap}>
       <Skeleton width="100%" height={48} borderRadius={radius.md} />
@@ -485,13 +530,14 @@ export function LocationPickerSkeleton() {
 }
 
 export function HomeScreenSkeleton() {
+  const styles = useStyles();
   return (
     <ScrollView
       style={styles.flex}
       contentContainerStyle={styles.screenContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={cardShell(styles.homeHero)}>
+      <View style={cardShell(styles, styles.homeHero)}>
         <View style={styles.flex}>
           <Skeleton width="42%" height={12} />
           <Skeleton width="58%" height={24} style={styles.lineGap} />
@@ -508,6 +554,7 @@ export function HomeScreenSkeleton() {
 }
 
 export function AppBootstrapSkeleton() {
+  const styles = useStyles();
   return (
     <View style={styles.bootstrap}>
       <Image
@@ -526,7 +573,8 @@ export function AppBootstrapSkeleton() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   block: {
     backgroundColor: colors.surfaceContainerHighest,
   },
@@ -658,10 +706,21 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   profileHero: {
-    flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
     marginBottom: spacing.lg,
+  },
+  profileTagRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "center",
+  },
+  profileMetaGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    width: "100%",
+    justifyContent: "space-between",
   },
   statGrid: {
     flexDirection: "row",
@@ -755,4 +814,5 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.xl,
   },
-});
+  });
+}

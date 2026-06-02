@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "@/lib/expoRouter";
@@ -6,7 +7,6 @@ import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,43 +15,52 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuthLegalFooter } from "../components/AuthLegalFooter";
-import { LegalConsent } from "../components/LegalConsent";
 import { Button, Input } from "../components/ui";
 import { getAppDisplayName } from "../lib/clubInvite";
-import { setAcceptedLegalVersion } from "../lib/legalAcceptance";
 import {
-  buildOAuthTimeoutMessage,
   getOAuthRedirectUri,
   getOAuthRedirectUriHints,
 } from "../lib/googleAuth";
 import { isSupabaseEnabled } from "../lib/config";
+import { normalizeEmailOtpCode, EMAIL_OTP_LENGTH } from "../lib/emailOtpCode";
 import { validateSupabaseConnection } from "../lib/validateSupabase";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  getAuthGradient,
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 import { useAppStore } from "../store/useAppStore";
+
+type EmailOtpStep = "closed" | "email" | "otp";
 
 export default function AuthScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const signIn = useAppStore((state) => state.signIn);
-  const signUp = useAppStore((state) => state.signUp);
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const signInWithGoogle = useAppStore((state) => state.signInWithGoogle);
+  const sendEmailOtp = useAppStore((state) => state.sendEmailOtp);
+  const verifyEmailOtp = useAppStore((state) => state.verifyEmailOtp);
   const finishOAuthSignIn = useAppStore((state) => state.finishOAuthSignIn);
+  const session = useAppStore((state) => state.session);
+  const authChecked = useAppStore((state) => state.authChecked);
+  const authReady = useAppStore((state) => state.authReady);
   const syncSessionFromSupabase = useAppStore(
     (state) => state.syncSessionFromSupabase,
   );
 
-  const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
+  const [emailOtpStep, setEmailOtpStep] = useState<EmailOtpStep>("closed");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
-  const [legalAccepted, setLegalAccepted] = useState(false);
-  const [legalError, setLegalError] = useState<string | null>(null);
-
-  const requiresLegalConsent = mode === "signUp";
 
   useEffect(() => {
     if (!isSupabaseEnabled) return;
@@ -61,55 +70,13 @@ export default function AuthScreen() {
     });
   }, []);
 
-  const handleSubmit = async () => {
-    setError(null);
-    setInfo(null);
-    setLegalError(null);
-
-    if (requiresLegalConsent && !legalAccepted) {
-      setLegalError(
-        "You must accept the Terms & Conditions and Privacy Policy.",
-      );
-      return;
-    }
-
-    setLoading(true);
-
-    if (mode === "signIn") {
-      const message = await signIn(email.trim(), password);
-      setLoading(false);
-
-      if (message) {
-        setError(message);
-        return;
-      }
-
-      await syncSessionFromSupabase();
+  useEffect(() => {
+    if (authChecked && session && authReady) {
       router.replace("/");
-      return;
     }
+  }, [authChecked, authReady, router, session]);
 
-    const result = await signUp(email.trim(), password);
-    setLoading(false);
-
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-
-    if (requiresLegalConsent) {
-      await setAcceptedLegalVersion();
-    }
-
-    if (result.needsEmailConfirmation) {
-      setInfo(
-        "Check your email to confirm your account, then return to the app to sign in.",
-      );
-      setMode("signIn");
-      setPassword("");
-      return;
-    }
-
+  const completeSignIn = async () => {
     await syncSessionFromSupabase();
     router.replace("/");
   };
@@ -117,19 +84,9 @@ export default function AuthScreen() {
   const handleGoogleSignIn = async () => {
     setError(null);
     setInfo(null);
-    setLegalError(null);
-
-    if (requiresLegalConsent && !legalAccepted) {
-      setLegalError(
-        "You must accept the Terms & Conditions and Privacy Policy.",
-      );
-      return;
-    }
-
+    setEmailOtpStep("closed");
     setGoogleLoading(true);
 
-    // Mount the callback route before opening the browser so deep links are handled
-    // if Android returns `dismiss` and only delivers the URL via Linking.
     if (Platform.OS !== "web") {
       router.push("/oauth-callback");
     }
@@ -137,23 +94,75 @@ export default function AuthScreen() {
     const message = await signInWithGoogle();
     if (message) {
       setGoogleLoading(false);
+      if (Platform.OS !== "web") {
+        router.replace("/auth");
+      }
       setError(message);
       return;
     }
 
-    // Web navigates away to Google; mobile completes inline below.
-    if (Platform.OS !== "web") {
-      const session = await finishOAuthSignIn();
-      setGoogleLoading(false);
-      if (requiresLegalConsent) {
-        await setAcceptedLegalVersion();
-      }
-      if (session) {
-        router.replace("/");
-        return;
-      }
-      setError(buildOAuthTimeoutMessage());
+    if (Platform.OS === "web") {
+      return;
     }
+
+    const session = await finishOAuthSignIn();
+    setGoogleLoading(false);
+    if (session) {
+      router.replace("/");
+    }
+  };
+
+  const handleSendOtp = async () => {
+    setError(null);
+    setInfo(null);
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError("Enter your email address.");
+      return;
+    }
+
+    setOtpLoading(true);
+    const message = await sendEmailOtp(trimmedEmail);
+    setOtpLoading(false);
+
+    if (message) {
+      setError(message);
+      return;
+    }
+
+    setOtpCode("");
+    setEmailOtpStep("otp");
+    setInfo(`Check your email for a ${EMAIL_OTP_LENGTH}-digit sign-in code.`);
+  };
+
+  const handleVerifyOtp = async () => {
+    setError(null);
+    setInfo(null);
+
+    const trimmedEmail = email.trim();
+    const trimmedCode = normalizeEmailOtpCode(otpCode);
+    if (!trimmedEmail || trimmedCode.length !== EMAIL_OTP_LENGTH) {
+      setError(`Enter the ${EMAIL_OTP_LENGTH}-digit code from your email.`);
+      return;
+    }
+
+    setOtpLoading(true);
+    const message = await verifyEmailOtp(trimmedEmail, trimmedCode);
+    setOtpLoading(false);
+
+    if (message) {
+      setError(message);
+      return;
+    }
+
+    await completeSignIn();
+  };
+
+  const openEmailOtp = () => {
+    setError(null);
+    setInfo(null);
+    setEmailOtpStep("email");
   };
 
   const continueOffline = () => {
@@ -162,7 +171,7 @@ export default function AuthScreen() {
 
   return (
     <LinearGradient
-      colors={["#0A0E14", "#141C28", "#0A0E14"]}
+      colors={getAuthGradient(colors)}
       style={styles.container}
     >
       <KeyboardAvoidingView
@@ -194,115 +203,107 @@ export default function AuthScreen() {
             </Text>
           </View>
 
-          <View style={styles.tabs}>
-            <Pressable
-              onPress={() => {
-                setMode("signIn");
-                setLegalError(null);
-              }}
-              style={[styles.tab, mode === "signIn" && styles.tabActive]}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  mode === "signIn" && styles.tabTextActive,
-                ]}
-              >
-                Sign In
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setMode("signUp");
-                setLegalError(null);
-              }}
-              style={[styles.tab, mode === "signUp" && styles.tabActive]}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  mode === "signUp" && styles.tabTextActive,
-                ]}
-              >
-                Sign Up
-              </Text>
-            </Pressable>
-          </View>
-
-          {requiresLegalConsent ? (
-            <LegalConsent
-              checked={legalAccepted}
-              onCheckedChange={(value) => {
-                setLegalAccepted(value);
-                if (value) setLegalError(null);
-              }}
-              error={legalError ?? undefined}
-            />
-          ) : null}
-
           {isSupabaseEnabled ? (
             <>
               <Button
                 title="Continue with Google"
                 onPress={handleGoogleSignIn}
                 loading={googleLoading}
-                disabled={
-                  loading ||
-                  !!configError ||
-                  (requiresLegalConsent && !legalAccepted)
-                }
+                disabled={googleLoading || otpLoading || !!configError}
                 variant="outline"
                 size="lg"
                 icon={
                   <Ionicons name="logo-google" size={20} color={colors.text} />
                 }
-                style={styles.googleBtn}
+                style={styles.authBtn}
               />
 
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or use email</Text>
-                <View style={styles.dividerLine} />
-              </View>
+              {emailOtpStep === "closed" ? (
+                <Button
+                  title="Continue with Email (OTP)"
+                  onPress={openEmailOtp}
+                  disabled={googleLoading || otpLoading || !!configError}
+                  variant="outline"
+                  size="lg"
+                  icon={
+                    <Ionicons name="mail-outline" size={20} color={colors.text} />
+                  }
+                  style={styles.authBtn}
+                />
+              ) : (
+                <View style={styles.emailOtpPanel}>
+                  <Text style={styles.emailOtpTitle}>Email sign-in code</Text>
+
+                  <Input
+                    placeholder="Email"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    editable={emailOtpStep === "email"}
+                    style={styles.field}
+                  />
+
+                  {emailOtpStep === "otp" ? (
+                    <Input
+                      placeholder="6-digit code"
+                      value={otpCode}
+                      onChangeText={(value) =>
+                        setOtpCode(normalizeEmailOtpCode(value))
+                      }
+                      autoCapitalize="none"
+                      autoComplete="one-time-code"
+                      textContentType="oneTimeCode"
+                      keyboardType="number-pad"
+                      maxLength={EMAIL_OTP_LENGTH}
+                      style={styles.field}
+                    />
+                  ) : null}
+
+                  <Button
+                    title={
+                      emailOtpStep === "otp" ? "Verify code" : "Send code"
+                    }
+                    onPress={
+                      emailOtpStep === "otp" ? handleVerifyOtp : handleSendOtp
+                    }
+                    loading={otpLoading}
+                    disabled={googleLoading || !!configError}
+                    size="lg"
+                    style={styles.emailOtpSubmit}
+                  />
+
+                  {emailOtpStep === "otp" ? (
+                    <Button
+                      title="Resend code"
+                      onPress={handleSendOtp}
+                      disabled={otpLoading || googleLoading}
+                      variant="ghost"
+                      size="sm"
+                    />
+                  ) : null}
+
+                  <Button
+                    title="Back"
+                    onPress={() => {
+                      setEmailOtpStep("closed");
+                      setError(null);
+                      setInfo(null);
+                    }}
+                    disabled={otpLoading || googleLoading}
+                    variant="ghost"
+                    size="sm"
+                  />
+                </View>
+              )}
             </>
           ) : null}
-
-          <Input
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            style={styles.field}
-          />
-          <Input
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            style={styles.field}
-          />
 
           {configError ? (
             <Text style={styles.configError}>{configError}</Text>
           ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {info ? <Text style={styles.info}>{info}</Text> : null}
-
-          <Button
-            title={mode === "signIn" ? "Sign In" : "Create Account"}
-            onPress={handleSubmit}
-            loading={loading}
-            disabled={
-              googleLoading ||
-              !!configError ||
-              !email.trim() ||
-              password.length < 6 ||
-              (requiresLegalConsent && !legalAccepted)
-            }
-            size="lg"
-            style={styles.submit}
-          />
 
           {!isSupabaseEnabled ? (
             <>
@@ -316,132 +317,98 @@ export default function AuthScreen() {
                 onPress={continueOffline}
               />
             </>
-          ) : __DEV__ ? (
-            <Text style={styles.note}>
-              Auth redirect (add in Supabase):{"\n"}
-              {getOAuthRedirectUri()}
-              {"\n\n"}
-              Also whitelist:{"\n"}
-              {getOAuthRedirectUriHints()
-                .filter((uri) => uri !== getOAuthRedirectUri())
-                .map((uri) => `• ${uri}`)
-                .join("\n")}
-            </Text>
           ) : null}
 
-          <AuthLegalFooter mode={mode} />
+          <AuthLegalFooter />
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  hero: {
-    alignItems: "center",
-    marginBottom: spacing.xl,
-  },
-  logo: {
-    width: 96,
-    height: 96,
-    marginBottom: spacing.md,
-  },
-  brand: {
-    ...typography.hero,
-    color: colors.text,
-  },
-  tagline: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginTop: spacing.sm,
-    textAlign: "center",
-  },
-  googleBtn: {
-    marginBottom: spacing.lg,
-  },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.cardBorder,
-  },
-  dividerText: {
-    ...typography.caption,
-    color: colors.textDim,
-  },
-  tabs: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    alignItems: "center",
-  },
-  tabActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}15`,
-  },
-  tabText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: "700",
-  },
-  tabTextActive: {
-    color: colors.primary,
-  },
-  field: {
-    marginBottom: spacing.sm,
-  },
-  error: {
-    ...typography.caption,
-    color: colors.error,
-    marginBottom: spacing.sm,
-  },
-  info: {
-    ...typography.caption,
-    color: colors.success,
-    marginBottom: spacing.sm,
-  },
-  configError: {
-    ...typography.body,
-    color: colors.error,
-    backgroundColor: `${colors.error}15`,
-    borderWidth: 1,
-    borderColor: `${colors.error}40`,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    textAlign: "center",
-  },
-  submit: {
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  note: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: "center",
-    marginBottom: spacing.md,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    flex: {
+      flex: 1,
+    },
+    content: {
+      flexGrow: 1,
+      paddingHorizontal: spacing.lg,
+    },
+    hero: {
+      alignItems: "center",
+      marginBottom: spacing.xl,
+    },
+    logo: {
+      width: 96,
+      height: 96,
+      marginBottom: spacing.md,
+    },
+    brand: {
+      ...typography.hero,
+      color: colors.text,
+    },
+    tagline: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginTop: spacing.sm,
+      textAlign: "center",
+      maxWidth: 320,
+    },
+    authBtn: {
+      marginBottom: spacing.md,
+    },
+    emailOtpPanel: {
+      marginBottom: spacing.md,
+      padding: spacing.md,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant,
+      backgroundColor: colors.surface,
+      gap: spacing.sm,
+    },
+    emailOtpTitle: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "700",
+      textAlign: "center",
+      marginBottom: spacing.xs,
+    },
+    field: {
+      marginBottom: spacing.xs,
+    },
+    emailOtpSubmit: {
+      marginTop: spacing.xs,
+    },
+    error: {
+      ...typography.caption,
+      color: colors.error,
+      marginBottom: spacing.sm,
+    },
+    info: {
+      ...typography.caption,
+      color: colors.success,
+      marginBottom: spacing.sm,
+    },
+    configError: {
+      ...typography.body,
+      color: colors.error,
+      backgroundColor: withAlpha(colors.error, 0.08),
+      borderWidth: 1,
+      borderColor: withAlpha(colors.error, 0.28),
+      borderRadius: radius.md,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+      textAlign: "center",
+    },
+    note: {
+      ...typography.caption,
+      color: colors.textDim,
+      textAlign: "center",
+      marginBottom: spacing.md,
+    },
+  });
+}

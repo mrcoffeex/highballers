@@ -8,6 +8,7 @@ import { useAppStore } from "../store/useAppStore";
 export default function Index() {
   const params = useGlobalSearchParams();
   const session = useAppStore((state) => state.session);
+  const authChecked = useAppStore((state) => state.authChecked);
   const authReady = useAppStore((state) => state.authReady);
   const onboardingComplete = useAppStore((state) => state.onboardingComplete);
 
@@ -23,6 +24,10 @@ export default function Index() {
     }
     const qs = query.toString();
     return <Redirect href={qs ? `/oauth-callback?${qs}` : "/oauth-callback"} />;
+  }
+
+  if (isSupabaseEnabled && !authChecked) {
+    return <AppSplashScreen message="Restoring your session…" />;
   }
 
   if (isSupabaseEnabled && !session) {

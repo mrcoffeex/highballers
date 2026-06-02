@@ -4,7 +4,7 @@ import { StyleSheet, View, ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTabBarPadding } from "../lib/tabBar";
-import { colors, spacing } from "../lib/theme";
+import { colors, getScreenGradient, spacing } from "../lib/theme";
 
 interface TabSkeletonShellProps {
   children: ReactNode;
@@ -21,7 +21,7 @@ export function TabSkeletonShell({
   const bottomPadding = useTabBarPadding(spacing.lg);
 
   return (
-    <LinearGradient colors={[colors.background, "#0F1520"]} style={styles.fill}>
+    <LinearGradient colors={getScreenGradient(colors)} style={styles.fill}>
       <View
         style={[
           styles.content,

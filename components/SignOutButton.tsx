@@ -8,7 +8,8 @@ import {
   View,
 } from "react-native";
 
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 import { ConfirmModal } from "./ConfirmModal";
 
 interface SignOutButtonProps {
@@ -16,6 +17,8 @@ interface SignOutButtonProps {
 }
 
 export function SignOutButton({ onSignOut }: SignOutButtonProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -77,51 +80,53 @@ export function SignOutButton({ onSignOut }: SignOutButtonProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.lg,
-    backgroundColor: `${colors.error}0D`,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: `${colors.error}33`,
-  },
-  cardPressed: {
-    backgroundColor: `${colors.error}18`,
-    borderColor: `${colors.error}55`,
-  },
-  cardDisabled: {
-    opacity: 0.85,
-  },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: `${colors.error}1A`,
-    borderWidth: 1,
-    borderColor: `${colors.error}33`,
-  },
-  copy: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  subtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 12,
-    textTransform: "none",
-    letterSpacing: 0,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      marginBottom: spacing.lg,
+      backgroundColor: `${colors.error}0D`,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: `${colors.error}33`,
+    },
+    cardPressed: {
+      backgroundColor: `${colors.error}18`,
+      borderColor: `${colors.error}55`,
+    },
+    cardDisabled: {
+      opacity: 0.85,
+    },
+    iconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.full,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${colors.error}1A`,
+      borderWidth: 1,
+      borderColor: `${colors.error}33`,
+    },
+    copy: {
+      flex: 1,
+      gap: 2,
+    },
+    title: {
+      ...typography.body,
+      color: colors.text,
+      fontWeight: "600",
+      fontSize: 16,
+    },
+    subtitle: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontSize: 12,
+      textTransform: "none",
+      letterSpacing: 0,
+    },
+  });
+}

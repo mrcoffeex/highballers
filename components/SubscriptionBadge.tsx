@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { getTierLabel } from "../lib/subscription";
 import { SubscriptionTier } from "../lib/types";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 
 interface SubscriptionBadgeProps {
   tier: SubscriptionTier;
@@ -19,6 +20,8 @@ export function SubscriptionBadge({
   prominent,
   onPress,
 }: SubscriptionBadgeProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const isPro = tier === "all_star";
   const label = getTierLabel(tier);
 
@@ -77,54 +80,56 @@ export function SubscriptionBadge({
   return <View style={badgeStyle}>{content}</View>;
 }
 
-const styles = StyleSheet.create({
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.full,
-    borderWidth: 1,
-  },
-  badgeCompact: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  badgeProminent: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    marginTop: spacing.sm,
-  },
-  badgeGradient: {
-    borderColor: `${colors.secondary}66`,
-  },
-  badgePressable: {
-    borderColor: `${colors.secondary}44`,
-    backgroundColor: `${colors.secondary}10`,
-  },
-  badgeBasic: {
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.surface,
-  },
-  badgePro: {
-    borderColor: `${colors.secondary}66`,
-    backgroundColor: `${colors.secondary}18`,
-  },
-  text: {
-    ...typography.label,
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  textCompact: {
-    fontSize: 10,
-  },
-  textProminent: {
-    fontSize: 12,
-  },
-  textPro: {
-    color: colors.secondary,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    badge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      alignSelf: "flex-start",
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: radius.full,
+      borderWidth: 1,
+    },
+    badgeCompact: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    badgeProminent: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: 7,
+      marginTop: 0,
+    },
+    badgeGradient: {
+      borderColor: `${colors.secondary}66`,
+    },
+    badgePressable: {
+      borderColor: `${colors.secondary}44`,
+      backgroundColor: `${colors.secondary}10`,
+    },
+    badgeBasic: {
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.surface,
+    },
+    badgePro: {
+      borderColor: `${colors.secondary}66`,
+      backgroundColor: `${colors.secondary}18`,
+    },
+    text: {
+      ...typography.label,
+      color: colors.textMuted,
+      fontSize: 11,
+      fontWeight: "700",
+    },
+    textCompact: {
+      fontSize: 10,
+    },
+    textProminent: {
+      fontSize: 12,
+    },
+    textPro: {
+      color: colors.secondary,
+    },
+  });
+}

@@ -2,7 +2,8 @@ import { Image } from "expo-image";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { getAppDisplayName } from "../lib/clubInvite";
-import { colors, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../lib/theme";
 
 interface AppSplashScreenProps {
   message?: string;
@@ -11,6 +12,9 @@ interface AppSplashScreenProps {
 export function AppSplashScreen({
   message = "Loading your greatness…",
 }: AppSplashScreenProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.container}>
       <Image
@@ -30,30 +34,32 @@ export function AppSplashScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.xl,
-  },
-  logo: {
-    width: 200,
-    height: 200,
-    marginBottom: spacing.lg,
-  },
-  title: {
-    ...typography.title,
-    color: colors.text,
-    letterSpacing: 1,
-    marginBottom: spacing.xl,
-  },
-  spinner: {
-    marginBottom: spacing.md,
-  },
-  message: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: spacing.xl,
+    },
+    logo: {
+      width: 200,
+      height: 200,
+      marginBottom: spacing.lg,
+    },
+    title: {
+      ...typography.title,
+      color: colors.text,
+      letterSpacing: 0.5,
+      marginBottom: spacing.xl,
+    },
+    spinner: {
+      marginBottom: spacing.md,
+    },
+    message: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+  });
+}

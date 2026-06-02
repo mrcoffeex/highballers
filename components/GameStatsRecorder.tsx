@@ -9,6 +9,7 @@ import {
   type ScrollViewProps,
 } from "react-native";
 
+import { useTheme } from "../lib/ThemeProvider";
 import { Avatar, Button } from "./ui";
 import { UNASSIGNED_ROSTER_LABEL } from "../lib/eventRoster";
 import { colors, radius, spacing, typography } from "../lib/theme";
@@ -140,6 +141,7 @@ export function GameStatsRecorder({
   refreshControl,
   onSave,
 }: GameStatsRecorderProps) {
+  const { colors: themeColors } = useTheme();
   const roster = useMemo(() => {
     if (teamA?.length && teamB?.length) {
       return [...teamA, ...teamB];
@@ -473,12 +475,19 @@ export function GameStatsRecorder({
                 ? `Save ${courtLabel}`
                 : "Save Box Score"
           }
+          variant={saved ? "tonal" : "primary"}
+          size="lg"
           loading={saving}
+          disabled={saving}
           onPress={() => {
             void onSave(draft);
           }}
           icon={
-            <Ionicons name="checkmark-done" size={18} color={colors.text} />
+            <Ionicons
+              name="checkmark-done"
+              size={18}
+              color={saved ? themeColors.success : themeColors.onPrimary}
+            />
           }
         />
       </View>

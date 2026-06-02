@@ -10,7 +10,8 @@ import {
 import { isIapSupportedEnvironment } from "@/lib/iapConfig";
 import { getAccountDeletionMailto, LEGAL_EMAIL } from "@/lib/legal";
 import { SubscriptionError } from "@/lib/subscription";
-import { colors, spacing, typography } from "@/lib/theme";
+import { useTheme, useThemedStyles } from "@/lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "@/lib/theme";
 import { useAppStore } from "@/store/useAppStore";
 
 interface LegalRowProps {
@@ -21,6 +22,9 @@ interface LegalRowProps {
 }
 
 function LegalRow({ icon, label, onPress, destructive }: LegalRowProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable style={styles.row} onPress={onPress}>
       <Ionicons
@@ -38,6 +42,7 @@ function LegalRow({ icon, label, onPress, destructive }: LegalRowProps) {
 
 export function LegalSettingsCard() {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
   const upgradeToAllStar = useAppStore((state) => state.upgradeToAllStar);
   const storeAvailable = isIapSupportedEnvironment();
 
@@ -138,39 +143,41 @@ export function LegalSettingsCard() {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    overflow: "hidden",
-    marginBottom: spacing.lg,
-  },
-  heading: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xs,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.cardBorder,
-  },
-  rowLabel: {
-    ...typography.body,
-    flex: 1,
-    color: colors.text,
-  },
-  destructive: {
-    color: colors.error,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      overflow: "hidden",
+      marginBottom: spacing.lg,
+    },
+    heading: {
+      ...typography.caption,
+      color: colors.textMuted,
+      textTransform: "uppercase",
+      letterSpacing: 0.8,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xs,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.cardBorder,
+    },
+    rowLabel: {
+      ...typography.body,
+      flex: 1,
+      color: colors.text,
+    },
+    destructive: {
+      color: colors.error,
+    },
+  });
+}

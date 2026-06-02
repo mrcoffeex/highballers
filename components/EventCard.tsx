@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { format } from "date-fns";
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../lib/theme";
 import { isPrivateEvent } from "../lib/eventAccess";
 import { getEventStatus } from "../lib/gameEvents";
 import { GameEvent } from "../lib/types";
@@ -21,6 +22,8 @@ export function EventCard({
   isJoined,
   onPress,
 }: EventCardProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const date = new Date(event.dateTime);
   const spotsLeft = event.maxPlayers - event.participantIds.length;
   const isFull = spotsLeft <= 0;
@@ -114,7 +117,8 @@ export function EventCard({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   card: {
     marginBottom: spacing.md,
   },
@@ -226,4 +230,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
   },
-});
+  });
+}

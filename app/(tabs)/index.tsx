@@ -12,7 +12,14 @@ import { Screen } from "../../components/Screen";
 import { Button, SectionHeader } from "../../components/ui";
 import { useUpgradePrompt } from "../../lib/useUpgradePrompt";
 import { calculatePlayerRating } from "../../lib/teamBalancer";
-import { colors, radius, spacing, typography } from "../../lib/theme";
+import { useTheme, useThemedStyles } from "../../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../../lib/theme";
 import {
   useCurrentUser,
   useIsAllStar,
@@ -23,6 +30,8 @@ import { useAppStore } from "../../store/useAppStore";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const user = useCurrentUser();
   const myClubs = useMyClubs();
   const upcomingEvents = useUpcomingEvents();
@@ -45,7 +54,7 @@ export default function HomeScreen() {
     <Fragment>
       <Screen>
         <LinearGradient
-          colors={[`${colors.primary}25`, "transparent"]}
+          colors={[withAlpha(colors.primary, 0.14), "transparent"]}
           style={styles.heroBanner}
         >
           <View style={styles.heroContent}>
@@ -165,11 +174,13 @@ export default function HomeScreen() {
             icon="add-circle"
             label="Create Club"
             onPress={() => router.push("/(tabs)/clubs/create")}
+            styles={styles}
           />
           <QuickAction
             icon="basketball"
             label="New Game"
             onPress={() => router.push("/event/create")}
+            styles={styles}
           />
         </View>
       </Screen>
@@ -190,11 +201,15 @@ function QuickAction({
   icon,
   label,
   onPress,
+  styles,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
+  styles: ReturnType<typeof createStyles>;
 }) {
+  const { colors } = useTheme();
+
   return (
     <Button
       title={label}
@@ -206,13 +221,14 @@ function QuickAction({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   heroBanner: {
     borderRadius: radius.xl,
     padding: spacing.lg,
     marginBottom: spacing.xl,
     borderWidth: 1,
-    borderColor: `${colors.primary}30`,
+    borderColor: withAlpha(colors.primary, 0.22),
   },
   heroContent: {
     flexDirection: "row",
@@ -246,7 +262,7 @@ const styles = StyleSheet.create({
   ratingValue: {
     fontSize: 24,
     fontWeight: "800",
-    color: colors.secondary,
+    color: colors.primary,
   },
   heroSub: {
     ...typography.caption,
@@ -282,4 +298,5 @@ const styles = StyleSheet.create({
   quickAction: {
     flex: 1,
   },
-});
+  });
+}

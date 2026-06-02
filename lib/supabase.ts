@@ -18,6 +18,9 @@ function registerAppStateAuthRefresh(supabase: SupabaseClient) {
   if (appStateRegistered || Platform.OS === "web") return;
 
   appStateRegistered = true;
+  if (AppState.currentState === "active") {
+    void supabase.auth.startAutoRefresh();
+  }
   AppState.addEventListener("change", (state) => {
     if (state === "active") {
       void supabase.auth.startAutoRefresh();
@@ -36,13 +39,17 @@ export function getSupabase(): SupabaseClient | null {
         ? { transport: WebSocket as typeof WebSocket }
         : undefined;
 
+    const isWeb = Platform.OS === "web";
+
     client = createClient(getSupabaseUrl(), getSupabasePublishableKey(), {
       auth: {
-        storage: AsyncStorage,
+        ...(isWeb ? {} : { storage: AsyncStorage }),
         autoRefreshToken: true,
         persistSession: true,
-        // OAuth is handled explicitly in lib/googleAuth (oauth-callback / WebBrowser).
-        detectSessionInUrl: false,
+        flowType: "pkce",
+        // Web: full-page Google redirect must recover PKCE state from localStorage.
+        // Native: oauth-callback / WebBrowser handle the return URL explicitly.
+        detectSessionInUrl: isWeb,
       },
       ...(realtime ? { realtime } : {}),
     });

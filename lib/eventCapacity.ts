@@ -5,8 +5,10 @@ import {
 import type { SubscriptionTier } from "./types";
 
 export const EVENT_MIN_PLAYERS = 10;
-export const ALL_STAR_MAX_EVENT_PLAYERS = 40;
-export const EVENT_MAX_PLAYER_PRESETS = [10, 20, 30, 40] as const;
+export const ALL_STAR_MAX_EVENT_PLAYERS = 100;
+export const EVENT_MAX_PLAYER_PRESETS = [
+  10, 20, 30, 40, 50, 60, 80, 100,
+] as const;
 
 export function getMaxEventPlayersForTier(tier: SubscriptionTier): number {
   return tier === "all_star" ? ALL_STAR_MAX_EVENT_PLAYERS : BASIC_MAX_EVENT_SIZE;
@@ -57,7 +59,7 @@ export function assertEventMaxPlayersAllowed(
   const cap = getMaxEventPlayersForTier(tier);
   if (maxPlayers > cap) {
     throw new SubscriptionError(
-      `Basic Ballers can schedule games up to ${cap} players. Upgrade to All-Star for larger runs.`,
+      `Max players cannot exceed ${cap} for your plan.`,
     );
   }
 }

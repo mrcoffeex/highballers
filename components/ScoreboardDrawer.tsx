@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.error,
   },
   buzzerBtnActive: {
-    backgroundColor: "#C62828",
+    backgroundColor: colors.error,
     transform: [{ scale: 0.98 }],
   },
   buzzerText: {

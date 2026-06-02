@@ -1,7 +1,8 @@
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, spacing } from "./theme";
+import { useTheme } from "./ThemeProvider";
+import { spacing } from "./theme";
 
 /** Icon + label area above the home-indicator safe area. */
 export const TAB_BAR_CONTENT_HEIGHT =
@@ -26,6 +27,7 @@ export function useTabBarPadding(extra = 16) {
 }
 
 export function useTabBarStyle() {
+  const { colors } = useTheme();
   const { bottomInset, height } = useTabBarInsets();
 
   return {

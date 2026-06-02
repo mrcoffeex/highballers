@@ -60,7 +60,7 @@ create table if not exists public.events (
   latitude double precision,
   longitude double precision,
   date_time timestamptz not null,
-  max_players int not null check (max_players between 10 and 40),
+  max_players int not null check (max_players between 10 and 100),
   players_per_game int check (
     players_per_game is null or (players_per_game >= 4 and players_per_game <= 20 and mod(players_per_game, 2) = 0)
   ),

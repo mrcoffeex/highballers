@@ -1,33 +1,29 @@
 import { useRouter } from "@/lib/expoRouter";
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing, typography } from "../lib/theme";
+import { useThemedStyles } from "@/lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../lib/theme";
 
-interface AuthLegalFooterProps {
-  mode?: "signIn" | "signUp";
-}
-
-export function AuthLegalFooter({ mode = "signIn" }: AuthLegalFooterProps) {
+export function AuthLegalFooter() {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.wrap}>
-      {mode === "signIn" ? (
-        <Text style={styles.notice}>
-          By signing in, you agree to our{" "}
-          <Text style={styles.link} onPress={() => router.push("/legal/terms")}>
-            Terms & Conditions
-          </Text>{" "}
-          and{" "}
-          <Text
-            style={styles.link}
-            onPress={() => router.push("/legal/privacy")}
-          >
-            Privacy Policy
-          </Text>
-          .
+      <Text style={styles.notice}>
+        By signing in, you agree to our{" "}
+        <Text style={styles.link} onPress={() => router.push("/legal/terms")}>
+          Terms & Conditions
+        </Text>{" "}
+        and{" "}
+        <Text
+          style={styles.link}
+          onPress={() => router.push("/legal/privacy")}
+        >
+          Privacy Policy
         </Text>
-      ) : null}
+        .
+      </Text>
       <Text style={styles.footer}>
         <Text style={styles.link} onPress={() => router.push("/legal/terms")}>
           Terms & Conditions
@@ -41,24 +37,26 @@ export function AuthLegalFooter({ mode = "signIn" }: AuthLegalFooterProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    marginTop: spacing.sm,
-    gap: spacing.xs,
-  },
-  notice: {
-    ...typography.caption,
-    color: colors.textDim,
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  footer: {
-    ...typography.caption,
-    color: colors.textDim,
-    textAlign: "center",
-  },
-  link: {
-    color: colors.accent,
-    textDecorationLine: "underline",
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    wrap: {
+      marginTop: spacing.sm,
+      gap: spacing.xs,
+    },
+    notice: {
+      ...typography.caption,
+      color: colors.textDim,
+      textAlign: "center",
+      lineHeight: 18,
+    },
+    footer: {
+      ...typography.caption,
+      color: colors.textDim,
+      textAlign: "center",
+    },
+    link: {
+      color: colors.accent,
+      textDecorationLine: "underline",
+    },
+  });
+}

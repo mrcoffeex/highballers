@@ -6,11 +6,13 @@ import { TabCacheWarmup } from "../../components/TabCacheWarmup";
 import { CreateTabSheet } from "../../components/CreateTabSheet";
 import { TabBarButton } from "../../components/TabBarButton";
 import { TabCreateButton } from "../../components/TabCreateButton";
+import { useTheme } from "../../lib/ThemeProvider";
 import { useTabBarStyle } from "../../lib/tabBar";
-import { colors, spacing } from "../../lib/theme";
+import { spacing } from "../../lib/theme";
 
 export default function TabLayout() {
   const tabBarStyle = useTabBarStyle();
+  const { colors } = useTheme();
   const [createOpen, setCreateOpen] = useState(false);
 
   return (

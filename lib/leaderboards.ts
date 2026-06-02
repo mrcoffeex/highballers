@@ -1,3 +1,15 @@
+import {
+  endOfDay,
+  endOfMonth,
+  endOfWeek,
+  endOfYear,
+  isWithinInterval,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  startOfYear,
+} from "date-fns";
+
 import { calculatePlayerRating } from "./teamBalancer";
 import {
   BOX_SCORE_LABELS,
@@ -11,6 +23,27 @@ import {
 export type StatLeaderboardField = keyof BoxScoreStats;
 
 export type LeaderboardCategory = "clubs" | "ovr" | StatLeaderboardField;
+
+export type LeaderboardPeriod = "day" | "week" | "month" | "year";
+
+export interface LeaderboardPeriodTab {
+  id: LeaderboardPeriod;
+  label: string;
+}
+
+export const LEADERBOARD_PERIOD_TABS: LeaderboardPeriodTab[] = [
+  { id: "day", label: "Daily" },
+  { id: "week", label: "Weekly" },
+  { id: "month", label: "Monthly" },
+  { id: "year", label: "Yearly" },
+];
+
+export const LEADERBOARD_PERIOD_LABELS: Record<LeaderboardPeriod, string> = {
+  day: "Today",
+  week: "This week",
+  month: "This month",
+  year: "This year",
+};
 
 export interface LeaderboardTab {
   id: LeaderboardCategory;
@@ -52,12 +85,65 @@ function assignRanks<T extends { rank: number }>(entries: T[]): T[] {
   return entries.map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
+function leaderboardPeriodRange(
+  period: LeaderboardPeriod,
+  now = new Date(),
+): { start: Date; end: Date } {
+  switch (period) {
+    case "day":
+      return { start: startOfDay(now), end: endOfDay(now) };
+    case "week":
+      return {
+        start: startOfWeek(now, { weekStartsOn: 1 }),
+        end: endOfWeek(now, { weekStartsOn: 1 }),
+      };
+    case "month":
+      return { start: startOfMonth(now), end: endOfMonth(now) };
+    case "year":
+      return { start: startOfYear(now), end: endOfYear(now) };
+  }
+}
+
+function statRecordDate(
+  record: GameStatRecord,
+  eventsById: Map<string, GameEvent>,
+): Date {
+  const event = eventsById.get(record.eventId);
+  return new Date(event?.dateTime ?? record.recordedAt);
+}
+
+export function filterStatRecordsByPeriod(
+  records: GameStatRecord[],
+  events: GameEvent[],
+  period: LeaderboardPeriod,
+  now = new Date(),
+): GameStatRecord[] {
+  const range = leaderboardPeriodRange(period, now);
+  const eventsById = new Map(events.map((event) => [event.id, event]));
+
+  return records.filter((record) =>
+    isWithinInterval(statRecordDate(record, eventsById), {
+      start: range.start,
+      end: range.end,
+    }),
+  );
+}
+
 export function buildClubLeaderboard(
   clubs: Club[],
   events: GameEvent[],
   gameStatRecords: GameStatRecord[],
+  period: LeaderboardPeriod,
   limit = 50,
+  now = new Date(),
 ): ClubLeaderboardEntry[] {
+  const filteredRecords = filterStatRecordsByPeriod(
+    gameStatRecords,
+    events,
+    period,
+    now,
+  );
+
   const eventsByClub = new Map<string, Set<string>>();
   for (const event of events) {
     const set = eventsByClub.get(event.clubId) ?? new Set<string>();
@@ -67,7 +153,7 @@ export function buildClubLeaderboard(
 
   const entries = clubs.map((club) => {
     const clubEventIds = eventsByClub.get(club.id) ?? new Set<string>();
-    const records = gameStatRecords.filter((record) =>
+    const records = filteredRecords.filter((record) =>
       clubEventIds.has(record.eventId),
     );
     const totalPoints = records.reduce(
@@ -95,18 +181,29 @@ export function buildClubLeaderboard(
       b.memberCount - a.memberCount,
   );
 
-  return assignRanks(entries.slice(0, limit));
+  return assignRanks(
+    entries.filter((entry) => entry.gamesPlayed > 0).slice(0, limit),
+  );
 }
 
 export function buildPlayerStatLeaderboard(
   users: UserProfile[],
   gameStatRecords: GameStatRecord[],
+  events: GameEvent[],
   field: StatLeaderboardField,
+  period: LeaderboardPeriod,
   limit = 50,
+  now = new Date(),
 ): PlayerLeaderboardEntry[] {
+  const filteredRecords = filterStatRecordsByPeriod(
+    gameStatRecords,
+    events,
+    period,
+    now,
+  );
   const totals = new Map<string, number>();
 
-  for (const record of gameStatRecords) {
+  for (const record of filteredRecords) {
     totals.set(
       record.userId,
       (totals.get(record.userId) ?? 0) + record.stats[field],
@@ -142,6 +239,41 @@ export function buildOvrLeaderboard(
     );
 
   return assignRanks(entries.slice(0, limit));
+}
+
+export function getLeaderboardListHeading(
+  category: LeaderboardCategory,
+  period: LeaderboardPeriod,
+): string {
+  const periodLabel = LEADERBOARD_PERIOD_LABELS[period].toLowerCase();
+
+  if (category === "clubs") {
+    return `Top clubs · ${periodLabel}`;
+  }
+
+  if (category === "ovr") {
+    return "Highest overall ratings";
+  }
+
+  const tab = LEADERBOARD_TABS.find((item) => item.id === category);
+  return `${LEADERBOARD_PERIOD_LABELS[period]} ${tab?.label ?? "stat"} leaders`;
+}
+
+export function getLeaderboardEmptyDescription(
+  category: LeaderboardCategory,
+  period: LeaderboardPeriod,
+): string {
+  const periodLabel = LEADERBOARD_PERIOD_LABELS[period].toLowerCase();
+
+  if (category === "clubs") {
+    return `No club activity recorded ${periodLabel}. Play games and log stats to appear here.`;
+  }
+
+  if (category === "ovr") {
+    return "Player ratings come from profile skill stats.";
+  }
+
+  return `No box scores recorded ${periodLabel}. Use the scorekeeper during games to populate stat leaders.`;
 }
 
 export function formatLeaderboardValue(

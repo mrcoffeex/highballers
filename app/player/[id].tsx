@@ -10,7 +10,14 @@ import { Avatar, Badge, Button, Card } from "../../components/ui";
 import { shouldShowEntitySkeleton } from "../../lib/entityLoading";
 import { calculatePlayerRating } from "../../lib/teamBalancer";
 import { buildPeriodSummary, filterGamesByPeriod } from "../../lib/playerStats";
-import { colors, radius, spacing, typography } from "../../lib/theme";
+import { useTheme, useThemedStyles } from "../../lib/ThemeProvider";
+import {
+  getScreenGradient,
+  radius,
+  spacing,
+  typography,
+  type ThemeColors,
+} from "../../lib/theme";
 import { POSITION_LABELS } from "../../lib/types";
 import {
   useCurrentUser,
@@ -28,6 +35,8 @@ function resolvePlayerId(id: string | string[] | undefined) {
 
 export default function PlayerProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string | string[] }>();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const playerId = resolvePlayerId(id);
   const router = useRouter();
   const currentUser = useCurrentUser();
@@ -83,7 +92,7 @@ export default function PlayerProfileScreen() {
       />
       <Screen contentContainerStyle={styles.content} refreshable={false}>
         <LinearGradient
-          colors={[colors.background, "#0F1520"]}
+          colors={getScreenGradient(colors)}
           style={styles.background}
         >
           <Card style={styles.heroCard}>
@@ -175,6 +184,9 @@ function MetaStat({
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.metaChip}>
       <Ionicons name={icon} size={13} color={colors.textDim} />
@@ -183,7 +195,8 @@ function MetaStat({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   content: {
     flexGrow: 1,
   },
@@ -248,6 +261,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     marginTop: 2,
+    marginBottom: 2,
   },
   bio: {
     ...typography.body,
@@ -266,15 +280,19 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radius.full,
+    paddingVertical: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.cardBorder,
+    width: "31%",
+    flexGrow: 1,
+    flexBasis: "30%",
   },
   metaChipText: {
     ...typography.caption,
     color: colors.textMuted,
     fontSize: 11,
+    flexShrink: 1,
   },
   editBtn: {
     marginTop: spacing.sm,
@@ -302,4 +320,5 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textMuted,
   },
-});
+  });
+}

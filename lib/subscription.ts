@@ -5,12 +5,12 @@ export const TIER_LABELS: Record<SubscriptionTier, string> = {
   all_star: "All-Star Baller",
 };
 
-/** @deprecated Use BASIC_MAX_OWNED_CLUBS — basic users may belong to at most 2 clubs (1 created + 1 joined). */
+/** @deprecated Use BASIC_MAX_OWNED_CLUBS + BASIC_MAX_JOINED_CLUBS. */
 export const BASIC_MAX_CLUBS = 1;
 export const BASIC_MAX_OWNED_CLUBS = 1;
-export const BASIC_MAX_JOINED_CLUBS = 1;
-export const BASIC_MAX_CLUB_MEMBERS = 20;
-export const BASIC_MAX_EVENT_SIZE = 20;
+export const BASIC_MAX_JOINED_CLUBS = 5;
+export const BASIC_MAX_CLUB_MEMBERS = 100;
+export const BASIC_MAX_EVENT_SIZE = 100;
 export const BASIC_MAX_GAME_HISTORY = 3;
 
 export type ProFeature =
@@ -140,7 +140,7 @@ export function canJoinClub(
   if (countJoinedClubs(clubs, userId) >= BASIC_MAX_JOINED_CLUBS) {
     return {
       ok: false,
-      reason: `Basic Ballers can join only ${BASIC_MAX_JOINED_CLUBS} other club. Leave a club or upgrade to All-Star.`,
+      reason: `Basic Ballers can join only ${BASIC_MAX_JOINED_CLUBS} other clubs. Leave a club or upgrade to All-Star.`,
     };
   }
 
@@ -188,7 +188,7 @@ export const ALL_STAR_FEATURES: Array<{ icon: string; label: string }> = [
   { icon: "people-outline", label: "Unlimited clubs & large crews" },
   { icon: "lock-closed-outline", label: "Create private clubs" },
   { icon: "stats-chart-outline", label: "Full game history" },
-  { icon: "basketball-outline", label: "Join large games (20+ cap)" },
+  { icon: "basketball-outline", label: "Join mega runs (100+ cap)" },
 ];
 
 export const ALL_STAR_TAGLINE = "Run your crew. Own game night.";
@@ -200,10 +200,10 @@ export const TIER_COMPARISON: Array<{
 }> = [
   {
     label: "Clubs",
-    basic: "Create 1 · join 1 other · 20 members",
+    basic: "Create 1 · join 5 others · 100 members",
     allStar: "Unlimited",
   },
-  { label: "Games", basic: "Create & join up to 20", allStar: "Join any size" },
+  { label: "Games", basic: "Create & join up to 100", allStar: "Join any size" },
   {
     label: "Organizer tools",
     basic: "Create · edit · finish · shuffle · courts",

@@ -11,7 +11,15 @@ import {
   ViewStyle,
 } from "react-native";
 
-import { colors, radius, shadows, spacing, typography } from "../../lib/theme";
+import { useTheme, useThemedStyles } from "../../lib/ThemeProvider";
+import {
+  radius,
+  shadows,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../../lib/theme";
 import { SkeletonButtonLabel } from "./Skeleton";
 
 interface ButtonProps extends PressableProps {
@@ -32,6 +40,7 @@ export function Button({
   style,
   ...props
 }: ButtonProps) {
+  const styles = useThemedStyles(createButtonStyles);
   const isDisabled = disabled || loading;
 
   return (
@@ -68,6 +77,9 @@ export function Button({
 }
 
 export function Input({ style, ...props }: TextInputProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createInputStyles);
+
   return (
     <TextInput
       placeholderTextColor={colors.textMuted}
@@ -84,6 +96,8 @@ interface CardProps {
 }
 
 export function Card({ children, style, onPress }: CardProps) {
+  const styles = useThemedStyles(createCardStyles);
+
   if (onPress) {
     return (
       <Pressable
@@ -107,15 +121,22 @@ interface BadgeProps {
   color?: string;
 }
 
-export function Badge({ label, color = colors.primary }: BadgeProps) {
+export function Badge({ label, color }: BadgeProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createBadgeStyles);
+  const badgeColor = color ?? colors.primary;
+
   return (
     <View
       style={[
         styles.badge,
-        { backgroundColor: `${color}24`, borderColor: `${color}66` },
+        {
+          backgroundColor: withAlpha(badgeColor, 0.14),
+          borderColor: withAlpha(badgeColor, 0.4),
+        },
       ]}
     >
-      <Text style={[styles.badgeText, { color }]}>{label}</Text>
+      <Text style={[styles.badgeText, { color: badgeColor }]}>{label}</Text>
     </View>
   );
 }
@@ -128,6 +149,7 @@ interface AvatarProps {
 }
 
 export function Avatar({ name, color, size = 48, imageUrl }: AvatarProps) {
+  const styles = useThemedStyles(createAvatarStyles);
   const initials = name
     .split(" ")
     .map((part) => part[0])
@@ -171,6 +193,8 @@ interface SectionHeaderProps {
 }
 
 export function SectionHeader({ title, subtitle, action }: SectionHeaderProps) {
+  const styles = useThemedStyles(createSectionHeaderStyles);
+
   return (
     <View style={styles.sectionHeader}>
       <View style={styles.sectionHeaderText}>
@@ -191,6 +215,8 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ icon, title, description }: EmptyStateProps) {
+  const styles = useThemedStyles(createEmptyStateStyles);
+
   return (
     <View style={styles.emptyState}>
       <View style={styles.emptyIcon}>{icon}</View>
@@ -200,157 +226,192 @@ export function EmptyState({ icon, title, description }: EmptyStateProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.full,
-    gap: spacing.sm,
-    minHeight: 40,
-    overflow: "hidden",
-  },
-  primary: {
-    backgroundColor: colors.primary,
-  },
-  secondary: {
-    backgroundColor: colors.tertiary,
-  },
-  tonal: {
-    backgroundColor: colors.primaryContainer,
-  },
-  outline: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: colors.outline,
-  },
-  ghost: {
-    backgroundColor: "transparent",
-  },
-  size_sm: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-  },
-  size_md: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 2,
-  },
-  size_lg: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-  },
-  pressed: {
-    opacity: 0.88,
-  },
-  disabled: {
-    opacity: 0.38,
-  },
-  text: {
-    ...typography.button,
-  },
-  text_primary: {
-    color: colors.onPrimary,
-  },
-  text_secondary: {
-    color: colors.onTertiary,
-  },
-  text_tonal: {
-    color: colors.onPrimaryContainer,
-  },
-  text_outline: {
-    color: colors.primary,
-  },
-  text_ghost: {
-    color: colors.primary,
-  },
-  textWithIcon: {
-    marginLeft: spacing.xs,
-  },
-  input: {
-    backgroundColor: colors.surfaceContainerHighest,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    color: colors.text,
-    fontSize: 16,
-  },
-  card: {
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    ...shadows.card,
-  },
-  cardPressed: {
-    backgroundColor: colors.surfaceContainerHigh,
-  },
-  badge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    alignSelf: "center",
-  },
-  badgeText: {
-    ...typography.label,
-    fontSize: 11,
-  },
-  avatar: {
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  avatarText: {
-    color: colors.text,
-    fontWeight: "700",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.md,
-  },
-  sectionHeaderText: {
-    flex: 1,
-  },
-  sectionTitle: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  sectionSubtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.lg,
-  },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.secondaryContainer,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.md,
-  },
-  emptyTitle: {
-    ...typography.heading,
-    color: colors.text,
-    marginBottom: spacing.sm,
-    textAlign: "center",
-  },
-  emptyDescription: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
-  },
-});
+function createButtonStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    base: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radius.md,
+      gap: spacing.sm,
+      minHeight: 48,
+      overflow: "hidden",
+    },
+    primary: {
+      backgroundColor: colors.primary,
+      ...shadows.level1,
+    },
+    secondary: {
+      backgroundColor: colors.tertiary,
+    },
+    tonal: {
+      backgroundColor: colors.primaryContainer,
+    },
+    outline: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant,
+    },
+    ghost: {
+      backgroundColor: "transparent",
+    },
+    size_sm: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs + 2,
+    },
+    size_md: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm + 2,
+    },
+    size_lg: {
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.md,
+    },
+    pressed: {
+      opacity: 0.88,
+    },
+    disabled: {
+      opacity: 0.38,
+    },
+    text: {
+      ...typography.button,
+    },
+    text_primary: {
+      color: colors.onPrimary,
+    },
+    text_secondary: {
+      color: colors.onTertiary,
+    },
+    text_tonal: {
+      color: colors.onPrimaryContainer,
+    },
+    text_outline: {
+      color: colors.primary,
+    },
+    text_ghost: {
+      color: colors.primary,
+    },
+    textWithIcon: {
+      marginLeft: spacing.xs,
+    },
+  });
+}
+
+function createInputStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    input: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      color: colors.text,
+      fontSize: 16,
+      minHeight: 48,
+    },
+  });
+}
+
+function createCardStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant,
+      ...shadows.card,
+    },
+    cardPressed: {
+      backgroundColor: colors.surfaceContainerLow,
+      borderColor: colors.borderAccent,
+    },
+  });
+}
+
+function createBadgeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    badge: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      alignSelf: "center",
+    },
+    badgeText: {
+      ...typography.label,
+      fontSize: 11,
+    },
+  });
+}
+
+function createAvatarStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    avatar: {
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.outlineVariant,
+    },
+    avatarText: {
+      color: colors.text,
+      fontWeight: "700",
+    },
+  });
+}
+
+function createSectionHeaderStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: spacing.md,
+    },
+    sectionHeaderText: {
+      flex: 1,
+    },
+    sectionTitle: {
+      ...typography.heading,
+      color: colors.text,
+    },
+    sectionSubtitle: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+  });
+}
+
+function createEmptyStateStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    emptyState: {
+      alignItems: "center",
+      paddingVertical: spacing.xxl,
+      paddingHorizontal: spacing.lg,
+    },
+    emptyIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: radius.lg,
+      backgroundColor: colors.primaryContainer,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: spacing.md,
+    },
+    emptyTitle: {
+      ...typography.heading,
+      color: colors.text,
+      marginBottom: spacing.sm,
+      textAlign: "center",
+    },
+    emptyDescription: {
+      ...typography.body,
+      color: colors.textMuted,
+      textAlign: "center",
+    },
+  });
+}
 
 export * from "./Skeleton";

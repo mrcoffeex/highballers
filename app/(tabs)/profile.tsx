@@ -6,6 +6,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { AllStarMemberCard } from "../../components/AllStarMemberCard";
 import { LegalSettingsCard } from "../../components/LegalSettingsCard";
+import { ThemeSettingsCard } from "../../components/ThemeSettingsCard";
 import { SignOutButton } from "../../components/SignOutButton";
 import { AllStarPromoCard } from "../../components/AllStarPromoCard";
 import { SubscriptionBadge } from "../../components/SubscriptionBadge";
@@ -19,7 +20,6 @@ import { useActivityStories } from "../../lib/useActivityStories";
 import { StatSlider } from "../../components/StatSlider";
 import {
   Avatar,
-  Badge,
   Button,
   Card,
   ProfileScreenSkeleton,
@@ -27,7 +27,8 @@ import {
 import { shouldShowEntitySkeleton } from "../../lib/entityLoading";
 import { isSupabaseEnabled } from "../../lib/config";
 import { calculatePlayerRating } from "../../lib/teamBalancer";
-import { colors, radius, spacing, typography } from "../../lib/theme";
+import { useTheme, useThemedStyles } from "../../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../../lib/theme";
 import { useUpgradePrompt } from "../../lib/useUpgradePrompt";
 import { POSITION_LABELS } from "../../lib/types";
 import {
@@ -41,6 +42,8 @@ import { useAppStore } from "../../store/useAppStore";
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const user = useCurrentUser();
   const tier = useSubscriptionTier();
   const isPro = useIsAllStar();
@@ -107,6 +110,7 @@ export default function ProfileScreen() {
             ) : (
               <Button title="Sign in" size="lg" onPress={() => void goToAuth()} />
             )}
+            <ThemeSettingsCard />
           </View>
         </Screen>
       );
@@ -128,7 +132,7 @@ export default function ProfileScreen() {
     <Fragment>
       <Screen>
         <LinearGradient
-          colors={[colors.background, "#0F1520"]}
+          colors={[colors.background, colors.screenGradientEnd]}
           style={styles.background}
         >
           <Card
@@ -141,8 +145,8 @@ export default function ProfileScreen() {
             <View style={styles.heroGlowSecondary} />
 
             <View style={styles.heroContent}>
-              <View style={styles.heroTop}>
-                <View style={styles.avatarWrap}>
+              <View style={styles.heroIdentity}>
+                <View style={styles.avatarStack}>
                   <View style={styles.avatarHalo}>
                     <Avatar
                       name={user.name}
@@ -151,27 +155,24 @@ export default function ProfileScreen() {
                       imageUrl={user.avatarUrl}
                     />
                   </View>
-                  <View style={styles.ovrRing}>
+                  <View style={styles.ovrPill}>
                     <Text style={styles.ovrLabel}>OVR</Text>
                     <Text style={styles.ovrValue}>{rating}</Text>
                   </View>
                 </View>
 
-                <View style={styles.heroInfo}>
-                  <View style={styles.profileEyebrow}>
-                    <Ionicons
-                      name="trophy-outline"
-                      size={13}
-                      color={colors.secondary}
-                    />
-                    <Text style={styles.profileEyebrowText}>Baller profile</Text>
-                  </View>
-                  <Text style={styles.name}>{user.name}</Text>
+                <View style={styles.nameBlock}>
+                  <Text style={styles.name} numberOfLines={2}>
+                    {user.name}
+                  </Text>
                   {user.nickname ? (
-                    <Text style={styles.nickname}>
+                    <Text style={styles.nickname} numberOfLines={1}>
                       &quot;{user.nickname}&quot;
                     </Text>
                   ) : null}
+                </View>
+
+                <View style={styles.tagRow}>
                   <View style={styles.positionPill}>
                     <Ionicons
                       name="basketball-outline"
@@ -194,37 +195,39 @@ export default function ProfileScreen() {
                 <MetaChip
                   icon="resize-outline"
                   label={`${user.stats.height} cm`}
+                  styles={styles}
                 />
                 <MetaChip
                   icon="barbell-outline"
                   label={`${user.stats.weight} kg`}
+                  styles={styles}
                 />
                 <MetaChip
                   icon="people-outline"
                   label={`${myClubs.length} club${myClubs.length !== 1 ? "s" : ""}`}
+                  styles={styles}
                 />
                 <MetaChip
                   icon="stats-chart-outline"
                   label={`${gameHistory.length} games`}
+                  styles={styles}
                 />
               </View>
 
               <View style={styles.heroActions}>
-                <Badge label={user.position} color={colors.secondary} />
-                <View style={styles.heroBtnRow}>
-                  <Button
-                    title="Edit Profile"
-                    size="sm"
-                    style={styles.heroPrimaryAction}
-                    onPress={() => router.push("/profile/edit")}
-                  />
-                  <Button
-                    title="Public"
-                    variant="outline"
-                    size="sm"
-                    onPress={() => router.push(`/player/${user.id}`)}
-                  />
-                </View>
+                <Button
+                  title="Edit Profile"
+                  size="sm"
+                  style={styles.heroActionBtn}
+                  onPress={() => router.push("/profile/edit")}
+                />
+                <Button
+                  title="View Public"
+                  variant="outline"
+                  size="sm"
+                  style={styles.heroActionBtn}
+                  onPress={() => router.push(`/player/${user.id}`)}
+                />
               </View>
             </View>
           </Card>
@@ -239,8 +242,12 @@ export default function ProfileScreen() {
             />
           )}
 
-          <SectionLabel title="Skill Radar" />
-          <Card style={styles.statsCard}>
+          <SectionLabel
+            title="Attributes"
+            subtitle="Skill radar & quick adjust"
+            styles={styles}
+          />
+          <Card style={styles.attributesCard}>
             {statItems.map((stat) => (
               <View key={stat.label} style={styles.statRow}>
                 <Text style={styles.statLabel}>{stat.label}</Text>
@@ -255,10 +262,9 @@ export default function ProfileScreen() {
                 <Text style={styles.statValue}>{stat.value}</Text>
               </View>
             ))}
-          </Card>
 
-          <SectionLabel title="Quick Adjust" />
-          <Card style={styles.sectionCard}>
+            <View style={styles.attributesDivider} />
+
             <StatSlider
               label="Shooting"
               value={user.stats.shooting}
@@ -274,6 +280,7 @@ export default function ProfileScreen() {
           <SectionLabel
             title="Performance"
             subtitle="Stats, trends & story shares"
+            styles={styles}
           />
           <PlayerStatsDashboard
             userId={user.id}
@@ -296,7 +303,12 @@ export default function ProfileScreen() {
           />
 
           <View style={styles.accountActions}>
-            <SectionLabel title="Account" subtitle="Legal, support & session" />
+            <SectionLabel
+              title="Account"
+              subtitle="Appearance, legal, support & session"
+              styles={styles}
+            />
+            <ThemeSettingsCard />
             <LegalSettingsCard />
 
             {isSupabaseEnabled ? (
@@ -332,9 +344,11 @@ export default function ProfileScreen() {
 function SectionLabel({
   title,
   subtitle,
+  styles,
 }: {
   title: string;
   subtitle?: string;
+  styles: ReturnType<typeof createStyles>;
 }) {
   return (
     <View style={styles.sectionHeader}>
@@ -347,10 +361,14 @@ function SectionLabel({
 function MetaChip({
   icon,
   label,
+  styles,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  styles: ReturnType<typeof createStyles>;
 }) {
+  const { colors } = useTheme();
+
   return (
     <View style={styles.metaChip}>
       <Ionicons name={icon} size={13} color={colors.textDim} />
@@ -359,7 +377,8 @@ function MetaChip({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   background: {
     marginHorizontal: -spacing.lg,
     marginTop: -spacing.lg,
@@ -372,7 +391,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     overflow: "hidden",
     position: "relative",
-    backgroundColor: "#111827",
+    backgroundColor: colors.heroCard,
     borderColor: `${colors.primary}33`,
   },
   heroCardPro: {
@@ -399,17 +418,15 @@ const styles = StyleSheet.create({
   heroContent: {
     position: "relative",
     zIndex: 1,
+    gap: spacing.lg,
   },
-  heroTop: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  avatarWrap: {
+  heroIdentity: {
     alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    paddingRight: spacing.xs,
+    gap: spacing.md,
+  },
+  avatarStack: {
+    alignItems: "center",
+    gap: spacing.sm,
   },
   avatarHalo: {
     padding: 4,
@@ -418,18 +435,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: `${colors.primary}44`,
   },
-  ovrRing: {
-    position: "absolute",
-    bottom: -6,
-    right: -2,
+  ovrPill: {
     alignItems: "center",
-    backgroundColor: "#0C111B",
+    backgroundColor: colors.heroOvrPill,
     borderRadius: radius.full,
     borderWidth: 2,
     borderColor: colors.secondary,
-    paddingHorizontal: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
     paddingVertical: 5,
-    minWidth: 58,
+    minWidth: 64,
   },
   ovrLabel: {
     ...typography.label,
@@ -442,48 +456,37 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 20,
   },
-  heroInfo: {
-    flex: 1,
-    justifyContent: "center",
-    minWidth: 0,
-  },
-  profileEyebrow: {
-    flexDirection: "row",
+  nameBlock: {
     alignItems: "center",
-    alignSelf: "flex-start",
-    gap: spacing.xs,
+    width: "100%",
     paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    borderRadius: radius.full,
-    backgroundColor: `${colors.secondary}14`,
-    borderWidth: 1,
-    borderColor: `${colors.secondary}33`,
-    marginBottom: spacing.sm,
-  },
-  profileEyebrowText: {
-    ...typography.label,
-    color: colors.secondary,
-    fontSize: 10,
   },
   name: {
     ...typography.title,
     color: colors.text,
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 26,
+    lineHeight: 30,
+    textAlign: "center",
   },
   nickname: {
     ...typography.caption,
     color: colors.textMuted,
     fontStyle: "italic",
-    marginTop: 2,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  tagRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    width: "100%",
   },
   positionPill: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
     gap: spacing.xs,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
     borderRadius: radius.full,
@@ -500,7 +503,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm,
-    marginBottom: spacing.md,
   },
   metaChip: {
     flexDirection: "row",
@@ -508,31 +510,27 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: `${colors.surface}CC`,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radius.full,
+    paddingVertical: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.cardBorder,
+    width: "48%",
+    flexGrow: 1,
+    flexBasis: "46%",
   },
   metaChipText: {
     ...typography.caption,
     color: colors.textMuted,
     fontSize: 11,
+    flexShrink: 1,
   },
   heroActions: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  heroBtnRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    alignItems: "stretch",
     gap: spacing.sm,
-    flexShrink: 0,
   },
-  heroPrimaryAction: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  heroActionBtn: {
+    flex: 1,
   },
   sectionHeader: {
     marginBottom: spacing.sm,
@@ -550,8 +548,14 @@ const styles = StyleSheet.create({
   statsCard: {
     marginBottom: spacing.lg,
   },
-  sectionCard: {
+  attributesCard: {
     marginBottom: spacing.lg,
+    gap: spacing.xs,
+  },
+  attributesDivider: {
+    height: 1,
+    backgroundColor: colors.cardBorder,
+    marginVertical: spacing.md,
   },
   accountActions: {
     marginTop: spacing.sm,
@@ -609,4 +613,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: spacing.md,
   },
-});
+  });
+}

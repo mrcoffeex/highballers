@@ -58,7 +58,7 @@ export function EventMaxPlayersPicker({
   const handlePresetPress = (count: number) => {
     if (count > maxCap) {
       onRequireUpgrade(
-        `Games above ${maxCap} players are All-Star only. Upgrade to schedule larger runs.`,
+        `Max players cannot exceed ${maxCap}. Pick a lower preset or custom value.`,
       );
       return;
     }
@@ -69,9 +69,8 @@ export function EventMaxPlayersPicker({
   return (
     <View>
       <Text style={styles.hint}>
-        {tier === "all_star"
-          ? `Up to ${maxCap} players`
-          : `Basic: up to ${maxCap} players · All-Star unlocks 30–40`}
+        Choose {EVENT_MIN_PLAYERS}–{maxCap} players
+        {tier === "basic" ? " (Basic Baller limit)" : ""}
       </Text>
       <View style={styles.playerPicker}>
         {EVENT_MAX_PLAYER_PRESETS.map((count) => {

@@ -3,7 +3,8 @@ import { format } from "date-fns";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { GameWithEvent, gamePerformanceScore } from "../lib/playerStats";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 import { BOX_SCORE_FIELDS, BOX_SCORE_LABELS } from "../lib/types";
 
 interface PlayerActivityCardProps {
@@ -19,6 +20,8 @@ export function PlayerActivityCard({
   onPress,
   onShareStory,
 }: PlayerActivityCardProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const title = game.event?.title ?? "Pickup game";
   const when = game.event?.dateTime ?? game.recordedAt;
   const score = gamePerformanceScore(game.stats);
@@ -93,105 +96,107 @@ export function PlayerActivityCard({
   return <View style={styles.card}>{content}</View>;
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: `${colors.primary}22`,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: "700",
-  },
-  date: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  shareBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.full,
-    backgroundColor: `${colors.primary}18`,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: `${colors.primary}33`,
-  },
-  scoreWrap: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  scoreValue: {
-    ...typography.heading,
-    color: colors.secondary,
-    fontSize: 18,
-  },
-  scoreLabel: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 8,
-  },
-  statsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-  },
-  statPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.sm,
-  },
-  statPillHighlight: {
-    borderWidth: 1,
-    borderColor: `${colors.secondary}55`,
-    backgroundColor: `${colors.secondary}14`,
-  },
-  statKey: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 9,
-  },
-  statVal: {
-    ...typography.caption,
-    color: colors.text,
-    fontWeight: "700",
-    fontSize: 12,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    iconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.md,
+      backgroundColor: `${colors.primary}22`,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    title: {
+      ...typography.body,
+      color: colors.text,
+      fontWeight: "700",
+    },
+    date: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    headerActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    shareBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.full,
+      backgroundColor: `${colors.primary}18`,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: `${colors.primary}33`,
+    },
+    scoreWrap: {
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    scoreValue: {
+      ...typography.heading,
+      color: colors.secondary,
+      fontSize: 18,
+    },
+    scoreLabel: {
+      ...typography.label,
+      color: colors.textDim,
+      fontSize: 8,
+    },
+    statsRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.xs,
+    },
+    statPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      borderRadius: radius.sm,
+    },
+    statPillHighlight: {
+      borderWidth: 1,
+      borderColor: `${colors.secondary}55`,
+      backgroundColor: `${colors.secondary}14`,
+    },
+    statKey: {
+      ...typography.label,
+      color: colors.textDim,
+      fontSize: 9,
+    },
+    statVal: {
+      ...typography.caption,
+      color: colors.text,
+      fontWeight: "700",
+      fontSize: 12,
+    },
+  });
+}

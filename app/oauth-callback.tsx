@@ -16,6 +16,7 @@ import {
   urlHasOAuthPayload,
   waitForSupabaseSession,
 } from "../lib/googleAuth";
+import { getSupabase } from "../lib/supabase";
 import { colors, spacing, typography } from "../lib/theme";
 import { useAppStore } from "../store/useAppStore";
 
@@ -53,6 +54,19 @@ export default function OAuthCallbackScreen() {
     let cancelled = false;
     let timeout: ReturnType<typeof setTimeout> | null = null;
     let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let authSubscription: { unsubscribe: () => void } | null = null;
+
+    const tryExistingSession = async (): Promise<boolean> => {
+      if (Platform.OS === "web") {
+        await getSupabase()?.auth.getSession();
+      }
+
+      if (await waitForSupabaseSession(16, 250)) {
+        return completeSignIn();
+      }
+
+      return false;
+    };
 
     const finish = async (incomingUrl?: string | null) => {
       if (finishedRef.current || cancelled) return;
@@ -60,6 +74,7 @@ export default function OAuthCallbackScreen() {
       const currentParams = paramsRef.current;
 
       if (await completeSignIn()) return;
+      if (await tryExistingSession()) return;
 
       const href = await resolveOAuthCallbackHref({
         linkingUrl: incomingUrl ?? linkingUrlRef.current,
@@ -81,26 +96,25 @@ export default function OAuthCallbackScreen() {
       processingKeyRef.current = processingKey;
 
       try {
+        const supabase = getSupabase();
+        const { data: existingSession } =
+          (await supabase?.auth.getSession()) ?? {};
+        if (existingSession?.session) {
+          if (await completeSignIn()) return;
+        }
+
         const message = await createSessionFromUrl(href);
         if (message) {
           if (!cancelled) setError(message);
           return;
         }
 
-        const hasSession = await waitForSupabaseSession();
-        if (!hasSession) {
-          if (!cancelled) {
-            setError(
-              "Signed in but no session was created. Please try again.",
-            );
-          }
-          return;
+        if (await waitForSupabaseSession()) {
+          if (await completeSignIn()) return;
         }
 
-        if (!(await completeSignIn()) && !cancelled) {
-          setError(
-            "Signed in but no session was created. Please try again.",
-          );
+        if (!cancelled) {
+          setError("Signed in but no session was created. Please try again.");
         }
       } finally {
         if (processingKeyRef.current === processingKey) {
@@ -111,21 +125,27 @@ export default function OAuthCallbackScreen() {
 
     void finish();
 
-    if (Platform.OS !== "web") {
-      pollInterval = setInterval(() => {
-        void finish();
-      }, 500);
-    }
+    pollInterval = setInterval(() => {
+      void finish();
+    }, 500);
 
     timeout = setTimeout(() => {
       if (!finishedRef.current && !cancelled) {
         setError(buildOAuthTimeoutMessage());
       }
-    }, 20000);
+    }, 30000);
 
     const subscription = Linking.addEventListener("url", ({ url }) => {
       void finish(url);
     });
+
+    const supabase = getSupabase();
+    if (supabase) {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session) void completeSignIn();
+      });
+      authSubscription = data.subscription;
+    }
 
     let removeHashListener: (() => void) | undefined;
     if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -140,6 +160,7 @@ export default function OAuthCallbackScreen() {
       if (timeout) clearTimeout(timeout);
       if (pollInterval) clearInterval(pollInterval);
       subscription.remove();
+      authSubscription?.unsubscribe();
       removeHashListener?.();
     };
   }, [oauthParamsKey, linkingUrl]);
@@ -158,7 +179,7 @@ export default function OAuthCallbackScreen() {
           </Pressable>
         </>
       ) : (
-        <AppSplashScreen message="Finishing Google sign in…" />
+        <AppSplashScreen message="Finishing sign in…" />
       )}
     </View>
   );

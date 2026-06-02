@@ -9,7 +9,8 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import { colors, radius, shadows, spacing } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, shadows, spacing, type ThemeColors } from "../lib/theme";
 
 interface TabCreateButtonProps {
   onPressCreate: () => void;
@@ -20,6 +21,9 @@ export function TabCreateButton({
   onPressCreate,
   style,
 }: TabCreateButtonProps) {
+  const { colors, isDark } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   const handlePress = () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
@@ -36,30 +40,36 @@ export function TabCreateButton({
       onPress={handlePress}
       style={[styles.wrap, style]}
     >
-      <View style={styles.fab}>
-        <Ionicons name="add" size={30} color={colors.text} />
+      <View
+        style={[
+          styles.fab,
+          { borderColor: isDark ? colors.surface : colors.background },
+        ]}
+      >
+        <Ionicons name="add" size={30} color={colors.onPrimary} />
       </View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "flex-start",
-    paddingTop: spacing.xs,
-  },
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: -spacing.lg,
-    borderWidth: 3,
-    borderColor: colors.surface,
-    ...shadows.card,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    wrap: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "flex-start",
+      paddingTop: spacing.xs,
+    },
+    fab: {
+      width: 56,
+      height: 56,
+      borderRadius: radius.full,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: -spacing.lg,
+      borderWidth: 3,
+      ...shadows.card,
+    },
+  });
+}

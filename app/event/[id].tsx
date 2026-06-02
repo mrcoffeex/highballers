@@ -90,6 +90,8 @@ export default function EventDetailScreen() {
   const [reshuffleModalVisible, setReshuffleModalVisible] = useState(false);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [finishModalVisible, setFinishModalVisible] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [shuffleError, setShuffleError] = useState<string | null>(null);
@@ -257,6 +259,18 @@ export default function EventDetailScreen() {
       );
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleFinishGame = async () => {
+    setFinishing(true);
+    try {
+      await finishEvent(event.id);
+      setFinishModalVisible(false);
+    } catch (error) {
+      handleSubscriptionError(error);
+    } finally {
+      setFinishing(false);
     }
   };
 
@@ -541,13 +555,7 @@ export default function EventDetailScreen() {
           <Button
             title="Mark Game Finished"
             variant="outline"
-            onPress={async () => {
-              try {
-                await finishEvent(event.id);
-              } catch (error) {
-                handleSubscriptionError(error);
-              }
-            }}
+            onPress={() => setFinishModalVisible(true)}
             icon={
               <Ionicons
                 name="checkmark-circle-outline"
@@ -707,6 +715,21 @@ export default function EventDetailScreen() {
         }}
         onClose={() => {
           if (!cancelling) setCancelModalVisible(false);
+        }}
+      />
+
+      <ConfirmModal
+        visible={finishModalVisible}
+        title="Mark game finished?"
+        message="Join, shuffle, and stat entry will be closed for everyone. Results and box scores stay visible."
+        confirmLabel="Mark Finished"
+        cancelLabel="Keep Playing"
+        loading={finishing}
+        onConfirm={() => {
+          void handleFinishGame();
+        }}
+        onClose={() => {
+          if (!finishing) setFinishModalVisible(false);
         }}
       />
 

@@ -7,7 +7,8 @@ import {
   PROMO_FEATURE_PILLS,
   TIER_COMPARISON,
 } from "../lib/subscription";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 import { Button } from "./ui";
 
 interface AllStarPromoCardProps {
@@ -21,6 +22,9 @@ export function AllStarPromoCard({
   onPress,
   onCompare,
 }: AllStarPromoCardProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   if (variant === "banner") {
     return (
       <Pressable onPress={onPress} style={styles.bannerWrap}>
@@ -138,7 +142,8 @@ export function AllStarPromoCard({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   heroCard: {
     borderRadius: radius.lg,
     borderWidth: 1,
@@ -340,4 +345,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 1,
   },
-});
+  });
+}

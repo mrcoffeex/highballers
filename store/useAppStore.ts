@@ -14,6 +14,10 @@ import {
 import { isSupabaseEnabled } from "../lib/config";
 import { devStartAtLogin } from "../lib/devConfig";
 import {
+  sendEmailOtpCode,
+  verifyEmailOtpCode,
+} from "../lib/emailOtpAuth";
+import {
   cancelGameReminder,
   registerForPushNotifications,
   scheduleGameReminder,
@@ -112,6 +116,8 @@ import {
 
 interface AppState {
   hydrated: boolean;
+  /** True after the first Supabase getSession() on launch (avoids flashing /auth). */
+  authChecked: boolean;
   authReady: boolean;
   syncEnabled: boolean;
   session: Session | null;
@@ -132,6 +138,8 @@ interface AppState {
     password: string,
   ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signInWithGoogle: () => Promise<string | null>;
+  sendEmailOtp: (email: string) => Promise<string | null>;
+  verifyEmailOtp: (email: string, token: string) => Promise<string | null>;
   syncSessionFromSupabase: () => Promise<Session | null>;
   hydrateSessionUser: (userId: string) => Promise<void>;
   finishOAuthSignIn: () => Promise<Session | null>;
@@ -255,6 +263,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       hydrated: false,
+      authChecked: false,
       authReady: false,
       syncEnabled: isSupabaseEnabled,
       session: null,
@@ -276,24 +285,28 @@ export const useAppStore = create<AppState>()(
         }
 
         if (!isSupabaseEnabled) {
-          set({ authReady: true });
+          set({ authChecked: true, authReady: true });
           return;
         }
 
         const supabase = getSupabase();
         if (!supabase) {
-          set({ authReady: true });
+          set({ authChecked: true, authReady: true });
           return;
         }
 
-        const { data } = await supabase.auth.getSession();
-        set({ session: data.session });
+        try {
+          const { data } = await supabase.auth.getSession();
+          set({ session: data.session });
 
-        if (data.session?.user) {
-          set({ authReady: false });
-          await get().hydrateSessionUser(data.session.user.id);
-        } else {
-          set({ authReady: true });
+          if (data.session?.user) {
+            set({ authReady: false });
+            await get().hydrateSessionUser(data.session.user.id);
+          } else {
+            set({ authReady: true });
+          }
+        } finally {
+          set({ authChecked: true });
         }
 
         if (!authListenerRegistered) {
@@ -387,14 +400,14 @@ export const useAppStore = create<AppState>()(
         const supabase = getSupabase();
         if (!supabase) return null;
 
-        for (let attempt = 0; attempt < 12; attempt += 1) {
+        for (let attempt = 0; attempt < 30; attempt += 1) {
           const { data } = await supabase.auth.getSession();
           if (data.session?.user) {
             set({ session: data.session, authReady: false });
             await get().hydrateSessionUser(data.session.user.id);
             return data.session;
           }
-          if (attempt < 11) {
+          if (attempt < 29) {
             await new Promise((resolve) => setTimeout(resolve, 200));
           }
         }
@@ -438,6 +451,10 @@ export const useAppStore = create<AppState>()(
 
       signInWithGoogle: async () => startGoogleSignIn(),
 
+      sendEmailOtp: async (email) => sendEmailOtpCode(email),
+
+      verifyEmailOtp: async (email, token) => verifyEmailOtpCode(email, token),
+
       signOut: async () => {
         const supabase = getSupabase();
         if (supabase) {
@@ -453,6 +470,7 @@ export const useAppStore = create<AppState>()(
         clearTabFetchSession();
         set({
           session: null,
+          authChecked: true,
           authReady: true,
           currentUserId: null,
           onboardingComplete: false,

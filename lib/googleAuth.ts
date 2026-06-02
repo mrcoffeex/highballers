@@ -6,6 +6,12 @@ import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
 
 import { getSupabase } from "./supabase";
+import {
+  NATIVE_OAUTH_REDIRECT_URI,
+  pickOAuthRedirectUri,
+} from "./oauthRedirect";
+
+export { NATIVE_OAUTH_REDIRECT_URI, pickOAuthRedirectUri } from "./oauthRedirect";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -35,9 +41,6 @@ export function urlHasOAuthPayload(url: string): boolean {
   return /(?:[?&#])(?:code|access_token|error)=/.test(url);
 }
 
-/** Must match Supabase Auth redirect allow list and app.json `scheme` + intent filters. */
-export const NATIVE_OAUTH_REDIRECT_URI = "highballers://oauth-callback";
-
 function nativeOAuthRedirectUri() {
   return NATIVE_OAUTH_REDIRECT_URI;
 }
@@ -53,6 +56,14 @@ function isNativeAppBuild(): boolean {
 export function oauthPreferLocalhost(): boolean {
   const value = process.env.EXPO_PUBLIC_OAUTH_PREFER_LOCALHOST;
   return value === "true" || value === "1";
+}
+
+function expoGoOAuthRedirectUri() {
+  return makeRedirectUri({
+    scheme: "highballers",
+    path: "oauth-callback",
+    preferLocalhost: oauthPreferLocalhost(),
+  });
 }
 
 export function getOAuthRedirectUri() {
@@ -78,15 +89,10 @@ export function getOAuthRedirectUri() {
     return nativeOAuthRedirectUri();
   }
 
-  if (process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI?.trim()) {
-    return process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI.trim();
-  }
-
-  return makeRedirectUri({
-    scheme: "highballers",
-    path: "oauth-callback",
-    preferLocalhost: oauthPreferLocalhost(),
-  });
+  return pickOAuthRedirectUri(
+    process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI,
+    expoGoOAuthRedirectUri(),
+  );
 }
 
 /** Redirect URLs to whitelist in Supabase Auth → URL Configuration. */
@@ -119,7 +125,7 @@ export function getOAuthRedirectUriHints(): string[] {
 export function buildOAuthTimeoutMessage(): string {
   const redirects = getOAuthRedirectUriHints();
   const lines = [
-    "Sign in timed out waiting for Google to return to the app.",
+    "Sign in timed out waiting for the provider to return to the app.",
     "In Supabase → Authentication → URL Configuration, add every redirect URL below (exact match):",
     ...redirects.map((uri) => `• ${uri}`),
   ];
@@ -206,10 +212,8 @@ export function buildCallbackHrefFromParams(
     return `${window.location.origin}/oauth-callback?${qs}`;
   }
 
-  return Linking.createURL("oauth-callback", {
-    scheme: "highballers",
-    queryParams: Object.fromEntries(search.entries()),
-  });
+  const redirectBase = getOAuthRedirectUri().split(/[?#]/)[0];
+  return `${redirectBase}?${qs}`;
 }
 
 /** Resolve the OAuth return URL from deep links, router params, or the browser location. */
@@ -353,28 +357,36 @@ export async function createSessionFromUrl(
   return "No auth code or tokens found in redirect URL.";
 }
 
-export async function signInWithGoogle(): Promise<string | null> {
+type OAuthProvider = "google";
+
+const OAUTH_PROVIDER_LABELS: Record<OAuthProvider, string> = {
+  google: "Google",
+};
+
+async function signInWithOAuthProvider(
+  provider: OAuthProvider,
+  queryParams?: Record<string, string>,
+): Promise<string | null> {
   const supabase = getSupabase();
   if (!supabase) return "Cloud sync is not configured.";
 
   const redirectTo = getOAuthRedirectUri();
+  const label = OAUTH_PROVIDER_LABELS[provider];
 
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
+    provider,
     options: {
       redirectTo,
       skipBrowserRedirect: Platform.OS !== "web",
-      queryParams: {
-        access_type: "offline",
-        prompt: "consent",
-      },
+      ...(queryParams ? { queryParams } : {}),
     },
   });
 
   if (error) return error.message;
-  if (!data.url) return "Unable to start Google sign in.";
+  if (!data.url) return `Unable to start ${label} sign in.`;
 
   if (Platform.OS === "web") {
+    // Supabase stores the PKCE verifier then redirects the browser.
     window.location.assign(data.url);
     return null;
   }
@@ -382,6 +394,10 @@ export async function signInWithGoogle(): Promise<string | null> {
   const callbackWatcher = watchOAuthCallbackUrl();
 
   try {
+    if (Platform.OS === "android") {
+      await WebBrowser.warmUpAsync().catch(() => undefined);
+    }
+
     // Android release/preview builds often return `dismiss` even when the deep link
     // arrives a moment later; createTask: false keeps the auth tab in-app task.
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo, {
@@ -410,8 +426,8 @@ export async function signInWithGoogle(): Promise<string | null> {
       const sessionError = await createSessionFromUrl(callbackUrl);
       if (!sessionError) return null;
 
-      const { data } = await supabase.auth.getSession();
-      if (data.session) return null;
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) return null;
 
       return sessionError;
     }
@@ -423,10 +439,17 @@ export async function signInWithGoogle(): Promise<string | null> {
       return buildOAuthTimeoutMessage();
     }
 
-    return "Google sign in was interrupted.";
+    return `${label} sign in was interrupted.`;
   } finally {
     callbackWatcher.stop();
   }
+}
+
+export async function signInWithGoogle(): Promise<string | null> {
+  return signInWithOAuthProvider("google", {
+    access_type: "offline",
+    prompt: "consent",
+  });
 }
 
 export function getGoogleProfileHints(

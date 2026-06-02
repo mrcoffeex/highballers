@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 
 interface StatSliderProps {
   label: string;
@@ -21,6 +22,7 @@ export function StatSlider({
   unit,
   step = 1,
 }: StatSliderProps) {
+  const styles = useThemedStyles(createStyles);
   const decrease = () => onChange(Math.max(min, value - step));
   const increase = () => onChange(Math.min(max, value + step));
   const progress = ((value - min) / (max - min)) * 100;
@@ -61,61 +63,63 @@ export function StatSlider({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: spacing.md,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.sm,
-  },
-  label: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  value: {
-    ...typography.heading,
-    color: colors.secondary,
-    fontSize: 16,
-  },
-  track: {
-    height: 8,
-    backgroundColor: colors.cardBorder,
-    borderRadius: radius.full,
-    overflow: "hidden",
-    marginBottom: spacing.sm,
-  },
-  fill: {
-    height: "100%",
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-  },
-  controls: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: spacing.sm,
-  },
-  button: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  buttonPressed: {
-    backgroundColor: colors.card,
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: colors.text,
-    lineHeight: 22,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      marginBottom: spacing.md,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: spacing.sm,
+    },
+    label: {
+      ...typography.caption,
+      color: colors.textMuted,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    value: {
+      ...typography.heading,
+      color: colors.secondary,
+      fontSize: 16,
+    },
+    track: {
+      height: 8,
+      backgroundColor: colors.cardBorder,
+      borderRadius: radius.full,
+      overflow: "hidden",
+      marginBottom: spacing.sm,
+    },
+    fill: {
+      height: "100%",
+      backgroundColor: colors.primary,
+      borderRadius: radius.full,
+    },
+    controls: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: spacing.sm,
+    },
+    button: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.sm,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    buttonPressed: {
+      backgroundColor: colors.card,
+    },
+    buttonText: {
+      fontSize: 20,
+      fontWeight: "600",
+      color: colors.text,
+      lineHeight: 22,
+    },
+  });
+}

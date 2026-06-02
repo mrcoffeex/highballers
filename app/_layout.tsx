@@ -1,43 +1,39 @@
-import { DarkTheme, Stack, ThemeProvider, useRouter } from "@/lib/expoRouter";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter } from "@/lib/expoRouter";
 import * as SplashScreen from "expo-splash-screen";
-import * as SystemUI from "expo-system-ui";
 import { StatusBar } from "expo-status-bar";
+import { useEffect, useMemo, useRef } from "react";
 import { StyleSheet, View } from "react-native";
-import { syncActiveAllStarEntitlement } from "../lib/allStarPurchase";
-import { GestureRoot } from "../components/GestureRoot";
-import { isExpoGoNative } from "../lib/expoGoNative";
-import { isIapSupportedEnvironment } from "../lib/iapConfig";
-import { useEffect, useRef } from "react";
 
 import { AppSplashScreen } from "../components/AppSplashScreen";
+import { GestureRoot } from "../components/GestureRoot";
+import { isSupabaseEnabled } from "../lib/config";
+import { syncActiveAllStarEntitlement } from "../lib/allStarPurchase";
+import { isExpoGoNative } from "../lib/expoGoNative";
+import { isIapSupportedEnvironment } from "../lib/iapConfig";
 import { isPushNotificationsSupportedEnvironment } from "../lib/notificationsConfig";
 import {
   registerForPushNotifications,
   setupNotificationResponseListener,
 } from "../lib/notificationsLazy";
-import { isSupabaseEnabled } from "../lib/config";
-import { colors } from "../lib/theme";
+import { AppThemeProvider, useTheme } from "../lib/ThemeProvider";
 import { useAppStore } from "../store/useAppStore";
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
-SystemUI.setBackgroundColorAsync(colors.background).catch(() => undefined);
-
-const navigationTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: colors.background,
-    card: colors.surface,
-    border: colors.cardBorder,
-    text: colors.text,
-    primary: colors.primary,
-  },
-};
 
 export default function RootLayout() {
+  return (
+    <AppThemeProvider>
+      <RootLayoutInner />
+    </AppThemeProvider>
+  );
+}
+
+function RootLayoutInner() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
   const bootstrappedRef = useRef(false);
   const hydrated = useAppStore((state) => state.hydrated);
+  const authChecked = useAppStore((state) => state.authChecked);
   const authReady = useAppStore((state) => state.authReady);
   const currentUserId = useAppStore((state) => state.currentUserId);
   const onboardingComplete = useAppStore((state) => state.onboardingComplete);
@@ -45,6 +41,31 @@ export default function RootLayout() {
   const startSync = useAppStore((state) => state.startSync);
   const setHydrated = useAppStore((state) => state.setHydrated);
   const upgradeToAllStar = useAppStore((state) => state.upgradeToAllStar);
+
+  const navigationTheme = useMemo(() => {
+    const base = isDark ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        background: colors.background,
+        card: colors.surface,
+        border: colors.cardBorder,
+        text: colors.text,
+        primary: colors.primary,
+      },
+    };
+  }, [colors, isDark]);
+
+  const headerScreenOptions = useMemo(
+    () => ({
+      headerTintColor: colors.primary,
+      headerStyle: { backgroundColor: colors.background },
+      headerTitleStyle: { color: colors.text },
+      headerBackTitle: "Back",
+    }),
+    [colors],
+  );
 
   useEffect(() => {
     if (!hydrated) {
@@ -116,7 +137,7 @@ export default function RootLayout() {
     return () => removeListener();
   }, [currentUserId, onboardingComplete, router]);
 
-  const appReady = hydrated && authReady;
+  const appReady = hydrated && authChecked && authReady;
 
   if (appReady) {
     bootstrappedRef.current = true;
@@ -125,9 +146,9 @@ export default function RootLayout() {
   const showSplashOverlay = !appReady && !bootstrappedRef.current;
 
   return (
-    <GestureRoot style={styles.root}>
+    <GestureRoot style={[styles.root, { backgroundColor: colors.background }]}>
       <ThemeProvider value={navigationTheme}>
-        <StatusBar style="light" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <Stack
           screenOptions={{
             headerShown: false,
@@ -135,113 +156,95 @@ export default function RootLayout() {
             gestureEnabled: !isExpoGoNative(),
           }}
         >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="auth" options={{ animation: "fade" }} />
-        <Stack.Screen
-          name="oauth-callback"
-          options={{ animation: "fade", headerShown: false }}
-        />
-        <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            animation: "fade",
-          }}
-        />
-        <Stack.Screen
-          name="event/[id]"
-          options={{
-            headerShown: true,
-            headerTitle: "",
-            headerBackTitle: "Back",
-            headerTintColor: colors.primary,
-            headerStyle: { backgroundColor: colors.background },
-          }}
-        />
-        <Stack.Screen
-          name="event/edit/[id]"
-          options={{
-            headerShown: true,
-            headerTitle: "Edit Game",
-            headerBackTitle: "Back",
-            headerTintColor: colors.primary,
-            headerStyle: { backgroundColor: colors.background },
-            headerTitleStyle: { color: colors.text },
-          }}
-        />
-        <Stack.Screen
-          name="event/stats/[id]"
-          options={{
-            headerShown: true,
-            headerTitle: "Scorekeeper",
-            headerBackTitle: "Back",
-            headerTintColor: colors.primary,
-            headerStyle: { backgroundColor: colors.background },
-            headerTitleStyle: { color: colors.text },
-          }}
-        />
-        <Stack.Screen
-          name="event/courts/[id]"
-          options={{
-            headerShown: true,
-            headerTitle: "Edit Courts",
-            headerBackTitle: "Back",
-            headerTintColor: colors.primary,
-            headerStyle: { backgroundColor: colors.background },
-            headerTitleStyle: { color: colors.text },
-          }}
-        />
-        <Stack.Screen
-          name="event/create"
-          options={{
-            headerShown: true,
-            headerTitle: "New Game",
-            headerBackTitle: "Back",
-            headerTintColor: colors.primary,
-            headerStyle: { backgroundColor: colors.background },
-            headerTitleStyle: { color: colors.text },
-          }}
-        />
-        <Stack.Screen
-          name="profile/edit"
-          options={{
-            headerShown: true,
-            headerTitle: "Edit Profile",
-            headerBackTitle: "Back",
-            headerTintColor: colors.primary,
-            headerStyle: { backgroundColor: colors.background },
-            headerTitleStyle: { color: colors.text },
-          }}
-        />
-        <Stack.Screen
-          name="leaderboards/index"
-          options={{
-            headerShown: true,
-            headerTitle: "Leaderboards",
-            headerBackTitle: "Back",
-            headerTintColor: colors.primary,
-            headerStyle: { backgroundColor: colors.background },
-            headerTitleStyle: { color: colors.text },
-          }}
-        />
-        <Stack.Screen
-          name="player/[id]"
-          options={{
-            headerShown: true,
-            headerTitle: "Player",
-            headerBackTitle: "Back",
-            headerTintColor: colors.primary,
-            headerStyle: { backgroundColor: colors.background },
-            headerTitleStyle: { color: colors.text },
-          }}
-        />
-        <Stack.Screen name="legal" options={{ headerShown: false }} />
-      </Stack>
-      {showSplashOverlay ? (
-        <View style={styles.splashOverlay}>
-          <AppSplashScreen />
-        </View>
-      ) : null}
+          <Stack.Screen name="index" />
+          <Stack.Screen name="auth" options={{ animation: "fade" }} />
+          <Stack.Screen
+            name="oauth-callback"
+            options={{ animation: "fade", headerShown: false }}
+          />
+          <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              animation: "fade",
+            }}
+          />
+          <Stack.Screen
+            name="event/[id]"
+            options={{
+              ...headerScreenOptions,
+              headerShown: true,
+              headerTitle: "",
+            }}
+          />
+          <Stack.Screen
+            name="event/edit/[id]"
+            options={{
+              ...headerScreenOptions,
+              headerShown: true,
+              headerTitle: "Edit Game",
+            }}
+          />
+          <Stack.Screen
+            name="event/stats/[id]"
+            options={{
+              ...headerScreenOptions,
+              headerShown: true,
+              headerTitle: "Scorekeeper",
+            }}
+          />
+          <Stack.Screen
+            name="event/courts/[id]"
+            options={{
+              ...headerScreenOptions,
+              headerShown: true,
+              headerTitle: "Edit Courts",
+            }}
+          />
+          <Stack.Screen
+            name="event/create"
+            options={{
+              ...headerScreenOptions,
+              headerShown: true,
+              headerTitle: "New Game",
+            }}
+          />
+          <Stack.Screen
+            name="profile/edit"
+            options={{
+              ...headerScreenOptions,
+              headerShown: true,
+              headerTitle: "Edit Profile",
+            }}
+          />
+          <Stack.Screen
+            name="leaderboards/index"
+            options={{
+              ...headerScreenOptions,
+              headerShown: true,
+              headerTitle: "Leaderboards",
+            }}
+          />
+          <Stack.Screen
+            name="player/[id]"
+            options={{
+              ...headerScreenOptions,
+              headerShown: true,
+              headerTitle: "Player",
+            }}
+          />
+          <Stack.Screen name="legal" options={{ headerShown: false }} />
+        </Stack>
+        {showSplashOverlay ? (
+          <View
+            style={[
+              styles.splashOverlay,
+              { backgroundColor: colors.background },
+            ]}
+          >
+            <AppSplashScreen />
+          </View>
+        ) : null}
       </ThemeProvider>
     </GestureRoot>
   );
@@ -250,11 +253,9 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   splashOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: colors.background,
     zIndex: 999,
   },
 });

@@ -10,23 +10,28 @@ import {
 import { SubscriptionError } from "../subscription";
 
 describe("eventCapacity", () => {
-  it("caps basic users at 20 and all-star at 40", () => {
-    expect(getMaxEventPlayersForTier("basic")).toBe(20);
-    expect(getMaxEventPlayersForTier("all_star")).toBe(40);
-    expect(getAllowedMaxPlayerPresets("basic")).toEqual([10, 20]);
-    expect(getAllowedMaxPlayerPresets("all_star")).toEqual([10, 20, 30, 40]);
+  it("caps basic and all-star at 100 for scheduling", () => {
+    expect(getMaxEventPlayersForTier("basic")).toBe(100);
+    expect(getMaxEventPlayersForTier("all_star")).toBe(100);
+    expect(getAllowedMaxPlayerPresets("basic")).toEqual([
+      10, 20, 30, 40, 50, 60, 80, 100,
+    ]);
+    expect(getAllowedMaxPlayerPresets("all_star")).toEqual([
+      10, 20, 30, 40, 50, 60, 80, 100,
+    ]);
   });
 
   it("clamps custom input to tier cap", () => {
-    expect(clampEventMaxPlayers(30, "basic")).toBe(20);
-    expect(parseEventMaxPlayersInput("35", "basic")).toBe(20);
+    expect(clampEventMaxPlayers(75, "basic")).toBe(75);
+    expect(parseEventMaxPlayersInput("85", "basic")).toBe(85);
+    expect(parseEventMaxPlayersInput("150", "basic")).toBe(100);
     expect(parseEventMaxPlayersInput("15", "basic")).toBe(15);
   });
 
-  it("rejects over-cap saves for basic", () => {
-    expect(() => assertEventMaxPlayersAllowed("basic", 30)).toThrow(
+  it("rejects over-cap saves", () => {
+    expect(() => assertEventMaxPlayersAllowed("basic", 120)).toThrow(
       SubscriptionError,
     );
-    expect(() => assertEventMaxPlayersAllowed("all_star", 30)).not.toThrow();
+    expect(() => assertEventMaxPlayersAllowed("all_star", 100)).not.toThrow();
   });
 });

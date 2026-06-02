@@ -3,9 +3,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ALL_STAR_FEATURES } from "../lib/subscription";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 
 export function AllStarMemberCard() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <LinearGradient
       colors={[`${colors.secondary}24`, `${colors.primary}10`, colors.card]}
@@ -42,63 +46,65 @@ export function AllStarMemberCard() {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: `${colors.secondary}55`,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.full,
-    backgroundColor: `${colors.secondary}22`,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: `${colors.secondary}44`,
-  },
-  headerText: {
-    flex: 1,
-  },
-  kicker: {
-    ...typography.label,
-    color: colors.secondary,
-    fontSize: 9,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-    fontSize: 20,
-  },
-  sub: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  featureGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  featureItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    width: "48%",
-  },
-  featureText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    flex: 1,
-    fontSize: 11,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: `${colors.secondary}55`,
+      padding: spacing.lg,
+      marginBottom: spacing.lg,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      marginBottom: spacing.md,
+    },
+    iconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.full,
+      backgroundColor: `${colors.secondary}22`,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: `${colors.secondary}44`,
+    },
+    headerText: {
+      flex: 1,
+    },
+    kicker: {
+      ...typography.label,
+      color: colors.secondary,
+      fontSize: 9,
+    },
+    title: {
+      ...typography.heading,
+      color: colors.text,
+      fontSize: 20,
+    },
+    sub: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    featureGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+    },
+    featureItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      width: "48%",
+    },
+    featureText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      flex: 1,
+      fontSize: 11,
+    },
+  });
+}

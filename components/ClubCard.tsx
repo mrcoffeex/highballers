@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../lib/theme";
 import { Club } from "../lib/types";
 import { ClubIcon } from "./ClubIcon";
 import { Badge, Card } from "./ui";
@@ -22,6 +23,9 @@ export function ClubCard({
   hasPendingRequest,
   onPress,
 }: ClubCardProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Card onPress={onPress} style={styles.card}>
       <View style={styles.header}>
@@ -66,7 +70,8 @@ export function ClubCard({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   card: {
     marginBottom: spacing.md,
   },
@@ -115,4 +120,5 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
   },
-});
+  });
+}

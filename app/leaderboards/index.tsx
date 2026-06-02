@@ -11,10 +11,14 @@ import {
   buildClubLeaderboard,
   buildOvrLeaderboard,
   buildPlayerStatLeaderboard,
+  getLeaderboardEmptyDescription,
+  getLeaderboardListHeading,
+  LEADERBOARD_PERIOD_TABS,
   LEADERBOARD_TABS,
   LeaderboardCategory,
+  LeaderboardPeriod,
 } from "../../lib/leaderboards";
-import { colors, radius, spacing, typography } from "../../lib/theme";
+import { colors, getScreenGradient, radius, spacing, typography } from "../../lib/theme";
 import { useCurrentUser } from "../../store/hooks";
 import { useAppStore } from "../../store/useAppStore";
 
@@ -26,21 +30,25 @@ export default function LeaderboardsScreen() {
   const events = useAppStore((state) => state.events);
   const gameStatRecords = useAppStore((state) => state.gameStatRecords);
   const [category, setCategory] = useState<LeaderboardCategory>("clubs");
+  const [period, setPeriod] = useState<LeaderboardPeriod>("week");
 
   const clubEntries = useMemo(
-    () => buildClubLeaderboard(clubs, events, gameStatRecords),
-    [clubs, events, gameStatRecords],
+    () => buildClubLeaderboard(clubs, events, gameStatRecords, period),
+    [clubs, events, gameStatRecords, period],
   );
 
   const ovrEntries = useMemo(() => buildOvrLeaderboard(users), [users]);
 
   const statEntries = useMemo(() => {
     if (category === "clubs" || category === "ovr") return [];
-    return buildPlayerStatLeaderboard(users, gameStatRecords, category);
-  }, [category, users, gameStatRecords]);
-
-  const activeTab =
-    LEADERBOARD_TABS.find((tab) => tab.id === category) ?? LEADERBOARD_TABS[0];
+    return buildPlayerStatLeaderboard(
+      users,
+      gameStatRecords,
+      events,
+      category,
+      period,
+    );
+  }, [category, users, gameStatRecords, events, period]);
 
   const myRank = useMemo(() => {
     if (!user) return null;
@@ -100,11 +108,12 @@ export default function LeaderboardsScreen() {
   }, [category, clubEntries, ovrEntries, statEntries, router, user]);
 
   const isEmpty = listContent.length === 0;
+  const listHeading = getLeaderboardListHeading(category, period);
 
   return (
     <Screen>
       <LinearGradient
-        colors={[colors.background, "#0F1520"]}
+        colors={getScreenGradient(colors)}
         style={styles.background}
       >
         <View style={styles.hero}>
@@ -157,13 +166,38 @@ export default function LeaderboardsScreen() {
           })}
         </ScrollView>
 
-        <Text style={styles.listHeading}>
-          {category === "clubs"
-            ? "Top clubs by activity & scoring"
-            : category === "ovr"
-              ? "Highest overall ratings"
-              : `Career ${activeTab.label} leaders`}
-        </Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.periodTabs}
+        >
+          {LEADERBOARD_PERIOD_TABS.map((tab) => {
+            const selected = tab.id === period;
+            return (
+              <Pressable
+                key={tab.id}
+                style={[styles.periodTab, selected && styles.periodTabActive]}
+                onPress={() => setPeriod(tab.id)}
+              >
+                <Text
+                  style={[
+                    styles.periodTabText,
+                    selected && styles.periodTabTextActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <Text style={styles.listHeading}>{listHeading}</Text>
+        {category === "ovr" ? (
+          <Text style={styles.listNote}>
+            OVR uses current profile ratings and is not filtered by period.
+          </Text>
+        ) : null}
 
         {isEmpty ? (
           <EmptyState
@@ -175,13 +209,7 @@ export default function LeaderboardsScreen() {
               />
             }
             title="No rankings yet"
-            description={
-              category === "clubs"
-                ? "Clubs appear here once games are played and stats are recorded."
-                : category === "ovr"
-                  ? "Player ratings come from profile skill stats."
-                  : "Record box scores in the scorekeeper to populate stat leaders."
-            }
+            description={getLeaderboardEmptyDescription(category, period)}
           />
         ) : (
           listContent
@@ -249,7 +277,7 @@ const styles = StyleSheet.create({
   },
   tabs: {
     gap: spacing.sm,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
   },
   tab: {
     flexDirection: "row",
@@ -274,8 +302,37 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: colors.primary,
   },
+  periodTabs: {
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  periodTab: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  periodTabActive: {
+    borderColor: colors.secondary,
+    backgroundColor: `${colors.secondary}18`,
+  },
+  periodTabText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: "700",
+  },
+  periodTabTextActive: {
+    color: colors.secondary,
+  },
   listHeading: {
     ...typography.label,
+    color: colors.textDim,
+    marginBottom: spacing.xs,
+  },
+  listNote: {
+    ...typography.caption,
     color: colors.textDim,
     marginBottom: spacing.sm,
   },

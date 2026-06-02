@@ -5,7 +5,15 @@ import { forwardRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ActivityStorySlide as StorySlide } from "../lib/activityStories";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  getStoryGradient,
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 import { BOX_SCORE_FIELDS, BOX_SCORE_LABELS, UserProfile } from "../lib/types";
 import { Avatar } from "./ui";
 
@@ -16,6 +24,8 @@ interface ActivityStorySlideProps {
 
 export const ActivityStoryCanvas = forwardRef<View, ActivityStorySlideProps>(
   function ActivityStoryCanvas({ slide, user }, ref) {
+    const { colors } = useTheme();
+    const styles = useThemedStyles(createStoryStyles);
     const title = slide.game.event?.title ?? "Pickup game";
     const when = slide.game.event?.dateTime ?? slide.recordedAt;
     const topStat = [...BOX_SCORE_FIELDS].sort(
@@ -25,7 +35,7 @@ export const ActivityStoryCanvas = forwardRef<View, ActivityStorySlideProps>(
     return (
       <View ref={ref} style={styles.frame} collapsable={false}>
         <LinearGradient
-          colors={["#1A1030", "#0A0E14", "#142238"]}
+          colors={getStoryGradient(colors)}
           locations={[0, 0.55, 1]}
           style={styles.gradient}
         >
@@ -90,13 +100,14 @@ export const ActivityStoryCanvas = forwardRef<View, ActivityStorySlideProps>(
   },
 );
 
-const styles = StyleSheet.create({
+function createStoryStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   frame: {
     flex: 1,
     borderRadius: radius.xl,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: `${colors.primary}33`,
+    borderColor: withAlpha(colors.primary, 0.22),
   },
   gradient: {
     flex: 1,
@@ -139,11 +150,11 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: radius.full,
-    backgroundColor: `${colors.primary}22`,
+    backgroundColor: withAlpha(colors.primary, 0.14),
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: `${colors.primary}44`,
+    borderColor: withAlpha(colors.primary, 0.3),
   },
   heroBlock: {
     alignItems: "center",
@@ -172,12 +183,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     marginTop: spacing.sm,
-    backgroundColor: `${colors.secondary}18`,
+    backgroundColor: withAlpha(colors.secondary, 0.12),
     borderRadius: radius.full,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderWidth: 1,
-    borderColor: `${colors.secondary}44`,
+    borderColor: withAlpha(colors.secondary, 0.35),
   },
   gameScoreLabel: {
     ...typography.label,
@@ -198,16 +209,16 @@ const styles = StyleSheet.create({
   statCell: {
     minWidth: 56,
     alignItems: "center",
-    backgroundColor: `${colors.surface}99`,
+    backgroundColor: withAlpha(colors.surface, 0.65),
     borderRadius: radius.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: colors.outlineVariant,
   },
   statCellHighlight: {
-    borderColor: `${colors.primary}66`,
-    backgroundColor: `${colors.primary}18`,
+    borderColor: withAlpha(colors.primary, 0.45),
+    backgroundColor: withAlpha(colors.primary, 0.12),
   },
   statValue: {
     ...typography.heading,
@@ -227,4 +238,5 @@ const styles = StyleSheet.create({
     letterSpacing: 4,
     opacity: 0.7,
   },
-});
+  });
+}

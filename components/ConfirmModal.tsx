@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 import { Button } from "./ui";
 
 interface ConfirmModalProps {
@@ -25,6 +26,9 @@ export function ConfirmModal({
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Modal
       visible={visible}
@@ -67,49 +71,51 @@ export function ConfirmModal({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    padding: spacing.lg,
-  },
-  iconWrap: {
-    alignSelf: "center",
-    width: 52,
-    height: 52,
-    borderRadius: radius.full,
-    backgroundColor: `${colors.warning}18`,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.md,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-    textAlign: "center",
-    marginBottom: spacing.sm,
-  },
-  message: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: spacing.lg,
-  },
-  actions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  actionBtn: {
-    flex: 1,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: "center",
+      padding: spacing.lg,
+    },
+    sheet: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.lg,
+    },
+    iconWrap: {
+      alignSelf: "center",
+      width: 52,
+      height: 52,
+      borderRadius: radius.full,
+      backgroundColor: `${colors.warning}18`,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: spacing.md,
+    },
+    title: {
+      ...typography.heading,
+      color: colors.text,
+      textAlign: "center",
+      marginBottom: spacing.sm,
+    },
+    message: {
+      ...typography.body,
+      color: colors.textMuted,
+      textAlign: "center",
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: spacing.lg,
+    },
+    actions: {
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    actionBtn: {
+      flex: 1,
+    },
+  });
+}

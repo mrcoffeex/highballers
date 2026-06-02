@@ -15,7 +15,8 @@ import {
   StatsPeriod,
 } from "../lib/playerStats";
 import { BASIC_MAX_GAME_HISTORY } from "../lib/subscription";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 import { BOX_SCORE_FIELDS, BOX_SCORE_LABELS } from "../lib/types";
 import { usePlayerGameHistory } from "../store/hooks";
 import { Button } from "./ui";
@@ -40,6 +41,8 @@ export function PlayerStatsDashboard({
   onActivityPress,
   onShareStory,
 }: PlayerStatsDashboardProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const allGames = usePlayerGameHistory(userId);
   const [period, setPeriod] = useState<StatsPeriod>("month");
 
@@ -296,6 +299,9 @@ function SummaryTile({
   value: string;
   icon: keyof typeof Ionicons.glyphMap;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.summaryTile}>
       <Ionicons name={icon} size={16} color={colors.primary} />
@@ -305,7 +311,8 @@ function SummaryTile({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   wrap: {
     marginBottom: spacing.lg,
   },
@@ -371,7 +378,8 @@ const styles = StyleSheet.create({
   },
   totalsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.cardBorder,
     paddingTop: spacing.sm,
@@ -379,6 +387,9 @@ const styles = StyleSheet.create({
   totalPill: {
     alignItems: "center",
     gap: 2,
+    minWidth: "17%",
+    flexGrow: 1,
+    flexBasis: "17%",
   },
   totalKey: {
     ...typography.label,
@@ -547,4 +558,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: spacing.lg,
   },
-});
+  });
+}

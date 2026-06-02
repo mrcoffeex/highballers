@@ -2,12 +2,13 @@ import { useCallback, useMemo, useState } from "react";
 import { RefreshControl } from "react-native";
 
 import { isSupabaseEnabled } from "./config";
-import { colors } from "./theme";
+import { useTheme } from "./ThemeProvider";
 import { useAppStore } from "../store/useAppStore";
 
 type RefreshFn = () => void | Promise<void>;
 
 export function useRefreshControl(onRefreshExtra?: RefreshFn, enabled = true) {
+  const { colors } = useTheme();
   const refreshFromServer = useAppStore((state) => state.refreshFromServer);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -48,7 +49,7 @@ export function useRefreshControl(onRefreshExtra?: RefreshFn, enabled = true) {
         progressBackgroundColor={colors.surface}
       />
     );
-  }, [enabled, isSupabaseEnabled, onRefreshExtra, onRefresh, refreshing]);
+  }, [colors, enabled, isSupabaseEnabled, onRefreshExtra, onRefresh, refreshing]);
 
   return { refreshControl, refreshing, onRefresh };
 }

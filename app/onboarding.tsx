@@ -17,13 +17,23 @@ import { ImagePickerField } from "../components/ImagePickerField";
 import { Avatar, Button, Input } from "../components/ui";
 import { getGoogleProfileHints } from "../lib/googleAuth";
 import { isSupabaseEnabled } from "../lib/config";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  getAuthGradient,
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 import { POSITIONS, Position } from "../lib/types";
 import { createDefaultProfile, useAppStore } from "../store/useAppStore";
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
   const signOut = useAppStore((state) => state.signOut);
   const authReady = useAppStore((state) => state.authReady);
@@ -112,7 +122,7 @@ export default function OnboardingScreen() {
 
   return (
     <LinearGradient
-      colors={["#0A0E14", "#141C28", "#0A0E14"]}
+      colors={getAuthGradient(colors)}
       style={styles.container}
     >
       <ScrollView
@@ -314,7 +324,8 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -329,12 +340,12 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: `${colors.primary}20`,
+    backgroundColor: withAlpha(colors.primary, 0.12),
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.md,
     borderWidth: 2,
-    borderColor: `${colors.primary}40`,
+    borderColor: withAlpha(colors.primary, 0.35),
   },
   brand: {
     ...typography.hero,
@@ -397,8 +408,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   positionCardActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}15`,
+    borderColor: colors.borderAccent,
+    backgroundColor: withAlpha(colors.primary, 0.1),
   },
   positionText: {
     ...typography.heading,
@@ -443,4 +454,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
-});
+  });
+}
