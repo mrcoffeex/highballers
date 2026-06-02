@@ -7,9 +7,9 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { AppSplashScreen } from "../components/AppSplashScreen";
 
 import {
+  buildOAuthTimeoutMessage,
   clearOAuthCallbackUrl,
   createSessionFromUrl,
-  getOAuthRedirectUri,
   paramsHaveOAuthPayload,
   resolveOAuthCallbackHref,
   serializeOAuthParams,
@@ -52,34 +52,35 @@ export default function OAuthCallbackScreen() {
   useEffect(() => {
     let cancelled = false;
     let timeout: ReturnType<typeof setTimeout> | null = null;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
 
     const finish = async (incomingUrl?: string | null) => {
       if (finishedRef.current || cancelled) return;
 
       const currentParams = paramsRef.current;
-      const paramsKey = serializeOAuthParams(currentParams);
+
+      if (await completeSignIn()) return;
+
+      const href = await resolveOAuthCallbackHref({
+        linkingUrl: incomingUrl ?? linkingUrlRef.current,
+        params: currentParams,
+      });
+
       const hasPayload =
         paramsHaveOAuthPayload(currentParams) ||
+        (href ? urlHasOAuthPayload(href) : false) ||
         (incomingUrl ? urlHasOAuthPayload(incomingUrl) : false) ||
         (Platform.OS === "web" &&
           typeof window !== "undefined" &&
           urlHasOAuthPayload(window.location.href));
 
-      if (!hasPayload) return;
+      if (!hasPayload || !href || !urlHasOAuthPayload(href)) return;
 
-      if (processingKeyRef.current === paramsKey) return;
-      processingKeyRef.current = paramsKey;
+      const processingKey = href;
+      if (processingKeyRef.current === processingKey) return;
+      processingKeyRef.current = processingKey;
 
       try {
-        if (await completeSignIn()) return;
-
-        const href = await resolveOAuthCallbackHref({
-          linkingUrl: incomingUrl ?? linkingUrlRef.current,
-          params: currentParams,
-        });
-
-        if (!href || !urlHasOAuthPayload(href)) return;
-
         const message = await createSessionFromUrl(href);
         if (message) {
           if (!cancelled) setError(message);
@@ -102,7 +103,7 @@ export default function OAuthCallbackScreen() {
           );
         }
       } finally {
-        if (processingKeyRef.current === paramsKey) {
+        if (processingKeyRef.current === processingKey) {
           processingKeyRef.current = null;
         }
       }
@@ -110,11 +111,15 @@ export default function OAuthCallbackScreen() {
 
     void finish();
 
+    if (Platform.OS !== "web") {
+      pollInterval = setInterval(() => {
+        void finish();
+      }, 500);
+    }
+
     timeout = setTimeout(() => {
       if (!finishedRef.current && !cancelled) {
-        setError(
-          `Sign in timed out. Add this redirect URL in Supabase Auth → URL Configuration:\n${getOAuthRedirectUri()}`,
-        );
+        setError(buildOAuthTimeoutMessage());
       }
     }, 20000);
 
@@ -133,10 +138,11 @@ export default function OAuthCallbackScreen() {
     return () => {
       cancelled = true;
       if (timeout) clearTimeout(timeout);
+      if (pollInterval) clearInterval(pollInterval);
       subscription.remove();
       removeHashListener?.();
     };
-  }, [oauthParamsKey]);
+  }, [oauthParamsKey, linkingUrl]);
 
   return (
     <View style={styles.container}>

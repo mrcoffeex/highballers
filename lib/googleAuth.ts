@@ -35,6 +35,10 @@ export function urlHasOAuthPayload(url: string): boolean {
   return /(?:[?&#])(?:code|access_token|error)=/.test(url);
 }
 
+function nativeOAuthRedirectUri() {
+  return Linking.createURL("oauth-callback", { scheme: "highballers" });
+}
+
 export function getOAuthRedirectUri() {
   if (Platform.OS === "web") {
     if (typeof window !== "undefined" && window.location?.origin) {
@@ -47,16 +51,62 @@ export function getOAuthRedirectUri() {
     }
   }
 
+  // Preview / production native builds must use the app scheme, not exp://.
+  if (Constants.appOwnership === "standalone") {
+    return nativeOAuthRedirectUri();
+  }
+
   const useDevRedirect =
     __DEV__ ||
     Constants.appOwnership === "expo" ||
     Constants.appOwnership === null;
+
+  if (!useDevRedirect) {
+    return nativeOAuthRedirectUri();
+  }
 
   return makeRedirectUri({
     scheme: "highballers",
     path: "oauth-callback",
     preferLocalhost: useDevRedirect,
   });
+}
+
+/** Redirect URLs to whitelist in Supabase Auth → URL Configuration. */
+export function getOAuthRedirectUriHints(): string[] {
+  const hints = new Set<string>([getOAuthRedirectUri(), nativeOAuthRedirectUri()]);
+
+  if (Platform.OS === "web") {
+    hints.add("http://localhost:8081/oauth-callback");
+    hints.add("http://127.0.0.1:8081/oauth-callback");
+  } else {
+    hints.add(
+      makeRedirectUri({
+        scheme: "highballers",
+        path: "oauth-callback",
+        preferLocalhost: true,
+      }),
+    );
+    hints.add(
+      makeRedirectUri({
+        scheme: "highballers",
+        path: "oauth-callback",
+        preferLocalhost: false,
+      }),
+    );
+  }
+
+  return [...hints];
+}
+
+export function buildOAuthTimeoutMessage(): string {
+  const redirects = getOAuthRedirectUriHints();
+  return [
+    "Sign in timed out waiting for Google to return to the app.",
+    "In Supabase → Authentication → URL Configuration, add every redirect URL you use (exact match):",
+    ...redirects.map((uri) => `• ${uri}`),
+    "Then fully close and reopen the app before trying again.",
+  ].join("\n");
 }
 
 /** Wait for Supabase to persist the session after code exchange (AsyncStorage). */
@@ -152,25 +202,25 @@ export async function resolveOAuthCallbackHref(options: {
   const fromRouterParams = buildCallbackHrefFromParams(params);
   if (fromRouterParams) return fromRouterParams;
 
-  // Avoid stale cold-start URLs after logout/login (only when live params are empty).
-  const hasLiveParams = paramsHaveOAuthPayload(params);
-  if (!hasLiveParams && !linkingUrl) {
-    try {
-      const parsed = await Linking.parseInitialURLAsync();
-      const parsedParams = (parsed.queryParams ?? {}) as SearchParams;
-
-      if (parsedParams && paramsHaveOAuthPayload(parsedParams)) {
-        const built = buildCallbackHrefFromParams(parsedParams);
-        if (built) return built;
-      }
-    } catch {
-      // parseInitialURLAsync can fail on some platforms; fall through.
+  try {
+    const initialUrl = await Linking.getInitialURL();
+    if (initialUrl && urlHasOAuthPayload(initialUrl)) {
+      return initialUrl;
     }
+  } catch {
+    // getInitialURL can fail on some platforms; fall through.
+  }
 
-    const legacy = await Linking.getInitialURL();
-    if (legacy && urlHasOAuthPayload(legacy)) {
-      return legacy;
+  try {
+    const parsed = await Linking.parseInitialURLAsync();
+    const parsedParams = (parsed.queryParams ?? {}) as SearchParams;
+
+    if (parsedParams && paramsHaveOAuthPayload(parsedParams)) {
+      const built = buildCallbackHrefFromParams(parsedParams);
+      if (built) return built;
     }
+  } catch {
+    // parseInitialURLAsync can fail on some platforms; fall through.
   }
 
   return null;
@@ -282,6 +332,7 @@ export async function signInWithGoogle(): Promise<string | null> {
   }
 
   if (result.type === "cancel" || result.type === "dismiss") {
+    await waitForSupabaseSession(12, 250);
     return null;
   }
 

@@ -32,6 +32,10 @@
           "action": "VIEW",
           "data": [
             {
+              "scheme": "highballers",
+              "host": "oauth-callback"
+            },
+            {
               "scheme": "highballers"
             }
           ],

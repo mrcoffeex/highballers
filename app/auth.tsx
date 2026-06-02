@@ -111,12 +111,18 @@ export default function AuthScreen() {
 
     // Web navigates away to Google; mobile completes inline below.
     if (Platform.OS !== "web") {
-      await finishOAuthSignIn();
+      const session = await finishOAuthSignIn();
       setGoogleLoading(false);
       if (requiresLegalConsent) {
         await setAcceptedLegalVersion();
       }
-      router.replace("/");
+      if (session) {
+        router.replace("/");
+        return;
+      }
+      // Browser may have closed before WebBrowser returned the URL — let the
+      // callback screen listen for the cold-start deep link.
+      router.replace("/oauth-callback");
     }
   };
 
