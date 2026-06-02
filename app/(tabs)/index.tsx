@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter } from "@/lib/expoRouter";
 import { Fragment, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -164,7 +164,7 @@ export default function HomeScreen() {
           <QuickAction
             icon="add-circle"
             label="Create Club"
-            onPress={() => router.push("/clubs/create")}
+            onPress={() => router.push("/(tabs)/clubs/create")}
           />
           <QuickAction
             icon="basketball"

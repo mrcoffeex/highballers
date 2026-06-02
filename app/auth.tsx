@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter } from "@/lib/expoRouter";
 import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -19,7 +19,11 @@ import { LegalConsent } from "../components/LegalConsent";
 import { Button, Input } from "../components/ui";
 import { getAppDisplayName } from "../lib/clubInvite";
 import { setAcceptedLegalVersion } from "../lib/legalAcceptance";
-import { getOAuthRedirectUri } from "../lib/googleAuth";
+import {
+  buildOAuthTimeoutMessage,
+  getOAuthRedirectUri,
+  getOAuthRedirectUriHints,
+} from "../lib/googleAuth";
 import { isSupabaseEnabled } from "../lib/config";
 import { validateSupabaseConnection } from "../lib/validateSupabase";
 import { colors, radius, spacing, typography } from "../lib/theme";
@@ -40,6 +44,7 @@ export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -58,6 +63,7 @@ export default function AuthScreen() {
 
   const handleSubmit = async () => {
     setError(null);
+    setInfo(null);
     setLegalError(null);
 
     if (requiresLegalConsent && !legalAccepted) {
@@ -69,20 +75,39 @@ export default function AuthScreen() {
 
     setLoading(true);
 
-    const message =
-      mode === "signIn"
-        ? await signIn(email.trim(), password)
-        : await signUp(email.trim(), password);
+    if (mode === "signIn") {
+      const message = await signIn(email.trim(), password);
+      setLoading(false);
 
+      if (message) {
+        setError(message);
+        return;
+      }
+
+      await syncSessionFromSupabase();
+      router.replace("/");
+      return;
+    }
+
+    const result = await signUp(email.trim(), password);
     setLoading(false);
 
-    if (message) {
-      setError(message);
+    if (result.error) {
+      setError(result.error);
       return;
     }
 
     if (requiresLegalConsent) {
       await setAcceptedLegalVersion();
+    }
+
+    if (result.needsEmailConfirmation) {
+      setInfo(
+        "Check your email to confirm your account, then return to the app to sign in.",
+      );
+      setMode("signIn");
+      setPassword("");
+      return;
     }
 
     await syncSessionFromSupabase();
@@ -91,6 +116,7 @@ export default function AuthScreen() {
 
   const handleGoogleSignIn = async () => {
     setError(null);
+    setInfo(null);
     setLegalError(null);
 
     if (requiresLegalConsent && !legalAccepted) {
@@ -120,9 +146,7 @@ export default function AuthScreen() {
         router.replace("/");
         return;
       }
-      // Browser may have closed before WebBrowser returned the URL — let the
-      // callback screen listen for the cold-start deep link.
-      router.replace("/oauth-callback");
+      setError(buildOAuthTimeoutMessage());
     }
   };
 
@@ -257,6 +281,7 @@ export default function AuthScreen() {
             <Text style={styles.configError}>{configError}</Text>
           ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
+          {info ? <Text style={styles.info}>{info}</Text> : null}
 
           <Button
             title={mode === "signIn" ? "Sign In" : "Create Account"}
@@ -287,7 +312,14 @@ export default function AuthScreen() {
             </>
           ) : __DEV__ ? (
             <Text style={styles.note}>
-              OAuth redirect: {getOAuthRedirectUri()}
+              Auth redirect (add in Supabase):{"\n"}
+              {getOAuthRedirectUri()}
+              {"\n\n"}
+              Also whitelist:{"\n"}
+              {getOAuthRedirectUriHints()
+                .filter((uri) => uri !== getOAuthRedirectUri())
+                .map((uri) => `• ${uri}`)
+                .join("\n")}
             </Text>
           ) : null}
 
@@ -378,6 +410,11 @@ const styles = StyleSheet.create({
   error: {
     ...typography.caption,
     color: colors.error,
+    marginBottom: spacing.sm,
+  },
+  info: {
+    ...typography.caption,
+    color: colors.success,
     marginBottom: spacing.sm,
   },
   configError: {

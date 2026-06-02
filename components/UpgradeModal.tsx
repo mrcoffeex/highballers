@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter } from "@/lib/expoRouter";
 import { useCallback, useEffect, useState } from "react";
 import {
   Modal,

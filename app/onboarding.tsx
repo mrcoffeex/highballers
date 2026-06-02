@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter } from "@/lib/expoRouter";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppSplashScreen } from "../components/AppSplashScreen";
 import { LegalConsent } from "../components/LegalConsent";
+import { SignOutButton } from "../components/SignOutButton";
 import { StatSlider } from "../components/StatSlider";
 import {
   hasAcceptedCurrentLegal,
@@ -15,6 +16,7 @@ import {
 import { ImagePickerField } from "../components/ImagePickerField";
 import { Avatar, Button, Input } from "../components/ui";
 import { getGoogleProfileHints } from "../lib/googleAuth";
+import { isSupabaseEnabled } from "../lib/config";
 import { colors, radius, spacing, typography } from "../lib/theme";
 import { POSITIONS, Position } from "../lib/types";
 import { createDefaultProfile, useAppStore } from "../store/useAppStore";
@@ -23,6 +25,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
+  const signOut = useAppStore((state) => state.signOut);
   const authReady = useAppStore((state) => state.authReady);
   const onboardingComplete = useAppStore((state) => state.onboardingComplete);
   const session = useAppStore((state) => state.session);
@@ -100,6 +103,11 @@ export default function OnboardingScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUseDifferentAccount = async () => {
+    await signOut();
+    router.replace("/auth");
   };
 
   return (
@@ -298,6 +306,9 @@ export default function OnboardingScreen() {
             </View>
           </View>
         )}
+        {isSupabaseEnabled && session ? (
+          <SignOutButton onSignOut={handleUseDifferentAccount} />
+        ) : null}
       </ScrollView>
     </LinearGradient>
   );

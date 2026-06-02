@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack } from "@/lib/expoRouter";
 
 import { colors } from "../../lib/theme";
 
@@ -11,7 +11,6 @@ export default function LegalLayout() {
         headerTintColor: colors.primary,
         headerStyle: { backgroundColor: colors.background },
         headerTitleStyle: { color: colors.text },
-        contentStyle: { backgroundColor: colors.background },
         animation: "slide_from_right",
       }}
     >

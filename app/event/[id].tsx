@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "@/lib/expoRouter";
 import { format } from "date-fns";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useEffect, useMemo, useState } from "react";

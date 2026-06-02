@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams } from "@/lib/expoRouter";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,

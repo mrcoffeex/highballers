@@ -1,4 +1,5 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "@/lib/expoRouter";
+import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -74,6 +75,13 @@ export default function ClubJoinRequestsScreen() {
     return (
       <View style={styles.notFound}>
         <EmptyState
+          icon={
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={32}
+              color={colors.textMuted}
+            />
+          }
           title="Captains only"
           description="Only the captain of a private club can review join requests."
         />
@@ -106,6 +114,13 @@ export default function ClubJoinRequestsScreen() {
 
         {sortedRequests.length === 0 ? (
           <EmptyState
+            icon={
+              <Ionicons
+                name="checkmark-done-outline"
+                size={32}
+                color={colors.textMuted}
+              />
+            }
             title="All caught up"
             description="When someone requests to join this private club, they will show up here."
           />

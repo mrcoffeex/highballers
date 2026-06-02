@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Tabs } from "@/lib/expoRouter";
 import { useState } from "react";
 
 import { TabCacheWarmup } from "../../components/TabCacheWarmup";

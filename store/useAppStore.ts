@@ -5,23 +5,25 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { v4 as uuidv4 } from "uuid";
 
 import {
-  resetOAuthExchangeState,
   clearOAuthCallbackUrl,
+  getGoogleProfileHints,
+  getOAuthRedirectUri,
+  resetOAuthExchangeState,
   signInWithGoogle as startGoogleSignIn,
 } from "../lib/googleAuth";
 import { isSupabaseEnabled } from "../lib/config";
+import { devStartAtLogin } from "../lib/devConfig";
 import {
   cancelGameReminder,
   registerForPushNotifications,
   scheduleGameReminder,
-} from "../lib/notifications";
+} from "../lib/notificationsLazy";
 import {
   AVATAR_COLORS,
   SEED_CLUBS,
   SEED_EVENTS,
   SEED_PLAYERS,
 } from "../lib/seedData";
-import { getGoogleProfileHints } from "../lib/googleAuth";
 import { uploadAvatar, uploadClubLogo } from "../lib/storage";
 import { getSupabase } from "../lib/supabase";
 import {
@@ -125,7 +127,10 @@ interface AppState {
   setHydrated: (value: boolean) => void;
   initAuth: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<string | null>;
-  signUp: (email: string, password: string) => Promise<string | null>;
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signInWithGoogle: () => Promise<string | null>;
   syncSessionFromSupabase: () => Promise<Session | null>;
   hydrateSessionUser: (userId: string) => Promise<void>;
@@ -234,6 +239,7 @@ async function resolveClubLogoUrl(
 }
 
 let authListenerRegistered = false;
+let devLoginResetApplied = false;
 
 function getCurrentUser(get: () => AppState): UserProfile | null {
   const { currentUserId, users } = get();
@@ -264,6 +270,11 @@ export const useAppStore = create<AppState>()(
       setHydrated: (value) => set({ hydrated: value }),
 
       initAuth: async () => {
+        if (devStartAtLogin() && !devLoginResetApplied) {
+          devLoginResetApplied = true;
+          await get().signOut();
+        }
+
         if (!isSupabaseEnabled) {
           set({ authReady: true });
           return;
@@ -404,10 +415,25 @@ export const useAppStore = create<AppState>()(
 
       signUp: async (email, password) => {
         const supabase = getSupabase();
-        if (!supabase) return "Cloud sync is not configured.";
+        if (!supabase) {
+          return {
+            error: "Cloud sync is not configured.",
+            needsEmailConfirmation: false,
+          };
+        }
 
-        const { error } = await supabase.auth.signUp({ email, password });
-        return error?.message ?? null;
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: getOAuthRedirectUri(),
+          },
+        });
+
+        return {
+          error: error?.message ?? null,
+          needsEmailConfirmation: !error && !data.session,
+        };
       },
 
       signInWithGoogle: async () => startGoogleSignIn(),

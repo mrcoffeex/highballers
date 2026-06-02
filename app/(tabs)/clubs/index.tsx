@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter } from "@/lib/expoRouter";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -66,7 +66,7 @@ export default function ClubsScreen() {
               );
               return;
             }
-            router.push("/clubs/create");
+            router.push("/(tabs)/clubs/create");
           }}
           icon={<Ionicons name="add" size={18} color={colors.text} />}
         />

@@ -1,17 +1,20 @@
-import { DarkTheme, Stack, ThemeProvider, useRouter } from "expo-router";
+import { DarkTheme, Stack, ThemeProvider, useRouter } from "@/lib/expoRouter";
 import * as SplashScreen from "expo-splash-screen";
 import * as SystemUI from "expo-system-ui";
 import { StatusBar } from "expo-status-bar";
-import { Platform, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { syncActiveAllStarEntitlement } from "../lib/allStarPurchase";
+import { GestureRoot } from "../components/GestureRoot";
+import { isExpoGoNative } from "../lib/expoGoNative";
 import { isIapSupportedEnvironment } from "../lib/iapConfig";
 import { useEffect, useRef } from "react";
 
 import { AppSplashScreen } from "../components/AppSplashScreen";
+import { isPushNotificationsSupportedEnvironment } from "../lib/notificationsConfig";
 import {
-  addNotificationResponseListener,
   registerForPushNotifications,
-} from "../lib/notifications";
+  setupNotificationResponseListener,
+} from "../lib/notificationsLazy";
 import { isSupabaseEnabled } from "../lib/config";
 import { colors } from "../lib/theme";
 import { useAppStore } from "../store/useAppStore";
@@ -83,26 +86,34 @@ export default function RootLayout() {
   }, [currentUserId, onboardingComplete, upgradeToAllStar]);
 
   useEffect(() => {
-    if (Platform.OS === "web" || !onboardingComplete || !currentUserId) return;
+    if (
+      !isPushNotificationsSupportedEnvironment() ||
+      !onboardingComplete ||
+      !currentUserId
+    ) {
+      return;
+    }
 
     registerForPushNotifications(currentUserId).catch(() => undefined);
-    const removeListener = addNotificationResponseListener(
-      ({ eventId, clubId, url }) => {
-        if (typeof url === "string" && url.startsWith("/")) {
-          router.push(url as `/event/${string}`);
-          return;
-        }
-        if (clubId) {
-          router.push(`/chats/${clubId}`);
-          return;
-        }
-        if (eventId) {
-          router.push(`/event/${eventId}`);
-        }
-      },
-    );
 
-    return removeListener;
+    let removeListener = () => undefined;
+    void setupNotificationResponseListener(({ eventId, clubId, url }) => {
+      if (typeof url === "string" && url.startsWith("/")) {
+        router.push(url as `/event/${string}`);
+        return;
+      }
+      if (clubId) {
+        router.push(`/chats/${clubId}`);
+        return;
+      }
+      if (eventId) {
+        router.push(`/event/${eventId}`);
+      }
+    }).then((unsubscribe) => {
+      removeListener = unsubscribe;
+    });
+
+    return () => removeListener();
   }, [currentUserId, onboardingComplete, router]);
 
   const appReady = hydrated && authReady;
@@ -111,25 +122,19 @@ export default function RootLayout() {
     bootstrappedRef.current = true;
   }
 
-  if (!appReady && !bootstrappedRef.current) {
-    return (
-      <View style={styles.splashRoot}>
-        <StatusBar style="light" />
-        <AppSplashScreen />
-      </View>
-    );
-  }
+  const showSplashOverlay = !appReady && !bootstrappedRef.current;
 
   return (
-    <ThemeProvider value={navigationTheme}>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-          animation: "slide_from_right",
-        }}
-      >
+    <GestureRoot style={styles.root}>
+      <ThemeProvider value={navigationTheme}>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: "slide_from_right",
+            gestureEnabled: !isExpoGoNative(),
+          }}
+        >
         <Stack.Screen name="index" />
         <Stack.Screen name="auth" options={{ animation: "fade" }} />
         <Stack.Screen
@@ -141,7 +146,6 @@ export default function RootLayout() {
           name="(tabs)"
           options={{
             animation: "fade",
-            contentStyle: { backgroundColor: colors.background },
           }}
         />
         <Stack.Screen
@@ -233,13 +237,24 @@ export default function RootLayout() {
         />
         <Stack.Screen name="legal" options={{ headerShown: false }} />
       </Stack>
-    </ThemeProvider>
+      {showSplashOverlay ? (
+        <View style={styles.splashOverlay}>
+          <AppSplashScreen />
+        </View>
+      ) : null}
+      </ThemeProvider>
+    </GestureRoot>
   );
 }
 
 const styles = StyleSheet.create({
-  splashRoot: {
+  root: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  splashOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.background,
+    zIndex: 999,
   },
 });

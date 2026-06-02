@@ -1,6 +1,6 @@
 import { useLinkingURL } from "expo-linking";
 import * as Linking from "expo-linking";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "@/lib/expoRouter";
 import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -91,7 +91,7 @@ export default function OAuthCallbackScreen() {
         if (!hasSession) {
           if (!cancelled) {
             setError(
-              "Signed in with Google but no session was created. Please try again.",
+              "Signed in but no session was created. Please try again.",
             );
           }
           return;
@@ -99,7 +99,7 @@ export default function OAuthCallbackScreen() {
 
         if (!(await completeSignIn()) && !cancelled) {
           setError(
-            "Signed in with Google but no session was created. Please try again.",
+            "Signed in but no session was created. Please try again.",
           );
         }
       } finally {

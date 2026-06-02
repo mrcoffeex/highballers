@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "@/lib/expoRouter";
 import { StyleSheet, Text, View } from "react-native";
 
 import { PlayerStatsDashboard } from "../../components/PlayerStatsDashboard";
@@ -81,7 +81,7 @@ export default function PlayerProfileScreen() {
           headerTitleStyle: { color: colors.text },
         }}
       />
-      <Screen>
+      <Screen contentContainerStyle={styles.content} refreshable={false}>
         <LinearGradient
           colors={[colors.background, "#0F1520"]}
           style={styles.background}
@@ -184,7 +184,11 @@ function MetaStat({
 }
 
 const styles = StyleSheet.create({
+  content: {
+    flexGrow: 1,
+  },
   background: {
+    flexGrow: 1,
     marginHorizontal: -spacing.lg,
     marginTop: -spacing.lg,
     paddingHorizontal: spacing.lg,

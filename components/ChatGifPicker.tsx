@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -28,6 +28,7 @@ export function ChatGifPicker({ onPick }: ChatGifPickerProps) {
   const [gifs, setGifs] = useState<GiphyGif[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
 
   const configured = isGiphyConfigured();
 
@@ -35,25 +36,39 @@ export function ChatGifPicker({ onPick }: ChatGifPickerProps) {
     if (!configured) return;
 
     const term = query.trim();
+    let cancelled = false;
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+
     const timer = setTimeout(
       () => {
         setLoading(true);
         setError(null);
         const load = term ? searchGifs(term) : fetchTrendingGifs();
         void load
-          .then(setGifs)
+          .then((items) => {
+            if (cancelled || requestIdRef.current !== requestId) return;
+            setGifs(items);
+          })
           .catch((err) => {
+            if (cancelled || requestIdRef.current !== requestId) return;
             setGifs([]);
             setError(
               err instanceof Error ? err.message : "Could not load GIFs.",
             );
           })
-          .finally(() => setLoading(false));
+          .finally(() => {
+            if (cancelled || requestIdRef.current !== requestId) return;
+            setLoading(false);
+          });
       },
       term ? 350 : 0,
     );
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [configured, query]);
 
   if (!configured) {
@@ -84,7 +99,7 @@ export function ChatGifPicker({ onPick }: ChatGifPickerProps) {
           value={query}
           onChangeText={setQuery}
           placeholder="Search GIFs"
-          placeholderTextColor={colors.textDim}
+          placeholderTextColor={colors.textMuted}
           style={styles.searchInput}
           autoCapitalize="none"
           autoCorrect={false}

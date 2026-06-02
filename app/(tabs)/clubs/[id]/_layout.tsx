@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack } from "@/lib/expoRouter";
 
 import { colors } from "../../../../lib/theme";
 

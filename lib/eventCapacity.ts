@@ -1,8 +1,8 @@
 import {
   BASIC_MAX_EVENT_SIZE,
   SubscriptionError,
-  type SubscriptionTier,
 } from "./subscription";
+import type { SubscriptionTier } from "./types";
 
 export const EVENT_MIN_PLAYERS = 10;
 export const ALL_STAR_MAX_EVENT_PLAYERS = 40;

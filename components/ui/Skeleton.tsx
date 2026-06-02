@@ -528,7 +528,7 @@ export function AppBootstrapSkeleton() {
 
 const styles = StyleSheet.create({
   block: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainerHighest,
   },
   flex: {
     flex: 1,
@@ -544,11 +544,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   cardShell: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radius.xl,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: colors.outlineVariant,
   },
   chatItem: {
     flexDirection: "row",
@@ -588,9 +588,9 @@ const styles = StyleSheet.create({
     maxWidth: "78%",
     borderRadius: radius.lg,
     padding: spacing.sm + 2,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: colors.outlineVariant,
     gap: spacing.xs,
   },
   messageBubbleLeft: {
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
+    borderTopColor: colors.outlineVariant,
   },
   leaderboardRow: {
     flexDirection: "row",
@@ -672,11 +672,11 @@ const styles = StyleSheet.create({
   statChip: {
     width: "31%",
     flexGrow: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.md,
     padding: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: colors.outlineVariant,
   },
   screenContent: {
     padding: spacing.lg,
@@ -713,10 +713,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   locationResults: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.lg,
+    borderColor: colors.outlineVariant,
+    borderRadius: radius.xl,
     overflow: "hidden",
   },
   locationResultRow: {
@@ -726,7 +726,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
+    borderBottomColor: colors.outlineVariant,
   },
   homeHero: {
     flexDirection: "row",

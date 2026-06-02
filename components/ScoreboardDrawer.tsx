@@ -117,7 +117,7 @@ function PresetCell({
           placeholder={String(DEFAULT_QUARTER_MINUTES)}
           placeholderTextColor={colors.textDim}
           maxLength={2}
-          onBlur={(event) => {
+          onEndEditing={(event) => {
             const parsed = Number.parseInt(event.nativeEvent.text, 10);
             if (!Number.isNaN(parsed) && onBlurMinutes) {
               onBlurMinutes(parsed);

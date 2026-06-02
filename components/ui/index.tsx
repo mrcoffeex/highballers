@@ -16,7 +16,7 @@ import { SkeletonButtonLabel } from "./Skeleton";
 
 interface ButtonProps extends PressableProps {
   title: string;
-  variant?: "primary" | "secondary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "tonal";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
   icon?: ReactNode;
@@ -70,7 +70,7 @@ export function Button({
 export function Input({ style, ...props }: TextInputProps) {
   return (
     <TextInput
-      placeholderTextColor={colors.textDim}
+      placeholderTextColor={colors.textMuted}
       style={[styles.input, style]}
       {...props}
     />
@@ -112,7 +112,7 @@ export function Badge({ label, color = colors.primary }: BadgeProps) {
     <View
       style={[
         styles.badge,
-        { backgroundColor: `${color}22`, borderColor: `${color}55` },
+        { backgroundColor: `${color}24`, borderColor: `${color}66` },
       ]}
     >
       <Text style={[styles.badgeText, { color }]}>{label}</Text>
@@ -205,54 +205,60 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.md,
+    borderRadius: radius.full,
     gap: spacing.sm,
+    minHeight: 40,
+    overflow: "hidden",
   },
   primary: {
     backgroundColor: colors.primary,
   },
   secondary: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.tertiary,
+  },
+  tonal: {
+    backgroundColor: colors.primaryContainer,
   },
   outline: {
     backgroundColor: "transparent",
-    borderWidth: 1.5,
-    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderColor: colors.outline,
   },
   ghost: {
     backgroundColor: "transparent",
   },
   size_sm: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs + 2,
   },
   size_md: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm + 2,
   },
   size_lg: {
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md + 4,
+    paddingVertical: spacing.md,
   },
   pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.88,
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.38,
   },
   text: {
-    ...typography.heading,
-    fontSize: 16,
+    ...typography.button,
   },
   text_primary: {
-    color: colors.text,
+    color: colors.onPrimary,
   },
   text_secondary: {
-    color: colors.text,
+    color: colors.onTertiary,
+  },
+  text_tonal: {
+    color: colors.onPrimaryContainer,
   },
   text_outline: {
-    color: colors.text,
+    color: colors.primary,
   },
   text_ghost: {
     color: colors.primary,
@@ -261,29 +267,28 @@ const styles = StyleSheet.create({
     marginLeft: spacing.xs,
   },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainerHighest,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.md,
+    borderColor: colors.outlineVariant,
+    borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     color: colors.text,
     fontSize: 16,
   },
   card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radius.xl,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: colors.outlineVariant,
     ...shadows.card,
   },
   cardPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.99 }],
+    backgroundColor: colors.surfaceContainerHigh,
   },
   badge: {
-    paddingHorizontal: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.full,
     borderWidth: 1,
@@ -296,6 +301,8 @@ const styles = StyleSheet.create({
   avatar: {
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
   },
   avatarText: {
     color: colors.text,
@@ -328,7 +335,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.secondaryContainer,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.md,

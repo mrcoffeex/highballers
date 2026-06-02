@@ -1,4 +1,4 @@
-import { Redirect, useGlobalSearchParams } from "expo-router";
+import { Redirect, useGlobalSearchParams } from "@/lib/expoRouter";
 
 import { AppSplashScreen } from "../components/AppSplashScreen";
 import { isSupabaseEnabled } from "../lib/config";

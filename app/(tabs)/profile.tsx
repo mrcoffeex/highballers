@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter } from "@/lib/expoRouter";
 import { Fragment, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -49,6 +49,7 @@ export default function ProfileScreen() {
   const updateStats = useAppStore((state) => state.updateStats);
   const upgradeToAllStar = useAppStore((state) => state.upgradeToAllStar);
   const signOut = useAppStore((state) => state.signOut);
+  const session = useAppStore((state) => state.session);
   const users = useAppStore((state) => state.users);
   const hydrated = useAppStore((state) => state.hydrated);
   const { upgradeVisible, upgradeReason, promptUpgrade, closeUpgrade } =
@@ -64,16 +65,54 @@ export default function ProfileScreen() {
   const showDataLoading =
     !user && shouldShowEntitySkeleton(user, hydrated, users.length === 0);
 
+  const goToAuth = async () => {
+    if (session) {
+      await signOut();
+    }
+    router.replace("/auth");
+  };
+
   if (!user) {
-    if (!showDataLoading) {
-      return null;
+    if (showDataLoading) {
+      return (
+        <TabSkeletonOverlay showDataLoading skeleton={<ProfileScreenSkeleton />}>
+          <View style={styles.placeholder} />
+        </TabSkeletonOverlay>
+      );
     }
 
-    return (
-      <TabSkeletonOverlay showDataLoading skeleton={<ProfileScreenSkeleton />}>
-        <View style={styles.placeholder} />
-      </TabSkeletonOverlay>
-    );
+    if (isSupabaseEnabled) {
+      return (
+        <Screen
+          title="Profile"
+          subtitle={session ? "Account" : "Sign in"}
+          scroll={false}
+        >
+          <View style={styles.accountFallback}>
+            <Ionicons
+              name={session ? "person-circle-outline" : "log-in-outline"}
+              size={48}
+              color={colors.textMuted}
+            />
+            <Text style={styles.accountFallbackTitle}>
+              {session ? "Profile not loaded" : "Not signed in"}
+            </Text>
+            <Text style={styles.accountFallbackBody}>
+              {session
+                ? "Sign out and sign in again to restore your profile."
+                : "Sign in to sync clubs, games, and stats across devices."}
+            </Text>
+            {session ? (
+              <SignOutButton onSignOut={goToAuth} />
+            ) : (
+              <Button title="Sign in" size="lg" onPress={() => void goToAuth()} />
+            )}
+          </View>
+        </Screen>
+      );
+    }
+
+    return null;
   }
 
   const rating = calculatePlayerRating(user.stats);
@@ -98,72 +137,94 @@ export default function ProfileScreen() {
               isPro && styles.heroCardPro,
             ])}
           >
-            <View style={styles.heroTop}>
-              <View style={styles.avatarWrap}>
-                <Avatar
-                  name={user.name}
-                  color={user.avatarColor}
-                  size={80}
-                  imageUrl={user.avatarUrl}
-                />
-                <View style={styles.ovrRing}>
-                  <Text style={styles.ovrLabel}>OVR</Text>
-                  <Text style={styles.ovrValue}>{rating}</Text>
+            <View style={styles.heroGlowPrimary} />
+            <View style={styles.heroGlowSecondary} />
+
+            <View style={styles.heroContent}>
+              <View style={styles.heroTop}>
+                <View style={styles.avatarWrap}>
+                  <View style={styles.avatarHalo}>
+                    <Avatar
+                      name={user.name}
+                      color={user.avatarColor}
+                      size={88}
+                      imageUrl={user.avatarUrl}
+                    />
+                  </View>
+                  <View style={styles.ovrRing}>
+                    <Text style={styles.ovrLabel}>OVR</Text>
+                    <Text style={styles.ovrValue}>{rating}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.heroInfo}>
+                  <View style={styles.profileEyebrow}>
+                    <Ionicons
+                      name="trophy-outline"
+                      size={13}
+                      color={colors.secondary}
+                    />
+                    <Text style={styles.profileEyebrowText}>Baller profile</Text>
+                  </View>
+                  <Text style={styles.name}>{user.name}</Text>
+                  {user.nickname ? (
+                    <Text style={styles.nickname}>
+                      &quot;{user.nickname}&quot;
+                    </Text>
+                  ) : null}
+                  <View style={styles.positionPill}>
+                    <Ionicons
+                      name="basketball-outline"
+                      size={13}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.position}>
+                      {POSITION_LABELS[user.position]}
+                    </Text>
+                  </View>
+                  <SubscriptionBadge
+                    tier={tier}
+                    prominent
+                    onPress={!isPro ? () => promptUpgrade() : undefined}
+                  />
                 </View>
               </View>
 
-              <View style={styles.heroInfo}>
-                <Text style={styles.name}>{user.name}</Text>
-                {user.nickname ? (
-                  <Text style={styles.nickname}>
-                    &quot;{user.nickname}&quot;
-                  </Text>
-                ) : null}
-                <Text style={styles.position}>
-                  {POSITION_LABELS[user.position]}
-                </Text>
-                <SubscriptionBadge
-                  tier={tier}
-                  prominent
-                  onPress={!isPro ? () => promptUpgrade() : undefined}
+              <View style={styles.heroMeta}>
+                <MetaChip
+                  icon="resize-outline"
+                  label={`${user.stats.height} cm`}
+                />
+                <MetaChip
+                  icon="barbell-outline"
+                  label={`${user.stats.weight} kg`}
+                />
+                <MetaChip
+                  icon="people-outline"
+                  label={`${myClubs.length} club${myClubs.length !== 1 ? "s" : ""}`}
+                />
+                <MetaChip
+                  icon="stats-chart-outline"
+                  label={`${gameHistory.length} games`}
                 />
               </View>
-            </View>
 
-            <View style={styles.heroMeta}>
-              <MetaChip
-                icon="resize-outline"
-                label={`${user.stats.height} cm`}
-              />
-              <MetaChip
-                icon="barbell-outline"
-                label={`${user.stats.weight} kg`}
-              />
-              <MetaChip
-                icon="people-outline"
-                label={`${myClubs.length} club${myClubs.length !== 1 ? "s" : ""}`}
-              />
-              <MetaChip
-                icon="stats-chart-outline"
-                label={`${gameHistory.length} games`}
-              />
-            </View>
-
-            <View style={styles.heroActions}>
-              <Badge label={user.position} color={colors.primary} />
-              <View style={styles.heroBtnRow}>
-                <Button
-                  title="Edit Profile"
-                  variant="outline"
-                  size="sm"
-                  onPress={() => router.push("/profile/edit")}
-                />
-                <Button
-                  title="Public"
-                  variant="ghost"
-                  size="sm"
-                  onPress={() => router.push(`/player/${user.id}`)}
-                />
+              <View style={styles.heroActions}>
+                <Badge label={user.position} color={colors.secondary} />
+                <View style={styles.heroBtnRow}>
+                  <Button
+                    title="Edit Profile"
+                    size="sm"
+                    style={styles.heroPrimaryAction}
+                    onPress={() => router.push("/profile/edit")}
+                  />
+                  <Button
+                    title="Public"
+                    variant="outline"
+                    size="sm"
+                    onPress={() => router.push(`/player/${user.id}`)}
+                  />
+                </View>
               </View>
             </View>
           </Card>
@@ -234,16 +295,15 @@ export default function ProfileScreen() {
             }}
           />
 
-          <LegalSettingsCard />
+          <View style={styles.accountActions}>
+            <SectionLabel title="Account" subtitle="Legal, support & session" />
+            <LegalSettingsCard />
 
-          {isSupabaseEnabled ? (
-            <SignOutButton
-              onSignOut={async () => {
-                await signOut();
-                router.replace("/auth");
-              }}
-            />
-          ) : null}
+            {isSupabaseEnabled ? (
+              <SignOutButton onSignOut={goToAuth} />
+            ) : null}
+          </View>
+
         </LinearGradient>
       </Screen>
 
@@ -310,28 +370,66 @@ const styles = StyleSheet.create({
   heroCard: {
     marginBottom: spacing.md,
     padding: spacing.lg,
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: "#111827",
+    borderColor: `${colors.primary}33`,
   },
   heroCardPro: {
     borderColor: `${colors.secondary}44`,
   },
+  heroGlowPrimary: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: `${colors.primary}24`,
+    right: -70,
+    top: -80,
+  },
+  heroGlowSecondary: {
+    position: "absolute",
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: `${colors.secondary}18`,
+    left: -52,
+    bottom: -72,
+  },
+  heroContent: {
+    position: "relative",
+    zIndex: 1,
+  },
   heroTop: {
     flexDirection: "row",
     gap: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   avatarWrap: {
     alignItems: "center",
-    gap: spacing.sm,
+    justifyContent: "center",
+    position: "relative",
+    paddingRight: spacing.xs,
+  },
+  avatarHalo: {
+    padding: 4,
+    borderRadius: radius.full,
+    backgroundColor: `${colors.text}0A`,
+    borderWidth: 1,
+    borderColor: `${colors.primary}44`,
   },
   ovrRing: {
+    position: "absolute",
+    bottom: -6,
+    right: -2,
     alignItems: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: "#0C111B",
     borderRadius: radius.full,
     borderWidth: 2,
-    borderColor: colors.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    minWidth: 52,
+    borderColor: colors.secondary,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 5,
+    minWidth: 58,
   },
   ovrLabel: {
     ...typography.label,
@@ -349,10 +447,29 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minWidth: 0,
   },
+  profileEyebrow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+    backgroundColor: `${colors.secondary}14`,
+    borderWidth: 1,
+    borderColor: `${colors.secondary}33`,
+    marginBottom: spacing.sm,
+  },
+  profileEyebrowText: {
+    ...typography.label,
+    color: colors.secondary,
+    fontSize: 10,
+  },
   name: {
     ...typography.title,
     color: colors.text,
-    fontSize: 24,
+    fontSize: 28,
+    lineHeight: 32,
   },
   nickname: {
     ...typography.caption,
@@ -360,10 +477,24 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     marginTop: 2,
   },
+  positionPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: `${colors.primary}14`,
+    borderWidth: 1,
+    borderColor: `${colors.primary}2E`,
+  },
   position: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
+    ...typography.label,
+    color: colors.text,
+    fontSize: 10,
   },
   heroMeta: {
     flexDirection: "row",
@@ -375,7 +506,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: colors.surface,
+    backgroundColor: `${colors.surface}CC`,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
     borderRadius: radius.full,
@@ -391,11 +522,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: spacing.md,
   },
   heroBtnRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+    flexShrink: 0,
+  },
+  heroPrimaryAction: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   sectionHeader: {
     marginBottom: spacing.sm,
@@ -415,6 +552,9 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     marginBottom: spacing.lg,
+  },
+  accountActions: {
+    marginTop: spacing.sm,
   },
   statRow: {
     flexDirection: "row",
@@ -449,5 +589,24 @@ const styles = StyleSheet.create({
   placeholder: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  accountFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  accountFallbackTitle: {
+    ...typography.title,
+    color: colors.text,
+    textAlign: "center",
+  },
+  accountFallbackBody: {
+    ...typography.body,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginBottom: spacing.md,
   },
 });

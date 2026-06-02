@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter } from "@/lib/expoRouter";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -21,7 +21,7 @@ export function CreateTabSheet({ visible, onClose }: CreateTabSheetProps) {
 
   const handleNewClub = () => {
     onClose();
-    router.push("/clubs/create");
+    router.push("/(tabs)/clubs/create");
   };
 
   return (

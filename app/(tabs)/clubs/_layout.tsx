@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack } from "@/lib/expoRouter";
 
 import { colors } from "../../../lib/theme";
 
@@ -10,7 +10,6 @@ export default function ClubsLayout() {
   return (
     <Stack
       screenOptions={{
-        contentStyle: { backgroundColor: colors.background },
         animation: "slide_from_right",
       }}
     >

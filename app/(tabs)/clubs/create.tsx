@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter } from "@/lib/expoRouter";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -56,7 +56,7 @@ export default function CreateClubScreen() {
     setLoading(true);
 
     try {
-      const id = await createClub(
+      await createClub(
         {
           name: name.trim(),
           description:
@@ -67,7 +67,7 @@ export default function CreateClubScreen() {
         },
         logoUri,
       );
-      router.replace("/clubs");
+      router.replace("/(tabs)/clubs");
     } catch (err) {
       if (handleSubscriptionError(err)) return;
       setError(formatSyncError(err, "Could not create club. Try again."));

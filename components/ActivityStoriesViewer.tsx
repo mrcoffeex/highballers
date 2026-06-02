@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   tapZones: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: "row",
   },
   tapLeft: {

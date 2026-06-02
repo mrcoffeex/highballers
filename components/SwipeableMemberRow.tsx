@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Platform,
   Pressable,
@@ -9,15 +9,18 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import Swipeable, {
-  type SwipeableMethods,
-} from "react-native-gesture-handler/ReanimatedSwipeable";
 
+import { isExpoGoNative } from "../lib/expoGoNative";
 import { colors, radius, spacing, typography } from "../lib/theme";
 
 const ACTION_WIDTH = 80;
 
-export type { SwipeableMethods };
+export type SwipeableMethods = {
+  close: () => void;
+  openLeft?: () => void;
+  openRight?: () => void;
+  reset?: () => void;
+};
 
 type SwipeableMemberRowProps = {
   children: React.ReactNode;
@@ -81,7 +84,74 @@ function SubCaptainAction({
   );
 }
 
-export function SwipeableMemberRow({
+function InlineMemberActions({
+  onKick,
+  onBan,
+  onSubCaptain,
+  isSubCaptain,
+  subCaptainAtCapacity,
+}: Pick<
+  SwipeableMemberRowProps,
+  | "onKick"
+  | "onBan"
+  | "onSubCaptain"
+  | "isSubCaptain"
+  | "subCaptainAtCapacity"
+>) {
+  return (
+    <View style={styles.webActions}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Kick member"
+        style={({ pressed }) => [
+          styles.webAction,
+          styles.kickAction,
+          pressed && styles.actionPressed,
+        ]}
+        onPress={onKick}
+      >
+        <Ionicons name="exit-outline" size={18} color={colors.warning} />
+        <Text style={[styles.actionLabel, styles.kickLabel]}>Kick</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Ban member"
+        style={({ pressed }) => [
+          styles.webAction,
+          styles.banAction,
+          pressed && styles.actionPressed,
+        ]}
+        onPress={onBan}
+      >
+        <Ionicons name="remove-circle-outline" size={18} color={colors.error} />
+        <Text style={[styles.actionLabel, styles.banLabel]}>Ban</Text>
+      </Pressable>
+      {onSubCaptain ? (
+        <SubCaptainAction
+          compact
+          isSubCaptain={isSubCaptain ?? false}
+          atCapacity={subCaptainAtCapacity ?? false}
+          onPress={onSubCaptain}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+type NativeSwipeableProps = SwipeableMemberRowProps & {
+  Swipeable: React.ComponentType<{
+    ref?: React.Ref<SwipeableMethods>;
+    friction?: number;
+    overshootRight?: boolean;
+    rightThreshold?: number;
+    containerStyle?: StyleProp<ViewStyle>;
+    onSwipeableWillOpen?: () => void;
+    renderRightActions?: () => React.ReactNode;
+    children: React.ReactNode;
+  }>;
+};
+
+function NativeSwipeableMemberRow({
   children,
   enabled,
   onKick,
@@ -91,7 +161,8 @@ export function SwipeableMemberRow({
   onSubCaptain,
   isSubCaptain = false,
   subCaptainAtCapacity = false,
-}: SwipeableMemberRowProps) {
+  Swipeable,
+}: NativeSwipeableProps) {
   const swipeRef = useRef<SwipeableMethods>(null);
   const actionCount = onSubCaptain ? 3 : 2;
   const actionsWidth = ACTION_WIDTH * actionCount;
@@ -103,54 +174,6 @@ export function SwipeableMemberRow({
 
   if (!enabled) {
     return <View style={[styles.wrapper, style]}>{children}</View>;
-  }
-
-  if (Platform.OS === "web") {
-    return (
-      <View style={[styles.wrapper, style]}>
-        {children}
-        <View style={styles.webActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Kick member"
-            style={({ pressed }) => [
-              styles.webAction,
-              styles.kickAction,
-              pressed && styles.actionPressed,
-            ]}
-            onPress={onKick}
-          >
-            <Ionicons name="exit-outline" size={18} color={colors.warning} />
-            <Text style={[styles.actionLabel, styles.kickLabel]}>Kick</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Ban member"
-            style={({ pressed }) => [
-              styles.webAction,
-              styles.banAction,
-              pressed && styles.actionPressed,
-            ]}
-            onPress={onBan}
-          >
-            <Ionicons
-              name="remove-circle-outline"
-              size={18}
-              color={colors.error}
-            />
-            <Text style={[styles.actionLabel, styles.banLabel]}>Ban</Text>
-          </Pressable>
-          {onSubCaptain ? (
-            <SubCaptainAction
-              compact
-              isSubCaptain={isSubCaptain}
-              atCapacity={subCaptainAtCapacity}
-              onPress={onSubCaptain}
-            />
-          ) : null}
-        </View>
-      </View>
-    );
   }
 
   return (
@@ -208,6 +231,55 @@ export function SwipeableMemberRow({
       {children}
     </Swipeable>
   );
+}
+
+export function SwipeableMemberRow(props: SwipeableMemberRowProps) {
+  const {
+    children,
+    enabled,
+    onKick,
+    onBan,
+    style,
+    onSubCaptain,
+    isSubCaptain,
+    subCaptainAtCapacity,
+  } = props;
+  const [Swipeable, setSwipeable] = useState<
+    NativeSwipeableProps["Swipeable"] | null
+  >(null);
+
+  useEffect(() => {
+    if (isExpoGoNative() || Platform.OS === "web") return;
+
+    void import("react-native-gesture-handler/ReanimatedSwipeable").then(
+      (mod) => {
+        setSwipeable(
+          () => mod.default as unknown as NativeSwipeableProps["Swipeable"],
+        );
+      },
+    );
+  }, []);
+
+  if (!enabled) {
+    return <View style={[styles.wrapper, style]}>{children}</View>;
+  }
+
+  if (Platform.OS === "web" || isExpoGoNative() || !Swipeable) {
+    return (
+      <View style={[styles.wrapper, style]}>
+        {children}
+        <InlineMemberActions
+          onKick={onKick}
+          onBan={onBan}
+          onSubCaptain={onSubCaptain}
+          isSubCaptain={isSubCaptain}
+          subCaptainAtCapacity={subCaptainAtCapacity}
+        />
+      </View>
+    );
+  }
+
+  return <NativeSwipeableMemberRow {...props} Swipeable={Swipeable} />;
 }
 
 const styles = StyleSheet.create({

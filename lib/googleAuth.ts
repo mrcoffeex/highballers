@@ -1,6 +1,6 @@
 import * as QueryParams from "expo-auth-session/build/QueryParams";
 import { makeRedirectUri } from "expo-auth-session";
-import Constants from "expo-constants";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
@@ -39,6 +39,12 @@ function nativeOAuthRedirectUri() {
   return Linking.createURL("oauth-callback", { scheme: "highballers" });
 }
 
+/** When true, OAuth uses exp://127.0.0.1:8081 (must match Metro --localhost + adb reverse). */
+export function oauthPreferLocalhost(): boolean {
+  const value = process.env.EXPO_PUBLIC_OAUTH_PREFER_LOCALHOST;
+  return value === "true" || value === "1";
+}
+
 export function getOAuthRedirectUri() {
   if (Platform.OS === "web") {
     if (typeof window !== "undefined" && window.location?.origin) {
@@ -52,7 +58,7 @@ export function getOAuthRedirectUri() {
   }
 
   // Preview / production native builds must use the app scheme, not exp://.
-  if (Constants.appOwnership === "standalone") {
+  if (Constants.executionEnvironment === ExecutionEnvironment.Standalone) {
     return nativeOAuthRedirectUri();
   }
 
@@ -65,10 +71,14 @@ export function getOAuthRedirectUri() {
     return nativeOAuthRedirectUri();
   }
 
+  if (process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI?.trim()) {
+    return process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI.trim();
+  }
+
   return makeRedirectUri({
     scheme: "highballers",
     path: "oauth-callback",
-    preferLocalhost: useDevRedirect,
+    preferLocalhost: oauthPreferLocalhost(),
   });
 }
 
@@ -103,9 +113,10 @@ export function buildOAuthTimeoutMessage(): string {
   const redirects = getOAuthRedirectUriHints();
   return [
     "Sign in timed out waiting for Google to return to the app.",
-    "In Supabase → Authentication → URL Configuration, add every redirect URL you use (exact match):",
+    "The redirect URL must match Metro (see OAuth redirect on the sign-in screen).",
+    "In Supabase → Authentication → URL Configuration, add every redirect URL below (exact match):",
     ...redirects.map((uri) => `• ${uri}`),
-    "Then fully close and reopen the app before trying again.",
+    "Reload the app in Expo Go after changing Metro host (LAN vs localhost), then try again.",
   ].join("\n");
 }
 
@@ -242,6 +253,39 @@ function parseAuthParams(url: string) {
   return QueryParams.getQueryParams(url);
 }
 
+function watchOAuthCallbackUrl(timeoutMs = 30000) {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  let subscription: { remove: () => void } | null = null;
+  let settled = false;
+
+  const cleanup = () => {
+    if (timeout) clearTimeout(timeout);
+    subscription?.remove();
+    timeout = null;
+    subscription = null;
+  };
+
+  const promise = new Promise<string | null>((resolve) => {
+    const finish = (url: string | null) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(url);
+    };
+
+    subscription = Linking.addEventListener("url", ({ url }) => {
+      if (urlHasOAuthPayload(url)) finish(url);
+    });
+
+    timeout = setTimeout(() => finish(null), timeoutMs);
+  });
+
+  return {
+    promise,
+    stop: cleanup,
+  };
+}
+
 export async function createSessionFromUrl(
   url: string,
 ): Promise<string | null> {
@@ -317,26 +361,42 @@ export async function signInWithGoogle(): Promise<string | null> {
     return null;
   }
 
-  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo, {
-    showInRecents: true,
-  });
+  const callbackWatcher = watchOAuthCallbackUrl();
 
-  if (result.type === "success" && result.url) {
-    const sessionError = await createSessionFromUrl(result.url);
-    if (!sessionError) return null;
+  try {
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo, {
+      showInRecents: true,
+    });
 
-    const { data } = await supabase.auth.getSession();
-    if (data.session) return null;
+    const callbackUrl =
+      result.type === "success" && result.url
+        ? result.url
+        : await Promise.race([
+            callbackWatcher.promise,
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+          ]);
 
-    return sessionError;
+    if (callbackUrl) {
+      const sessionError = await createSessionFromUrl(callbackUrl);
+      if (!sessionError) return null;
+
+      const { data } = await supabase.auth.getSession();
+      if (data.session) return null;
+
+      return sessionError;
+    }
+
+    const hasSession = await waitForSupabaseSession(12, 250);
+    if (hasSession) return null;
+
+    if (result.type === "cancel" || result.type === "dismiss") {
+      return buildOAuthTimeoutMessage();
+    }
+
+    return "Google sign in was interrupted.";
+  } finally {
+    callbackWatcher.stop();
   }
-
-  if (result.type === "cancel" || result.type === "dismiss") {
-    await waitForSupabaseSession(12, 250);
-    return null;
-  }
-
-  return "Google sign in was interrupted.";
 }
 
 export function getGoogleProfileHints(
