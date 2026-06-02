@@ -7,6 +7,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   owner: "kentjohngo",
   extra: {
     ...config.extra,
+    giphyApiKey: process.env.EXPO_PUBLIC_GIPHY_API_KEY,
     eas: {
       projectId: "d8bdb9a0-8b35-4786-b51f-c5b57f808720",
     },

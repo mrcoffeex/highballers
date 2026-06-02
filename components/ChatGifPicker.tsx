@@ -3,8 +3,8 @@ import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -78,8 +78,8 @@ export function ChatGifPicker({ onPick }: ChatGifPickerProps) {
           <Ionicons name="images-outline" size={28} color={colors.textDim} />
           <Text style={styles.emptyTitle}>GIF search not configured</Text>
           <Text style={styles.emptyText}>
-            Add EXPO_PUBLIC_GIPHY_API_KEY to your .env file. Get a free key at
-            developers.giphy.com
+            Add EXPO_PUBLIC_GIPHY_API_KEY to your .env file, restart Metro with
+            `npx expo start -c`, then reopen the GIF picker.
           </Text>
         </View>
       </View>
@@ -106,50 +106,56 @@ export function ChatGifPicker({ onPick }: ChatGifPickerProps) {
         />
       </View>
 
-      {loading && gifs.length === 0 ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
-      ) : error ? (
-        <Text style={styles.errorText}>{error}</Text>
-      ) : (
-        <FlatList
-          data={gifs}
-          keyExtractor={(item) => item.id}
-          numColumns={3}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.grid}
-          columnWrapperStyle={styles.column}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => onPick(item)}
-              style={({ pressed }) => [
-                styles.gifCell,
-                pressed && styles.gifCellPressed,
-              ]}
-              accessibilityLabel={`Send GIF ${item.title}`}
-            >
-              <Image
-                source={{ uri: item.previewUrl }}
-                style={styles.gifPreview}
-                contentFit="cover"
-              />
-            </Pressable>
-          )}
-          ListEmptyComponent={
-            !loading ? (
+      <View style={styles.body}>
+        {loading && gifs.length === 0 ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color={colors.primary} />
+          </View>
+        ) : error ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : (
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.grid}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {gifs.length === 0 ? (
               <Text style={styles.emptyText}>
                 No GIFs found. Try another search.
               </Text>
-            ) : null
-          }
-        />
-      )}
+            ) : (
+              <View style={styles.gridRow}>
+                {gifs.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => onPick(item)}
+                    style={({ pressed }) => [
+                      styles.gifCell,
+                      pressed && styles.gifCellPressed,
+                    ]}
+                    accessibilityLabel={`Send GIF ${item.title}`}
+                  >
+                    <Image
+                      source={{ uri: item.previewUrl }}
+                      style={styles.gifPreview}
+                      contentFit="cover"
+                      autoplay
+                    />
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        )}
+      </View>
 
       <Text style={styles.attribution}>Powered by GIPHY</Text>
     </View>
   );
 }
+
+const CELL_SIZE = 88;
 
 const styles = StyleSheet.create({
   container: {
@@ -179,17 +185,25 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
   },
+  body: {
+    flex: 1,
+    minHeight: 0,
+  },
+  scroll: {
+    flex: 1,
+  },
   grid: {
     paddingHorizontal: spacing.sm,
     paddingBottom: spacing.xs,
   },
-  column: {
+  gridRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.xs,
-    marginBottom: spacing.xs,
   },
   gifCell: {
-    flex: 1,
-    aspectRatio: 1,
+    width: CELL_SIZE,
+    height: CELL_SIZE,
     borderRadius: radius.md,
     overflow: "hidden",
     backgroundColor: colors.card,

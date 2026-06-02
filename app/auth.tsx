@@ -128,6 +128,12 @@ export default function AuthScreen() {
 
     setGoogleLoading(true);
 
+    // Mount the callback route before opening the browser so deep links are handled
+    // if Android returns `dismiss` and only delivers the URL via Linking.
+    if (Platform.OS !== "web") {
+      router.push("/oauth-callback");
+    }
+
     const message = await signInWithGoogle();
     if (message) {
       setGoogleLoading(false);

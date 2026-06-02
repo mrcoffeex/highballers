@@ -66,8 +66,10 @@ function ChatMessageBubbleInner({
             source={{ uri: gifUrl }}
             style={styles.gif}
             contentFit="cover"
+            autoplay
+            allowDownscaling
             cachePolicy="memory-disk"
-            recyclingKey={message.id}
+            recyclingKey={`${message.id}:${gifUrl}`}
             accessibilityLabel="GIF"
           />
         ) : (

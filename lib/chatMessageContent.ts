@@ -1,10 +1,23 @@
-/** Prefix for GIF-only chat messages (body = prefix + HTTPS URL). */
+/** Prefix for GIF-only chat messages. */
 export const CHAT_GIF_PREFIX = "hb-gif:";
 
 const GIF_URL_PATTERN = /^https?:\/\/.+/i;
+const GIPHY_ID_PATTERN = /^[a-zA-Z0-9]+$/;
 
-export function encodeGifMessage(url: string): string {
-  const trimmed = url.trim();
+export function giphyMediaUrl(giphyId: string): string {
+  return `https://media.giphy.com/media/${giphyId}/giphy.gif`;
+}
+
+export function encodeGifMessage(input: string | { id: string }): string {
+  if (typeof input === "object") {
+    const id = input.id.trim();
+    if (!GIPHY_ID_PATTERN.test(id)) {
+      throw new Error("Invalid GIF id.");
+    }
+    return `${CHAT_GIF_PREFIX}i:${id}`;
+  }
+
+  const trimmed = input.trim();
   if (!GIF_URL_PATTERN.test(trimmed)) {
     throw new Error("Invalid GIF URL.");
   }
@@ -17,8 +30,15 @@ export function isGifMessage(body: string): boolean {
 
 export function getGifMessageUrl(body: string): string | null {
   if (!isGifMessage(body)) return null;
-  const url = body.slice(CHAT_GIF_PREFIX.length).trim();
-  return GIF_URL_PATTERN.test(url) ? url : null;
+
+  const payload = body.slice(CHAT_GIF_PREFIX.length).trim();
+  if (payload.startsWith("i:")) {
+    const id = payload.slice(2).trim();
+    if (!GIPHY_ID_PATTERN.test(id)) return null;
+    return giphyMediaUrl(id);
+  }
+
+  return GIF_URL_PATTERN.test(payload) ? payload : null;
 }
 
 export function formatChatMessagePreview(body: string, maxLength = 72): string {

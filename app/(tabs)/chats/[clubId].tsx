@@ -232,9 +232,20 @@ export default function ClubChatScreen() {
   };
 
   const handleSendGif = async (gif: GiphyGif) => {
-    setComposerPanel("none");
+    let body: string;
     try {
-      await postMessage(encodeGifMessage(gif.fullUrl));
+      body = encodeGifMessage(gif);
+    } catch (error) {
+      floatingAlert.show(
+        error instanceof Error ? error.message : "Could not send GIF.",
+        "error",
+      );
+      return;
+    }
+
+    try {
+      await postMessage(body);
+      setComposerPanel("none");
     } catch {
       // Error alert already shown in postMessage.
     }

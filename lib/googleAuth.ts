@@ -35,8 +35,18 @@ export function urlHasOAuthPayload(url: string): boolean {
   return /(?:[?&#])(?:code|access_token|error)=/.test(url);
 }
 
+/** Must match Supabase Auth redirect allow list and app.json `scheme` + intent filters. */
+export const NATIVE_OAUTH_REDIRECT_URI = "highballers://oauth-callback";
+
 function nativeOAuthRedirectUri() {
-  return Linking.createURL("oauth-callback", { scheme: "highballers" });
+  return NATIVE_OAUTH_REDIRECT_URI;
+}
+
+function isNativeAppBuild(): boolean {
+  return (
+    Constants.executionEnvironment === ExecutionEnvironment.Standalone ||
+    Constants.executionEnvironment === ExecutionEnvironment.Bare
+  );
 }
 
 /** When true, OAuth uses exp://127.0.0.1:8081 (must match Metro --localhost + adb reverse). */
@@ -58,14 +68,11 @@ export function getOAuthRedirectUri() {
   }
 
   // Preview / production native builds must use the app scheme, not exp://.
-  if (Constants.executionEnvironment === ExecutionEnvironment.Standalone) {
+  if (isNativeAppBuild()) {
     return nativeOAuthRedirectUri();
   }
 
-  const useDevRedirect =
-    __DEV__ ||
-    Constants.appOwnership === "expo" ||
-    Constants.appOwnership === null;
+  const useDevRedirect = __DEV__ || Constants.appOwnership === "expo";
 
   if (!useDevRedirect) {
     return nativeOAuthRedirectUri();
@@ -111,13 +118,24 @@ export function getOAuthRedirectUriHints(): string[] {
 
 export function buildOAuthTimeoutMessage(): string {
   const redirects = getOAuthRedirectUriHints();
-  return [
+  const lines = [
     "Sign in timed out waiting for Google to return to the app.",
-    "The redirect URL must match Metro (see OAuth redirect on the sign-in screen).",
     "In Supabase → Authentication → URL Configuration, add every redirect URL below (exact match):",
     ...redirects.map((uri) => `• ${uri}`),
-    "Reload the app in Expo Go after changing Metro host (LAN vs localhost), then try again.",
-  ].join("\n");
+  ];
+
+  if (isNativeAppBuild()) {
+    lines.push(
+      "On a preview or store build, use the native URL above (not exp://). Reinstall the latest preview APK after changing app.json intent filters.",
+    );
+  } else {
+    lines.push(
+      "The redirect URL must match Metro (see OAuth redirect on the sign-in screen).",
+      "Reload the app in Expo Go after changing Metro host (LAN vs localhost), then try again.",
+    );
+  }
+
+  return lines.join("\n");
 }
 
 /** Wait for Supabase to persist the session after code exchange (AsyncStorage). */
@@ -364,16 +382,28 @@ export async function signInWithGoogle(): Promise<string | null> {
   const callbackWatcher = watchOAuthCallbackUrl();
 
   try {
+    // Android release/preview builds often return `dismiss` even when the deep link
+    // arrives a moment later; createTask: false keeps the auth tab in-app task.
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo, {
-      showInRecents: true,
+      ...(Platform.OS === "android"
+        ? { createTask: false }
+        : { showInRecents: true }),
     });
+
+    const postDismissWaitMs =
+      Platform.OS === "android" &&
+      (result.type === "dismiss" || result.type === "cancel")
+        ? 12000
+        : 1500;
 
     const callbackUrl =
       result.type === "success" && result.url
         ? result.url
         : await Promise.race([
             callbackWatcher.promise,
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+            new Promise<null>((resolve) =>
+              setTimeout(() => resolve(null), postDismissWaitMs),
+            ),
           ]);
 
     if (callbackUrl) {

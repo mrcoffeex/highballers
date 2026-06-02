@@ -36,6 +36,10 @@
               "host": "oauth-callback"
             },
             {
+              "scheme": "highballers",
+              "pathPrefix": "/oauth-callback"
+            },
+            {
               "scheme": "highballers"
             }
           ],
