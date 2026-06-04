@@ -1,6 +1,6 @@
 import { isUserBannedFromClub } from "./clubBans";
 import { canUserJoinEvent, isPrivateEvent } from "./eventAccess";
-import { canManageEvent, isEventOptionsLocked } from "./gameEvents";
+import { canControlEvent, isEventOptionsLocked } from "./gameEvents";
 import { canJoinEvent, getUserTier } from "./subscription";
 import { Club, ClubBan, GameEvent, UserProfile } from "./types";
 
@@ -16,7 +16,7 @@ export function canInvitePlayersToEvent(
 ): boolean {
   if (isEventOptionsLocked(event)) return false;
   if (event.participantIds.length >= event.maxPlayers) return false;
-  return canManageEvent(event, userId, club);
+  return canControlEvent(event, userId, club);
 }
 
 export function getSpotsLeft(event: GameEvent): number {

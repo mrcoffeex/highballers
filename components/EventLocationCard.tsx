@@ -2,7 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 
 import { EventLocation } from "../lib/location";
-import { openGoogleMapsDirections } from "../lib/maps";
+import {
+  openGoogleMapsDirections,
+  openGoogleMapsPlace,
+} from "../lib/maps";
 import { colors, spacing, typography } from "../lib/theme";
 import { EventMapPreview } from "./EventMapPreview";
 import { Button } from "./ui";
@@ -12,12 +15,13 @@ interface EventLocationCardProps {
 }
 
 export function EventLocationCard({ location }: EventLocationCardProps) {
+  const openPlace = () => openGoogleMapsPlace(location, location.label);
   const openDirections = () =>
     openGoogleMapsDirections(location, location.label);
 
   return (
     <View style={styles.container}>
-      <EventMapPreview location={location} onPress={openDirections} />
+      <EventMapPreview location={location} onPress={openPlace} />
 
       <View style={styles.copy}>
         <View style={styles.labelRow}>

@@ -30,16 +30,22 @@ import {
 } from "../../../../lib/supabaseSync";
 import { getRemoteCache, setRemoteCache } from "../../../../lib/remoteCache";
 import { formatSyncError } from "../../../../lib/syncErrors";
+import { useTheme, useThemedStyles } from "../../../../lib/ThemeProvider";
 import {
-  colors,
   getScreenGradient,
   radius,
   spacing,
   typography,
+  withAlpha,
+  type ThemeColors,
 } from "../../../../lib/theme";
 import { useTabBarPadding } from "../../../../lib/tabBar";
 import { useRefreshControl } from "../../../../lib/useRefreshControl";
-import { isClubCaptain, MAX_SUB_CAPTAINS } from "../../../../lib/clubRoles";
+import {
+  canTransferClubCaptain,
+  isClubCaptain,
+  MAX_SUB_CAPTAINS,
+} from "../../../../lib/clubRoles";
 import { Club, UserProfile } from "../../../../lib/types";
 import { useClub, useClubBans } from "../../../../store/hooks";
 import { useAppStore } from "../../../../store/useAppStore";
@@ -74,6 +80,8 @@ function resolveClubId(id: string | string[] | undefined) {
 }
 
 export default function ClubMembersScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string | string[] }>();
   const clubId = resolveClubId(id);
@@ -97,7 +105,7 @@ export default function ClubMembersScreen() {
   const [moderation, setModeration] = useState<{
     userId: string;
     name: string;
-    action: "kick" | "ban" | "unban";
+    action: "kick" | "ban" | "unban" | "transfer";
   } | null>(null);
   const [moderating, setModerating] = useState(false);
   const [togglingSubCaptainId, setTogglingSubCaptainId] = useState<
@@ -108,6 +116,7 @@ export default function ClubMembersScreen() {
   const banMember = useAppStore((state) => state.banMember);
   const unbanMember = useAppStore((state) => state.unbanMember);
   const setClubSubCaptains = useAppStore((state) => state.setClubSubCaptains);
+  const transferClubCaptain = useAppStore((state) => state.transferClubCaptain);
   const clubBans = useClubBans(clubId ?? "");
   const endReachedGuard = useRef(false);
   const initialLoadKeyRef = useRef<string | null>(null);
@@ -122,6 +131,9 @@ export default function ClubMembersScreen() {
   );
 
   const isCaptain = Boolean(club && isClubCaptain(club, currentUserId));
+  const captainCanTransfer = Boolean(
+    club && canTransferClubCaptain(club, currentUserId),
+  );
   const subCaptainIds = club?.subCaptainIds ?? [];
   const subCaptainAtCapacity = subCaptainIds.length >= MAX_SUB_CAPTAINS;
 
@@ -402,6 +414,8 @@ export default function ClubMembersScreen() {
         setMembers((current) =>
           current.filter((member) => member.id !== moderation.userId),
         );
+      } else if (moderation.action === "transfer") {
+        await transferClubCaptain(clubId, moderation.userId);
       } else {
         await unbanMember(clubId, moderation.userId);
       }
@@ -485,39 +499,60 @@ export default function ClubMembersScreen() {
           keyboardShouldPersistTaps="handled"
           refreshControl={refreshControl}
           renderItem={({ item }) => (
-            <MemberRow
-              player={item}
-              badge={getMemberBadge(item.id)}
-              showAdminActions={isAdmin}
-              showSubCaptainAction={isCaptain}
-              isSubCaptain={subCaptainIds.includes(item.id)}
-              subCaptainAtCapacity={subCaptainAtCapacity}
-              subCaptainLoading={togglingSubCaptainId === item.id}
-              onPress={() => router.push(`/player/${item.id}`)}
-              onKick={() =>
-                setModeration({
-                  userId: item.id,
-                  name: item.nickname ?? item.name,
-                  action: "kick",
-                })
-              }
-              onBan={() =>
-                setModeration({
-                  userId: item.id,
-                  name: item.nickname ?? item.name,
-                  action: "ban",
-                })
-              }
-              onSubCaptain={() => {
-                void handleToggleSubCaptain(item.id);
-              }}
-              onSwipeOpen={(methods) => {
-                if (openSwipeRef.current && openSwipeRef.current !== methods) {
-                  openSwipeRef.current.close();
+            <View style={styles.memberBlock}>
+              <MemberRow
+                player={item}
+                badge={getMemberBadge(item.id)}
+                showAdminActions={isAdmin}
+                showSubCaptainAction={isCaptain}
+                isSubCaptain={subCaptainIds.includes(item.id)}
+                subCaptainAtCapacity={subCaptainAtCapacity}
+                subCaptainLoading={togglingSubCaptainId === item.id}
+                onPress={() => router.push(`/player/${item.id}`)}
+                onKick={() =>
+                  setModeration({
+                    userId: item.id,
+                    name: item.nickname ?? item.name,
+                    action: "kick",
+                  })
                 }
-                openSwipeRef.current = methods;
-              }}
-            />
+                onBan={() =>
+                  setModeration({
+                    userId: item.id,
+                    name: item.nickname ?? item.name,
+                    action: "ban",
+                  })
+                }
+                onSubCaptain={() => {
+                  void handleToggleSubCaptain(item.id);
+                }}
+                onSwipeOpen={(methods) => {
+                  if (
+                    openSwipeRef.current &&
+                    openSwipeRef.current !== methods
+                  ) {
+                    openSwipeRef.current.close();
+                  }
+                  openSwipeRef.current = methods;
+                }}
+              />
+              {captainCanTransfer ? (
+                <View style={styles.adminActions}>
+                  <Button
+                    title="Make Captain"
+                    size="sm"
+                    variant="outline"
+                    onPress={() =>
+                      setModeration({
+                        userId: item.id,
+                        name: item.nickname ?? item.name,
+                        action: "transfer",
+                      })
+                    }
+                  />
+                </View>
+              ) : null}
+            </View>
           )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           onEndReached={handleLoadMore}
@@ -608,6 +643,13 @@ export default function ClubMembersScreen() {
                     badge={getMemberBadge(adminMember.id)}
                     onPress={() => router.push(`/player/${adminMember.id}`)}
                   />
+                  {isCaptain ? (
+                    <Text style={styles.captainHint}>
+                      {captainCanTransfer
+                        ? "Transfer captain role to another member before you can leave this club."
+                        : "Invite another member, then transfer captain role before leaving."}
+                    </Text>
+                  ) : null}
                   {filteredMembers.length > 0 ? (
                     <View style={styles.sectionDivider} />
                   ) : null}
@@ -670,21 +712,27 @@ export default function ClubMembersScreen() {
             ? "Kick member?"
             : moderation?.action === "ban"
               ? "Ban member?"
-              : "Unban player?"
+              : moderation?.action === "transfer"
+                ? "Transfer captain role?"
+                : "Unban player?"
         }
         message={
           moderation?.action === "kick"
             ? `${moderation.name} will be removed from the club but can join again later.`
             : moderation?.action === "ban"
               ? `${moderation?.name} will be removed and cannot rejoin or request access.`
-              : `${moderation?.name} can join this club again.`
+              : moderation?.action === "transfer"
+                ? `${moderation?.name} will become club captain. You will remain a member and can leave afterward.`
+                : `${moderation?.name} can join this club again.`
         }
         confirmLabel={
           moderation?.action === "kick"
             ? "Kick"
             : moderation?.action === "ban"
               ? "Ban"
-              : "Unban"
+              : moderation?.action === "transfer"
+                ? "Transfer"
+                : "Unban"
         }
         loading={moderating}
         onConfirm={() => {
@@ -763,6 +811,9 @@ function MembersSummary({
   searching?: boolean;
   visibleCount?: number;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Card style={styles.summaryCard}>
       <View style={styles.summaryRow}>
@@ -802,6 +853,9 @@ function MembersFooter({
   loadingMore: boolean;
   hasMore: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   if (loadingMore) {
     return <LoadMoreSkeleton rows={2} />;
   }
@@ -830,7 +884,8 @@ function MembersFooter({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -888,6 +943,12 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     marginBottom: spacing.sm,
   },
+  captainHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    lineHeight: 18,
+  },
   sectionDivider: {
     height: 1,
     backgroundColor: colors.cardBorder,
@@ -909,10 +970,10 @@ const styles = StyleSheet.create({
     left: spacing.lg,
     right: spacing.lg,
     bottom: spacing.lg,
-    backgroundColor: `${colors.error}22`,
+    backgroundColor: withAlpha(colors.error, 0.12),
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: `${colors.error}55`,
+    borderColor: withAlpha(colors.error, 0.35),
     padding: spacing.md,
   },
   actionErrorText: {
@@ -946,4 +1007,5 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textDim,
   },
-});
+  });
+}

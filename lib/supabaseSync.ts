@@ -366,6 +366,21 @@ export async function updateClub(club: Club) {
   if (error) throw error;
 }
 
+export async function transferClubCaptainRemote(
+  clubId: string,
+  newCaptainId: string,
+) {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from("clubs")
+    .update({ admin_id: newCaptainId })
+    .eq("id", clubId);
+
+  if (error) throw error;
+}
+
 export async function joinClubRemote(clubId: string, userId: string) {
   const supabase = getSupabase();
   if (!supabase) return;

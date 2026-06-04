@@ -25,7 +25,12 @@ import { colors, spacing, typography } from "../../../../lib/theme";
 import { useTabBarPadding } from "../../../../lib/tabBar";
 import { useRefreshControl } from "../../../../lib/useRefreshControl";
 import { isUserBannedFromClub } from "../../../../lib/clubBans";
-import { isClubCaptain, isClubSubCaptain } from "../../../../lib/clubRoles";
+import {
+  canLeaveClub,
+  canTransferClubCaptain,
+  isClubCaptain,
+  isClubSubCaptain,
+} from "../../../../lib/clubRoles";
 import {
   useClub,
   useClubBans,
@@ -77,7 +82,10 @@ export default function ClubDetailScreen() {
   } = useUpgradePrompt();
   const [showInvite, setShowInvite] = useState(false);
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);
+  const [captainLeaveModalVisible, setCaptainLeaveModalVisible] =
+    useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [savingVisibility, setSavingVisibility] = useState(false);
@@ -141,6 +149,7 @@ export default function ClubDetailScreen() {
 
   const isCaptain = isClubCaptain(club, currentUserId);
   const isSubCaptain = isClubSubCaptain(club, currentUserId);
+  const captainCanTransfer = canTransferClubCaptain(club, currentUserId);
   const clubEvents = events
     .filter((event) => event.clubId === club.id)
     .sort(
@@ -153,9 +162,15 @@ export default function ClubDetailScreen() {
 
   const handleLeaveClub = async () => {
     setLeaving(true);
+    setLeaveError(null);
     try {
       await leaveClub(club.id);
       setLeaveModalVisible(false);
+      router.replace("/(tabs)/clubs");
+    } catch (error) {
+      setLeaveError(
+        formatSyncError(error, "Could not leave this club. Try again."),
+      );
     } finally {
       setLeaving(false);
     }
@@ -163,6 +178,10 @@ export default function ClubDetailScreen() {
 
   const joinAction = async () => {
     if (isMember) {
+      if (isCaptain && !canLeaveClub(club, currentUserId)) {
+        setCaptainLeaveModalVisible(true);
+        return;
+      }
       setLeaveModalVisible(true);
       return;
     }
@@ -297,6 +316,7 @@ export default function ClubDetailScreen() {
           style={styles.actionBtn}
         />
         {joinError ? <Text style={styles.bannedHint}>{joinError}</Text> : null}
+        {leaveError ? <Text style={styles.bannedHint}>{leaveError}</Text> : null}
         {isBanned ? (
           <Text style={styles.bannedHint}>
             You were banned from this club. Contact the captain if you think
@@ -437,11 +457,7 @@ export default function ClubDetailScreen() {
       <ConfirmModal
         visible={leaveModalVisible}
         title="Leave this club?"
-        message={
-          isCaptain
-            ? "You'll be removed from the member list but remain the club captain. You can rejoin as a member anytime."
-            : "You'll lose access to club games and chat. You can rejoin later if the club is public or request access again for private clubs."
-        }
+        message="You'll lose access to club games and chat. You can rejoin later if the club is public or request access again for private clubs."
         confirmLabel="Leave Club"
         cancelLabel="Stay"
         loading={leaving}
@@ -449,8 +465,32 @@ export default function ClubDetailScreen() {
           void handleLeaveClub();
         }}
         onClose={() => {
-          if (!leaving) setLeaveModalVisible(false);
+          if (!leaving) {
+            setLeaveModalVisible(false);
+            setLeaveError(null);
+          }
         }}
+      />
+
+      <ConfirmModal
+        visible={captainLeaveModalVisible}
+        title="Transfer captain role first"
+        message={
+          captainCanTransfer
+            ? "As club captain, you must transfer leadership to another member before you can leave."
+            : "Invite at least one other member to this club, then transfer captain role to them before leaving."
+        }
+        confirmLabel={captainCanTransfer ? "Go to Members" : "Invite Players"}
+        cancelLabel="Stay"
+        onConfirm={() => {
+          setCaptainLeaveModalVisible(false);
+          if (captainCanTransfer) {
+            router.push(`/clubs/${club.id}/members`);
+            return;
+          }
+          setShowInvite(true);
+        }}
+        onClose={() => setCaptainLeaveModalVisible(false)}
       />
 
       <UpgradeModal

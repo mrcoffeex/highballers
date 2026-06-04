@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   canCreatePrivateGame,
   canLeadClub,
+  canLeaveClub,
+  canTransferClubCaptain,
   getClubCaptainId,
   getClubRoleLabel,
   isClubCaptain,
@@ -47,5 +49,20 @@ describe("clubRoles", () => {
   it("handles empty subCaptainIds", () => {
     const noSubs = mockClub({ subCaptainIds: [] });
     expect(isClubSubCaptain(noSubs, "member-1")).toBe(false);
+  });
+
+  it("blocks captains from leaving until leadership is transferred", () => {
+    expect(canLeaveClub(club, "captain-1")).toBe(false);
+    expect(canLeaveClub(club, "member-1")).toBe(true);
+    expect(canTransferClubCaptain(club, "captain-1")).toBe(true);
+    expect(canTransferClubCaptain(club, "member-1")).toBe(false);
+
+    const soloCaptain = mockClub({
+      adminId: "captain-1",
+      memberIds: ["captain-1"],
+      subCaptainIds: [],
+    });
+    expect(canTransferClubCaptain(soloCaptain, "captain-1")).toBe(false);
+    expect(canLeaveClub(soloCaptain, "captain-1")).toBe(false);
   });
 });

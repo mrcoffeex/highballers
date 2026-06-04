@@ -44,3 +44,21 @@ export function getClubRoleLabel(
   if (isClubSubCaptain(club, userId)) return "Sub-Captain";
   return undefined;
 }
+
+/** Captains must transfer leadership before leaving the club. */
+export function canLeaveClub(
+  club: Club,
+  userId: string | null | undefined,
+): boolean {
+  if (!userId || !club.memberIds.includes(userId)) return false;
+  return !isClubCaptain(club, userId);
+}
+
+/** True when the captain can hand off leadership to another joined member. */
+export function canTransferClubCaptain(
+  club: Club,
+  userId: string | null | undefined,
+): boolean {
+  if (!isClubCaptain(club, userId)) return false;
+  return club.memberIds.some((memberId) => memberId !== club.adminId);
+}

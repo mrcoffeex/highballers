@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { buildLeafletMapHtml } from "../leafletMap";
-import { getGoogleMapsDirectionsUrl } from "../mapsUrls";
+import {
+  getGoogleMapsDirectionsUrl,
+  getGoogleMapsSearchUrl,
+} from "../mapsUrls";
 
 describe("buildLeafletMapHtml", () => {
   it("embeds leaflet assets and map coordinates", () => {
@@ -22,14 +25,38 @@ describe("buildLeafletMapHtml", () => {
 });
 
 describe("getGoogleMapsDirectionsUrl", () => {
-  it("builds a Google Maps directions URL", () => {
+  it("uses lat,lng destination so Google Maps shows the pin", () => {
     expect(
       getGoogleMapsDirectionsUrl(
         { latitude: 14.5995, longitude: 120.9842 },
         "MOA Arena",
       ),
     ).toBe(
-      "https://www.google.com/maps/dir/?api=1&destination=MOA%20Arena%4014.5995%2C120.9842",
+      "https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=14.5995%2C120.9842",
+    );
+  });
+
+  it("falls back to address label when coordinates are missing", () => {
+    expect(
+      getGoogleMapsDirectionsUrl(
+        { latitude: 0, longitude: 0 },
+        "MOA Arena, Manila",
+      ),
+    ).toBe(
+      "https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=MOA+Arena%2C+Manila",
+    );
+  });
+});
+
+describe("getGoogleMapsSearchUrl", () => {
+  it("builds a search URL with coordinates for the map pin", () => {
+    expect(
+      getGoogleMapsSearchUrl(
+        { latitude: 14.5995, longitude: 120.9842 },
+        "MOA Arena",
+      ),
+    ).toBe(
+      "https://www.google.com/maps/search/?api=1&query=14.5995%2C120.9842",
     );
   });
 });

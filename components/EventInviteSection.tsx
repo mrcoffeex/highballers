@@ -6,7 +6,8 @@ import {
   getInviteableClubMembers,
   getSpotsLeft,
 } from "../lib/eventInvite";
-import { colors, spacing, typography } from "../lib/theme";
+import { useThemedStyles } from "../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../lib/theme";
 import { Club, ClubBan, GameEvent, UserProfile } from "../lib/types";
 import { EventMemberPicker } from "./EventMemberPicker";
 import { Button } from "./ui";
@@ -20,6 +21,9 @@ type EventInviteSectionProps = {
   inviting: boolean;
   inviteError: string | null;
   onInvite: (memberIds: string[]) => Promise<void>;
+  /** When true, only renders the picker block (parent supplies the row toggle). */
+  embedded?: boolean;
+  expanded?: boolean;
 };
 
 export function EventInviteSection({
@@ -31,9 +35,13 @@ export function EventInviteSection({
   inviting,
   inviteError,
   onInvite,
+  embedded = false,
+  expanded: expandedProp,
 }: EventInviteSectionProps) {
+  const styles = useThemedStyles(createStyles);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [expanded, setExpanded] = useState(false);
+  const [expandedInternal, setExpandedInternal] = useState(false);
+  const expanded = embedded ? (expandedProp ?? false) : expandedInternal;
 
   const canInvite = canInvitePlayersToEvent(event, currentUserId, club);
   const spotsLeft = getSpotsLeft(event);
@@ -60,28 +68,20 @@ export function EventInviteSection({
     if (selectedIds.length === 0) return;
     await onInvite(selectedIds);
     setSelectedIds([]);
-    setExpanded(false);
+    if (!embedded) setExpandedInternal(false);
   };
 
   if (inviteableMembers.length === 0) {
-    return (
+    const emptyHint = (
       <Text style={styles.hint}>
         Every club member is already in this game
         {spotsLeft === 0 ? " or the run is full" : ""}.
       </Text>
     );
+    return embedded ? emptyHint : <View style={styles.wrap}>{emptyHint}</View>;
   }
 
-  return (
-    <View style={styles.wrap}>
-      <Button
-        title={expanded ? "Hide invite list" : "Invite players to game"}
-        variant="outline"
-        onPress={() => setExpanded((value) => !value)}
-        style={styles.toggle}
-      />
-
-      {expanded ? (
+  const pickerBlock = expanded ? (
         <>
           <Text style={styles.hint}>
             Add club members directly to the roster. {spotsLeft} spot
@@ -99,6 +99,7 @@ export function EventInviteSection({
                 ? `Add ${selectedIds.length} to game`
                 : "Select players"
             }
+            variant="primary"
             onPress={() => {
               void handleInvite();
             }}
@@ -107,14 +108,33 @@ export function EventInviteSection({
             style={styles.submit}
           />
         </>
-      ) : null}
+  ) : null;
+
+  if (embedded) {
+    return pickerBlock ? <View style={styles.embedded}>{pickerBlock}</View> : null;
+  }
+
+  return (
+    <View style={styles.wrap}>
+      <Button
+        title={expanded ? "Hide player list" : "Add players to game"}
+        variant="outline"
+        onPress={() => setExpandedInternal((value) => !value)}
+        style={styles.toggle}
+      />
+      {pickerBlock}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   wrap: {
     marginBottom: spacing.sm,
+  },
+  embedded: {
+    marginBottom: spacing.sm,
+    paddingTop: spacing.xs,
   },
   toggle: {
     marginTop: spacing.sm,
@@ -133,4 +153,5 @@ const styles = StyleSheet.create({
   submit: {
     marginTop: spacing.xs,
   },
-});
+  });
+}

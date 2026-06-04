@@ -11,7 +11,14 @@ import {
 } from "react-native";
 
 import { isExpoGoNative } from "../lib/expoGoNative";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 
 const ACTION_WIDTH = 80;
 
@@ -35,16 +42,22 @@ type SwipeableMemberRowProps = {
   subCaptainAtCapacity?: boolean;
 };
 
+type ThemedActionStyles = ReturnType<typeof createStyles>;
+
 function SubCaptainAction({
   isSubCaptain,
   atCapacity,
   onPress,
   compact,
+  styles,
+  colors,
 }: {
   isSubCaptain: boolean;
   atCapacity: boolean;
   onPress: () => void;
   compact?: boolean;
+  styles: ThemedActionStyles;
+  colors: ThemeColors;
 }) {
   const disabled = atCapacity && !isSubCaptain;
   const label = isSubCaptain ? "Remove" : "+ Sub-Captain";
@@ -90,6 +103,8 @@ function InlineMemberActions({
   onSubCaptain,
   isSubCaptain,
   subCaptainAtCapacity,
+  styles,
+  colors,
 }: Pick<
   SwipeableMemberRowProps,
   | "onKick"
@@ -97,7 +112,10 @@ function InlineMemberActions({
   | "onSubCaptain"
   | "isSubCaptain"
   | "subCaptainAtCapacity"
->) {
+> & {
+  styles: ThemedActionStyles;
+  colors: ThemeColors;
+}) {
   return (
     <View style={styles.webActions}>
       <Pressable
@@ -132,6 +150,8 @@ function InlineMemberActions({
           isSubCaptain={isSubCaptain ?? false}
           atCapacity={subCaptainAtCapacity ?? false}
           onPress={onSubCaptain}
+          styles={styles}
+          colors={colors}
         />
       ) : null}
     </View>
@@ -139,6 +159,8 @@ function InlineMemberActions({
 }
 
 type NativeSwipeableProps = SwipeableMemberRowProps & {
+  styles: ThemedActionStyles;
+  colors: ThemeColors;
   Swipeable: React.ComponentType<{
     ref?: React.Ref<SwipeableMethods>;
     friction?: number;
@@ -161,6 +183,8 @@ function NativeSwipeableMemberRow({
   onSubCaptain,
   isSubCaptain = false,
   subCaptainAtCapacity = false,
+  styles,
+  colors,
   Swipeable,
 }: NativeSwipeableProps) {
   const swipeRef = useRef<SwipeableMethods>(null);
@@ -223,6 +247,8 @@ function NativeSwipeableMemberRow({
               isSubCaptain={isSubCaptain}
               atCapacity={subCaptainAtCapacity}
               onPress={() => closeThen(onSubCaptain)}
+              styles={styles}
+              colors={colors}
             />
           ) : null}
         </View>
@@ -234,6 +260,8 @@ function NativeSwipeableMemberRow({
 }
 
 export function SwipeableMemberRow(props: SwipeableMemberRowProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const {
     children,
     enabled,
@@ -243,6 +271,7 @@ export function SwipeableMemberRow(props: SwipeableMemberRowProps) {
     onSubCaptain,
     isSubCaptain,
     subCaptainAtCapacity,
+    onSwipeOpen,
   } = props;
   const [Swipeable, setSwipeable] = useState<
     NativeSwipeableProps["Swipeable"] | null
@@ -274,82 +303,95 @@ export function SwipeableMemberRow(props: SwipeableMemberRowProps) {
           onSubCaptain={onSubCaptain}
           isSubCaptain={isSubCaptain}
           subCaptainAtCapacity={subCaptainAtCapacity}
+          styles={styles}
+          colors={colors}
         />
       </View>
     );
   }
 
-  return <NativeSwipeableMemberRow {...props} Swipeable={Swipeable} />;
+  return (
+    <NativeSwipeableMemberRow
+      {...props}
+      styles={styles}
+      colors={colors}
+      Swipeable={Swipeable}
+    />
+  );
 }
 
-const styles = StyleSheet.create({
-  wrapper: {
-    marginBottom: spacing.sm,
-  },
-  swipeContainer: {
-    overflow: "hidden",
-    borderRadius: radius.lg,
-    marginBottom: spacing.sm,
-  },
-  actionsRow: {
-    flexDirection: "row",
-    height: "100%",
-  },
-  action: {
-    width: ACTION_WIDTH,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.xs,
-  },
-  kickAction: {
-    backgroundColor: `${colors.warning}22`,
-  },
-  banAction: {
-    backgroundColor: `${colors.error}22`,
-  },
-  subCaptainAction: {
-    backgroundColor: `${colors.accent}22`,
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: colors.cardBorder,
-  },
-  actionDisabled: {
-    opacity: 0.45,
-  },
-  actionPressed: {
-    opacity: 0.85,
-  },
-  actionLabel: {
-    ...typography.caption,
-    fontWeight: "600",
-    textAlign: "center",
-    fontSize: 11,
-  },
-  actionLabelDisabled: {
-    color: colors.textDim,
-  },
-  kickLabel: {
-    color: colors.warning,
-  },
-  banLabel: {
-    color: colors.error,
-  },
-  subCaptainLabel: {
-    color: colors.accent,
-  },
-  webActions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  webAction: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    wrapper: {
+      marginBottom: spacing.sm,
+    },
+    swipeContainer: {
+      overflow: "hidden",
+      borderRadius: radius.lg,
+      marginBottom: spacing.sm,
+    },
+    actionsRow: {
+      flexDirection: "row",
+      height: "100%",
+    },
+    action: {
+      width: ACTION_WIDTH,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.xs,
+      paddingHorizontal: spacing.xs,
+    },
+    kickAction: {
+      backgroundColor: withAlpha(colors.warning, 0.14),
+    },
+    banAction: {
+      backgroundColor: withAlpha(colors.error, 0.14),
+    },
+    subCaptainAction: {
+      backgroundColor: withAlpha(colors.accent, 0.14),
+      borderLeftWidth: StyleSheet.hairlineWidth,
+      borderLeftColor: colors.cardBorder,
+    },
+    actionDisabled: {
+      opacity: 0.45,
+    },
+    actionPressed: {
+      opacity: 0.85,
+    },
+    actionLabel: {
+      ...typography.caption,
+      fontWeight: "600",
+      textAlign: "center",
+      fontSize: 11,
+    },
+    actionLabelDisabled: {
+      color: colors.textDim,
+    },
+    kickLabel: {
+      color: colors.warning,
+    },
+    banLabel: {
+      color: colors.error,
+    },
+    subCaptainLabel: {
+      color: colors.accent,
+    },
+    webActions: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    webAction: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.xs,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.surface,
+    },
+  });
+}

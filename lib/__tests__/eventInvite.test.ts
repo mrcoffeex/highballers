@@ -19,10 +19,17 @@ describe("eventInvite", () => {
     visibility: "open",
   });
 
-  it("allows creator and captain to invite when spots remain", () => {
-    expect(canInvitePlayersToEvent(event, "creator-1", club)).toBe(true);
-    expect(canInvitePlayersToEvent(event, "captain-1", club)).toBe(true);
-    expect(canInvitePlayersToEvent(event, "member-1", club)).toBe(false);
+  it("allows creator and club captain to add players when spots remain", () => {
+    const clubWithSub = mockClub({
+      ...club,
+      subCaptainIds: ["sub-1"],
+      memberIds: [...club.memberIds, "sub-1"],
+    });
+
+    expect(canInvitePlayersToEvent(event, "creator-1", clubWithSub)).toBe(true);
+    expect(canInvitePlayersToEvent(event, "captain-1", clubWithSub)).toBe(true);
+    expect(canInvitePlayersToEvent(event, "sub-1", clubWithSub)).toBe(false);
+    expect(canInvitePlayersToEvent(event, "member-1", clubWithSub)).toBe(false);
   });
 
   it("lists club members not already in the game", () => {

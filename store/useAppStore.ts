@@ -49,6 +49,7 @@ import {
   leaveClubRemote,
   leaveEventRemote,
   subscribeToChanges,
+  transferClubCaptainRemote,
   updateClub,
   updateEvent,
   updateEventCourts,
@@ -61,10 +62,12 @@ import { isUserBannedFromClub } from "../lib/clubBans";
 import {
   canCreatePrivateGame,
   isClubCaptain,
+  canLeaveClub,
   MAX_SUB_CAPTAINS,
 } from "../lib/clubRoles";
 import { canUserJoinEvent, isPrivateEvent } from "../lib/eventAccess";
 import {
+  canInvitePlayersToEvent,
   InvitePlayerResult,
   resolvePlayersToInvite,
 } from "../lib/eventInvite";
@@ -182,6 +185,7 @@ interface AppState {
     visibility: Club["visibility"],
   ) => Promise<void>;
   setClubSubCaptains: (clubId: string, userIds: string[]) => Promise<void>;
+  transferClubCaptain: (clubId: string, newCaptainId: string) => Promise<void>;
 
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
@@ -815,6 +819,13 @@ export const useAppStore = create<AppState>()(
         const { currentUserId, clubs, events, joinRequests, clubBans } = get();
         if (!currentUserId) return;
 
+        const club = clubs.find((item) => item.id === clubId);
+        if (club && !canLeaveClub(club, currentUserId)) {
+          throw new Error(
+            "Transfer club captain role to another member before leaving.",
+          );
+        }
+
         set(
           buildMemberRemovalUpdate(
             clubs,
@@ -1019,6 +1030,58 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      transferClubCaptain: async (clubId, newCaptainId) => {
+        const { currentUserId, clubs, session } = get();
+        const userId = session?.user?.id ?? currentUserId;
+        if (!userId) {
+          throw new Error("Sign in to transfer club captain role.");
+        }
+
+        const club = clubs.find((item) => item.id === clubId);
+        if (!club || !isClubCaptain(club, userId)) {
+          throw new Error("Only the club captain can transfer leadership.");
+        }
+        if (newCaptainId === club.adminId) {
+          throw new Error("That member is already the captain.");
+        }
+        if (!club.memberIds.includes(newCaptainId)) {
+          throw new Error("The new captain must be a club member.");
+        }
+
+        const previousAdminId = club.adminId;
+        const updatedClub: Club = {
+          ...club,
+          adminId: newCaptainId,
+          subCaptainIds: (club.subCaptainIds ?? []).filter(
+            (id) => id !== newCaptainId,
+          ),
+        };
+
+        set({
+          clubs: clubs.map((item) => (item.id === clubId ? updatedClub : item)),
+        });
+
+        if (isSupabaseEnabled) {
+          try {
+            await transferClubCaptainRemote(clubId, newCaptainId);
+          } catch (error) {
+            set({
+              clubs: clubs.map((item) =>
+                item.id === clubId
+                  ? { ...item, adminId: previousAdminId }
+                  : item,
+              ),
+            });
+            throw new Error(
+              formatSyncError(
+                error,
+                "Could not transfer captain role. Try again.",
+              ),
+            );
+          }
+        }
+      },
+
       setClubSubCaptains: async (clubId, userIds) => {
         const { currentUserId, clubs, session } = get();
         const userId = session?.user?.id ?? currentUserId;
@@ -1129,9 +1192,9 @@ export const useAppStore = create<AppState>()(
         }
 
         const club = clubs.find((item) => item.id === event.clubId);
-        if (!canManageEvent(event, currentUserId, club)) {
+        if (!canInvitePlayersToEvent(event, currentUserId, club)) {
           throw new Error(
-            "Only the game creator, captain, or sub-captain can invite players.",
+            "Only the game creator or club captain can add players to this game.",
           );
         }
         if (isEventOptionsLocked(event)) {

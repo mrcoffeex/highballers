@@ -6,11 +6,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import { BoxScoreTable } from "../../components/BoxScoreTable";
 import { ConfirmModal } from "../../components/ConfirmModal";
-import { EventInviteSection } from "../../components/EventInviteSection";
+import { EventActionsPanel } from "../../components/EventActionsPanel";
 import { EventLocationCard } from "../../components/EventLocationCard";
 import { EventGameStories } from "../../components/EventGameStories";
 import { PlayerCard } from "../../components/PlayerCard";
-import { PlayersPerGamePicker } from "../../components/PlayersPerGamePicker";
 import {
   TeamShuffleView,
   triggerShuffleHaptic,
@@ -18,13 +17,13 @@ import {
 import { UpgradeModal } from "../../components/UpgradeModal";
 import {
   Badge,
-  Button,
   Card,
   EventDetailSkeleton,
   SectionHeader,
 } from "../../components/ui";
 import { shouldShowEntitySkeleton } from "../../lib/entityLoading";
 import { canUserJoinEvent, isPrivateEvent } from "../../lib/eventAccess";
+import { canInvitePlayersToEvent } from "../../lib/eventInvite";
 import {
   canCancelEvent,
   canEditEvent,
@@ -43,11 +42,11 @@ import {
 import {
   clampPlayersPerGame,
   DEFAULT_PLAYERS_PER_GAME,
-  describeCourtCapacity,
   formatGameSizeLabel,
   getPlayersPerGame,
 } from "../../lib/gameFormats";
-import { colors, spacing, typography } from "../../lib/theme";
+import { useTheme, useThemedStyles } from "../../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../../lib/theme";
 import { useRefreshControl } from "../../lib/useRefreshControl";
 import { useUpgradePrompt } from "../../lib/useUpgradePrompt";
 import { BoxScoreStats, EMPTY_BOX_SCORE, UserProfile } from "../../lib/types";
@@ -60,6 +59,8 @@ import {
 import { useAppStore } from "../../store/useAppStore";
 
 export default function EventDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const event = useEvent(id);
@@ -164,10 +165,6 @@ export default function EventDetailScreen() {
     : { ok: false as const, reason: "Sign in to join this game." };
   const canJoinThisGame = joinAccess.ok;
   const shuffleReady = event ? canShuffleEvent(event, playersPerGame) : false;
-  const courtCapacity = describeCourtCapacity(
-    event.participantIds.length,
-    playersPerGame,
-  );
   const gameSizeLabel = formatGameSizeLabel(playersPerGame);
   const optionsLocked = isEventOptionsLocked(event);
   const eventStarted = hasEventStarted(event);
@@ -178,6 +175,7 @@ export default function EventDetailScreen() {
   const hasEventStats = Object.keys(eventStats).length > 0;
   const showShuffleUi = canShowShuffleButton(event);
   const canRunShuffle = canEdit && showShuffleUi && !hasEventStats;
+  const canAddPlayers = canInvitePlayersToEvent(event, currentUserId, club);
 
   const handleShuffle = async () => {
     setShuffling(true);
@@ -364,203 +362,59 @@ export default function EventDetailScreen() {
           />
         ) : null}
 
-        {optionsLocked ? (
-          <Text style={styles.hint}>
-            {event.finishedAt
-              ? "This game is finished. Join, shuffle, and stat entry are closed."
-              : "This game closed 12 hours after the scheduled tip-off."}
-          </Text>
-        ) : null}
-
-        {isClubMember && !optionsLocked ? (
-          isJoined ? (
-            <Button
-              title="Leave Game"
-              variant="outline"
-              onPress={() => setLeaveModalVisible(true)}
-              style={styles.action}
-            />
-          ) : (
-            <>
-              <Button
-                title={
-                  isFull
-                    ? "Game Full"
-                    : canJoinThisGame
-                      ? "Join Game"
-                      : "Invite Only"
-                }
-                onPress={async () => {
-                  setJoinError(null);
-                  try {
-                    await joinEvent(event.id);
-                  } catch (error) {
-                    if (handleSubscriptionError(error)) return;
-                    setJoinError(
-                      error instanceof Error
-                        ? error.message
-                        : "Could not join this game.",
-                    );
-                  }
-                }}
-                disabled={isFull || !canJoinThisGame}
-                style={styles.action}
-              />
-              {joinError ? (
-                <Text style={styles.hint}>{joinError}</Text>
-              ) : !canJoinThisGame && !isFull ? (
-                <Text style={styles.hint}>{joinAccess.reason}</Text>
-              ) : null}
-            </>
-          )
-        ) : isClubMember ? null : (
-          <Text style={styles.hint}>
-            Join the club to participate in this game.
-          </Text>
-        )}
-
-        {canEdit && !optionsLocked ? (
-          <>
-            <Text style={styles.sectionLabel}>Players per court</Text>
-            <PlayersPerGamePicker
-              value={playersPerGame}
-              maxPlayers={event.maxPlayers}
-              onChange={setPlayersPerGame}
-            />
-            {courtCapacity.courtCount > 0 ? (
-              <Text style={styles.shuffleHint}>
-                {courtCapacity.courtCount} court
-                {courtCapacity.courtCount === 1 ? "" : "s"} (
-                {courtCapacity.assignedCount} players)
-                {courtCapacity.unassignedCount > 0
-                  ? ` · ${courtCapacity.unassignedCount} substitute${courtCapacity.unassignedCount !== 1 ? "s" : ""}`
-                  : ""}
-              </Text>
-            ) : null}
-          </>
-        ) : null}
-
-        {canRunShuffle && !optionsLocked ? (
-          <>
-            <Button
-              title={
-                event.shuffled
-                  ? `Re-shuffle into ${gameSizeLabel} courts`
-                  : `Shuffle into ${gameSizeLabel} courts`
-              }
-              variant="secondary"
-              onPress={handleShufflePress}
-              disabled={!shuffleReady || shuffling}
-              icon={<Ionicons name="shuffle" size={18} color={colors.text} />}
-              style={styles.action}
-            />
-            {!shuffleReady ? (
-              <Text style={styles.shuffleHint}>
-                Need at least {playersPerGame} players for {gameSizeLabel} (
-                {event.participantIds.length}/{playersPerGame}).
-              </Text>
-            ) : null}
-          </>
-        ) : null}
-
-        {shuffleError ? (
-          <Text style={styles.shuffleHint}>{shuffleError}</Text>
-        ) : null}
-
-        {hasEventStats && canEdit && !optionsLocked ? (
-          <Text style={styles.shuffleHint}>
-            Re-shuffle is locked after scores are saved. You can still edit court
-            assignments below.
-          </Text>
-        ) : null}
-
-        {canEdit && event.participantIds.length > 0 && !optionsLocked ? (
-          <Button
-            title={
-              event.shuffled ? "Edit Court Assignments" : "Organize Courts"
+        <EventActionsPanel
+          event={event}
+          club={club}
+          users={users}
+          clubBans={clubBans}
+          currentUserId={currentUserId}
+          optionsLocked={optionsLocked}
+          isClubMember={isClubMember}
+          isJoined={isJoined}
+          isFull={isFull}
+          canJoinThisGame={canJoinThisGame}
+          joinAccessReason={joinAccess.reason}
+          joinError={joinError}
+          playersPerGame={playersPerGame}
+          onPlayersPerGameChange={setPlayersPerGame}
+          gameSizeLabel={gameSizeLabel}
+          shuffleReady={shuffleReady}
+          shuffling={shuffling}
+          shuffleError={shuffleError}
+          hasEventStats={hasEventStats}
+          canEdit={canEdit}
+          canRunShuffle={canRunShuffle}
+          canAddPlayers={canAddPlayers}
+          canRecordStats={canRecordStats}
+          canFinish={canFinish}
+          canCancel={canCancel}
+          cancelError={cancelError}
+          inviting={inviting}
+          inviteError={inviteError}
+          onJoin={async () => {
+            setJoinError(null);
+            try {
+              await joinEvent(event.id);
+            } catch (error) {
+              if (handleSubscriptionError(error)) return;
+              setJoinError(
+                error instanceof Error
+                  ? error.message
+                  : "Could not join this game.",
+              );
             }
-            variant="outline"
-            onPress={() => router.push(`/event/courts/${event.id}`)}
-            icon={
-              <Ionicons
-                name="people-circle-outline"
-                size={18}
-                color={colors.primary}
-              />
-            }
-            style={styles.action}
-          />
-        ) : null}
-
-        {canEdit ? (
-          <Button
-            title="Edit Game"
-            variant="outline"
-            onPress={() => router.push(`/event/edit/${event.id}`)}
-            icon={
-              <Ionicons
-                name="create-outline"
-                size={18}
-                color={colors.primary}
-              />
-            }
-            style={styles.action}
-          />
-        ) : null}
-
-        {canCancel ? (
-          <>
-            <Button
-              title="Cancel Game"
-              variant="outline"
-              onPress={() => setCancelModalVisible(true)}
-              icon={
-                <Ionicons
-                  name="close-circle-outline"
-                  size={18}
-                  color={colors.error}
-                />
-              }
-              style={styles.action}
-            />
-            {cancelError ? (
-              <Text style={styles.cancelError}>{cancelError}</Text>
-            ) : null}
-          </>
-        ) : null}
-
-        {canRecordStats ? (
-          <Button
-            title="Open Scorekeeper"
-            onPress={() => router.push(`/event/stats/${event.id}`)}
-            icon={
-              <Ionicons
-                name="clipboard-outline"
-                size={18}
-                color={colors.text}
-              />
-            }
-            style={styles.action}
-          />
-        ) : null}
+          }}
+          onLeave={() => setLeaveModalVisible(true)}
+          onShuffle={handleShufflePress}
+          onOrganizeCourts={() => router.push(`/event/courts/${event.id}`)}
+          onEditGame={() => router.push(`/event/edit/${event.id}`)}
+          onScorekeeper={() => router.push(`/event/stats/${event.id}`)}
+          onFinish={() => setFinishModalVisible(true)}
+          onCancel={() => setCancelModalVisible(true)}
+          onInvite={handleInvitePlayers}
+        />
 
         {hasEventStats ? <EventGameStories event={event} club={club} /> : null}
-
-        {canFinish ? (
-          <Button
-            title="Mark Game Finished"
-            variant="outline"
-            onPress={() => setFinishModalVisible(true)}
-            icon={
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={18}
-                color={colors.primary}
-              />
-            }
-            style={styles.action}
-          />
-        ) : null}
 
         {courtGames.length > 0 ? (
           <>
@@ -624,19 +478,6 @@ export default function EventDetailScreen() {
               ))
             )}
           </>
-        ) : null}
-
-        {!optionsLocked ? (
-          <EventInviteSection
-            event={event}
-            club={club}
-            users={users}
-            clubBans={clubBans}
-            currentUserId={currentUserId}
-            inviting={inviting}
-            inviteError={inviteError}
-            onInvite={handleInvitePlayers}
-          />
         ) : null}
 
         {courtGames.length === 0 ? (
@@ -740,7 +581,8 @@ export default function EventDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -822,38 +664,12 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.sm,
   },
-  action: {
-    marginBottom: spacing.sm,
-  },
-  sectionLabel: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  shuffleHint: {
-    ...typography.caption,
-    color: colors.textDim,
-    textAlign: "center",
-    marginBottom: spacing.sm,
-  },
   courtBlock: {
     marginBottom: spacing.lg,
   },
   courtTitle: {
     ...typography.heading,
     color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  hint: {
-    ...typography.caption,
-    color: colors.textDim,
-    textAlign: "center",
-    marginBottom: spacing.lg,
-  },
-  cancelError: {
-    ...typography.caption,
-    color: colors.error,
-    textAlign: "center",
     marginBottom: spacing.sm,
   },
   participantRow: {
@@ -865,4 +681,5 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginLeft: spacing.xs,
   },
-});
+  });
+}
