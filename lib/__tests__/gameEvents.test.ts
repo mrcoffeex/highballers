@@ -70,7 +70,7 @@ describe("gameEvents", () => {
     expect(canEditEvent(futureEvent, "creator-1", club)).toBe(true);
   });
 
-  it("limits game controls to the creator and club captain", () => {
+  it("allows creator, captain, and sub-captain to use game options", () => {
     const ongoing = mockEvent({
       ...futureEvent,
       dateTime: "2030-06-15T11:00:00.000Z",
@@ -79,13 +79,14 @@ describe("gameEvents", () => {
 
     expect(canEditEvent(futureEvent, "creator-1", club)).toBe(true);
     expect(canEditEvent(futureEvent, "captain-1", club)).toBe(true);
-    expect(canEditEvent(futureEvent, "sub-1", club)).toBe(false);
+    expect(canEditEvent(futureEvent, "sub-1", club)).toBe(true);
+    expect(canEditEvent(futureEvent, "other", club)).toBe(false);
     expect(canRecordEventStats(ongoing, "creator-1", club)).toBe(true);
     expect(canRecordEventStats(ongoing, "captain-1", club)).toBe(true);
-    expect(canRecordEventStats(ongoing, "sub-1", club)).toBe(false);
+    expect(canRecordEventStats(ongoing, "sub-1", club)).toBe(true);
     expect(canMarkEventFinished(ongoing, "creator-1", club)).toBe(true);
     expect(canMarkEventFinished(ongoing, "captain-1", club)).toBe(true);
-    expect(canMarkEventFinished(ongoing, "sub-1", club)).toBe(false);
+    expect(canMarkEventFinished(ongoing, "sub-1", club)).toBe(true);
   });
 
   it("blocks edits after options lock", () => {

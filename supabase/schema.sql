@@ -125,8 +125,10 @@ drop policy if exists "Users can leave clubs" on public.club_members;
 drop policy if exists "Club admins can remove members" on public.club_members;
 drop policy if exists "Events are readable by authenticated users" on public.events;
 drop policy if exists "Event creator or club admin can delete events" on public.events;
+drop policy if exists "Event managers can delete events" on public.events;
 drop policy if exists "Club members can create events" on public.events;
 drop policy if exists "Event creators and club admins can update events" on public.events;
+drop policy if exists "Event managers can update events" on public.events;
 drop policy if exists "Event creators can update events" on public.events;
 drop policy if exists "Participants are readable by authenticated users" on public.event_participants;
 drop policy if exists "Event invites are readable by authenticated users" on public.event_invites;
@@ -138,6 +140,9 @@ drop policy if exists "Event stats are readable by authenticated users" on publi
 drop policy if exists "Event stats insert by creator or club admin" on public.event_player_stats;
 drop policy if exists "Event stats update by creator or club admin" on public.event_player_stats;
 drop policy if exists "Event stats delete by creator or club admin" on public.event_player_stats;
+drop policy if exists "Event stats insert by event managers" on public.event_player_stats;
+drop policy if exists "Event stats update by event managers" on public.event_player_stats;
+drop policy if exists "Event stats delete by event managers" on public.event_player_stats;
 drop policy if exists "Creators and club admins can manage event stats" on public.event_player_stats;
 drop policy if exists "Join requests are readable by authenticated users" on public.club_join_requests;
 drop policy if exists "Users can request to join private clubs" on public.club_join_requests;
@@ -170,6 +175,18 @@ create policy "Club admins can update clubs"
         select 1 from public.profiles p
         where p.id = auth.uid() and p.subscription_tier = 'all_star'
       )
+    )
+  );
+
+create policy "Club captains can transfer captaincy"
+  on public.clubs for update to authenticated
+  using (auth.uid() = admin_id)
+  with check (
+    admin_id <> auth.uid()
+    and exists (
+      select 1 from public.club_members cm
+      where cm.club_id = clubs.id
+        and cm.user_id = clubs.admin_id
     )
   );
 
@@ -238,17 +255,21 @@ create policy "Club members can create events"
     )
   );
 
-create policy "Event creators and club admins can update events"
+create policy "Event managers can update events"
   on public.events for update to authenticated
   using (
     auth.uid() = created_by
     or exists (
-      select 1 from public.clubs
-      where id = events.club_id and admin_id = auth.uid()
+      select 1 from public.clubs c
+      where c.id = events.club_id and c.admin_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.club_sub_captains sc
+      where sc.club_id = events.club_id and sc.user_id = auth.uid()
     )
   );
 
-create policy "Event creator or club admin can delete events"
+create policy "Event managers can delete events"
   on public.events for delete to authenticated
   using (
     finished_at is null
@@ -257,6 +278,10 @@ create policy "Event creator or club admin can delete events"
       or exists (
         select 1 from public.clubs c
         where c.id = club_id and c.admin_id = auth.uid()
+      )
+      or exists (
+        select 1 from public.club_sub_captains sc
+        where sc.club_id = club_id and sc.user_id = auth.uid()
       )
     )
   );
@@ -314,25 +339,39 @@ create policy "Users can leave events"
 create policy "Event stats are readable by authenticated users"
   on public.event_player_stats for select to authenticated using (true);
 
-create policy "Event stats insert by creator or club admin"
+create policy "Event stats insert by event managers"
   on public.event_player_stats for insert to authenticated
   with check (
     exists (
       select 1 from public.events e
       join public.clubs c on c.id = e.club_id
       where e.id = event_player_stats.event_id
-        and (e.created_by = auth.uid() or c.admin_id = auth.uid())
+        and (
+          e.created_by = auth.uid()
+          or c.admin_id = auth.uid()
+          or exists (
+            select 1 from public.club_sub_captains sc
+            where sc.club_id = e.club_id and sc.user_id = auth.uid()
+          )
+        )
     )
   );
 
-create policy "Event stats update by creator or club admin"
+create policy "Event stats update by event managers"
   on public.event_player_stats for update to authenticated
   using (
     exists (
       select 1 from public.events e
       join public.clubs c on c.id = e.club_id
       where e.id = event_player_stats.event_id
-        and (e.created_by = auth.uid() or c.admin_id = auth.uid())
+        and (
+          e.created_by = auth.uid()
+          or c.admin_id = auth.uid()
+          or exists (
+            select 1 from public.club_sub_captains sc
+            where sc.club_id = e.club_id and sc.user_id = auth.uid()
+          )
+        )
     )
   )
   with check (
@@ -340,18 +379,32 @@ create policy "Event stats update by creator or club admin"
       select 1 from public.events e
       join public.clubs c on c.id = e.club_id
       where e.id = event_player_stats.event_id
-        and (e.created_by = auth.uid() or c.admin_id = auth.uid())
+        and (
+          e.created_by = auth.uid()
+          or c.admin_id = auth.uid()
+          or exists (
+            select 1 from public.club_sub_captains sc
+            where sc.club_id = e.club_id and sc.user_id = auth.uid()
+          )
+        )
     )
   );
 
-create policy "Event stats delete by creator or club admin"
+create policy "Event stats delete by event managers"
   on public.event_player_stats for delete to authenticated
   using (
     exists (
       select 1 from public.events e
       join public.clubs c on c.id = e.club_id
       where e.id = event_player_stats.event_id
-        and (e.created_by = auth.uid() or c.admin_id = auth.uid())
+        and (
+          e.created_by = auth.uid()
+          or c.admin_id = auth.uid()
+          or exists (
+            select 1 from public.club_sub_captains sc
+            where sc.club_id = e.club_id and sc.user_id = auth.uid()
+          )
+        )
     )
   );
 

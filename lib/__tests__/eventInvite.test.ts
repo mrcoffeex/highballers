@@ -28,7 +28,7 @@ describe("eventInvite", () => {
 
     expect(canInvitePlayersToEvent(event, "creator-1", clubWithSub)).toBe(true);
     expect(canInvitePlayersToEvent(event, "captain-1", clubWithSub)).toBe(true);
-    expect(canInvitePlayersToEvent(event, "sub-1", clubWithSub)).toBe(false);
+    expect(canInvitePlayersToEvent(event, "sub-1", clubWithSub)).toBe(true);
     expect(canInvitePlayersToEvent(event, "member-1", clubWithSub)).toBe(false);
   });
 

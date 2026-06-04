@@ -1,4 +1,4 @@
-import { canLeadClub, isClubCaptain } from "./clubRoles";
+import { canLeadClub } from "./clubRoles";
 import { Club, GameEvent, GameStatRecord } from "./types";
 
 /** Club fields needed to resolve captain / sub-captain game permissions. */
@@ -70,15 +70,13 @@ export function canManageEvent(
   return canLeadClub(club as Club, userId);
 }
 
+/** Creator, club captain, or sub-captain may use game options (edit, stats, finish, invites). */
 export function canControlEvent(
   event: GameEvent,
   userId: string | null | undefined,
   club?: EventClubContext | null,
 ): boolean {
-  if (!userId) return false;
-  if (userId === event.createdBy) return true;
-  if (!club) return false;
-  return isClubCaptain(club as Club, userId);
+  return canManageEvent(event, userId, club);
 }
 
 export function canManageEventStats(

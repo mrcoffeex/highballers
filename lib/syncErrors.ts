@@ -83,8 +83,19 @@ export function formatSyncError(
     return "Chat is blocked by database rules. Run supabase/migrations/20250110121000_basic-chat.sql in the Supabase SQL Editor.";
   }
 
-  if (lower.includes("row-level security")) {
+  if (lower.includes("row-level security") && lower.includes("clubs")) {
+    return "Could not update this club. If you are transferring captain role, run supabase/migrations/20250604120000_club-captain-transfer-rls.sql in the Supabase SQL Editor.";
+  }
+
+  if (
+    lower.includes("row-level security") &&
+    lower.includes("event_player_stats")
+  ) {
     return "Only the game creator or club captain can save stats. Sign in with that account, or run supabase/migrations/20250110120600_event-stats-rls.sql in Supabase.";
+  }
+
+  if (lower.includes("row-level security")) {
+    return "Permission denied by database rules. Confirm you are signed in with the right account and that Supabase migrations are up to date.";
   }
 
   if (lower.includes("foreign key") && lower.includes("profiles")) {

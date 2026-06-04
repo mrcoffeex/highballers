@@ -188,6 +188,12 @@ Tests live under `lib/__tests__/` (permissions, roster, invites, maps URLs, subs
 - [Expo SDK 56 docs](https://docs.expo.dev/versions/v56.0.0/) — use this version when changing Expo APIs (`AGENTS.md` in repo).
 - Agent skills under `.agents/skills/` for Supabase and Postgres guidance.
 
+## Contact
+
+For privacy, terms, support, or account deletion requests: **gocotano.kentjohn@gmail.com**
+
+In-app legal screens and mailto links use `EXPO_PUBLIC_LEGAL_EMAIL` when set (see `.env.example`); otherwise the address above is the default.
+
 ## License
 
 See [LICENSE](LICENSE).

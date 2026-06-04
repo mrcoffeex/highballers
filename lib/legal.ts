@@ -12,7 +12,7 @@ const APP_SCHEME = "highballers";
 export const LEGAL_EMAIL =
   process.env.EXPO_PUBLIC_LEGAL_EMAIL ??
   process.env.EXPO_PUBLIC_SUPPORT_EMAIL ??
-  "legal@highballers.app";
+  "gocotano.kentjohn@gmail.com";
 
 export type LegalDocumentId = "privacy" | "terms";
 
