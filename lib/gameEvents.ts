@@ -1,4 +1,4 @@
-import { canLeadClub } from "./clubRoles";
+import { canLeadClub, isClubCaptain } from "./clubRoles";
 import { Club, GameEvent, GameStatRecord } from "./types";
 
 /** Club fields needed to resolve captain / sub-captain game permissions. */
@@ -70,13 +70,24 @@ export function canManageEvent(
   return canLeadClub(club as Club, userId);
 }
 
+export function canControlEvent(
+  event: GameEvent,
+  userId: string | null | undefined,
+  club?: EventClubContext | null,
+): boolean {
+  if (!userId) return false;
+  if (userId === event.createdBy) return true;
+  if (!club) return false;
+  return isClubCaptain(club as Club, userId);
+}
+
 export function canManageEventStats(
   event: GameEvent,
   userId: string | null | undefined,
   club?: EventClubContext | null,
 ): boolean {
   if (isEventOptionsLocked(event)) return false;
-  return canManageEvent(event, userId, club);
+  return canControlEvent(event, userId, club);
 }
 
 export function canMarkEventFinished(
@@ -86,7 +97,7 @@ export function canMarkEventFinished(
 ): boolean {
   if (isEventOptionsLocked(event)) return false;
   if (!hasEventStarted(event)) return false;
-  return canManageEvent(event, userId, club);
+  return canControlEvent(event, userId, club);
 }
 
 export function canEditEvent(
@@ -95,7 +106,7 @@ export function canEditEvent(
   club?: EventClubContext | null,
 ): boolean {
   if (isEventOptionsLocked(event)) return false;
-  return canManageEvent(event, userId, club);
+  return canControlEvent(event, userId, club);
 }
 
 /** Remove a scheduled game before it is marked finished. */

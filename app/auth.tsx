@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthLegalFooter } from "../components/AuthLegalFooter";
 import { Button, Input } from "../components/ui";
 import { getAppDisplayName } from "../lib/clubInvite";
+import { isGoogleSignInEnabled } from "../lib/appEnvironment";
 import {
   getOAuthRedirectUri,
   getOAuthRedirectUriHints,
@@ -61,6 +62,7 @@ export default function AuthScreen() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
+  const showGoogleSignIn = isGoogleSignInEnabled();
 
   useEffect(() => {
     if (!isSupabaseEnabled) return;
@@ -205,18 +207,24 @@ export default function AuthScreen() {
 
           {isSupabaseEnabled ? (
             <>
-              <Button
-                title="Continue with Google"
-                onPress={handleGoogleSignIn}
-                loading={googleLoading}
-                disabled={googleLoading || otpLoading || !!configError}
-                variant="outline"
-                size="lg"
-                icon={
-                  <Ionicons name="logo-google" size={20} color={colors.text} />
-                }
-                style={styles.authBtn}
-              />
+              {showGoogleSignIn ? (
+                <Button
+                  title="Continue with Google"
+                  onPress={handleGoogleSignIn}
+                  loading={googleLoading}
+                  disabled={googleLoading || otpLoading || !!configError}
+                  variant="outline"
+                  size="lg"
+                  icon={
+                    <Ionicons
+                      name="logo-google"
+                      size={20}
+                      color={colors.text}
+                    />
+                  }
+                  style={styles.authBtn}
+                />
+              ) : null}
 
               {emailOtpStep === "closed" ? (
                 <Button

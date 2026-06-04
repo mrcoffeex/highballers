@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,11 +9,12 @@ import {
   View,
   type ScrollViewProps,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../lib/ThemeProvider";
-import { Avatar, Button } from "./ui";
+import { Avatar } from "./ui";
 import { UNASSIGNED_ROSTER_LABEL } from "../lib/eventRoster";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { colors, radius, shadows, spacing, typography } from "../lib/theme";
 import {
   BOX_SCORE_FIELDS,
   BOX_SCORE_LABELS,
@@ -55,6 +57,8 @@ function clampStat(value: number): number {
 const SECONDARY_STAT_FIELDS = BOX_SCORE_FIELDS.filter(
   (field) => field !== "points",
 );
+
+const SAVE_FAB_SIZE = 56;
 
 function StatPad({
   field,
@@ -142,6 +146,7 @@ export function GameStatsRecorder({
   onSave,
 }: GameStatsRecorderProps) {
   const { colors: themeColors } = useTheme();
+  const insets = useSafeAreaInsets();
   const roster = useMemo(() => {
     if (teamA?.length && teamB?.length) {
       return [...teamA, ...teamB];
@@ -287,19 +292,98 @@ export function GameStatsRecorder({
     </View>
   );
 
+  const saveTitle = saved
+    ? "Saved!"
+    : courtLabel
+      ? `Save ${courtLabel}`
+      : "Save Box Score";
+  const saveDisabled = saving || roster.length === 0;
+  const scrollBottomInset =
+    spacing.xl + SAVE_FAB_SIZE + spacing.lg + insets.bottom;
+
+  const renderBottomChrome = () => (
+    <>
+      {roster.length > 0 ? (
+        <View
+          style={[
+            styles.totalsBar,
+            { paddingBottom: SAVE_FAB_SIZE / 2 + spacing.sm + insets.bottom },
+          ]}
+        >
+          <View style={styles.totalsRow}>
+            {BOX_SCORE_FIELDS.map((field) => (
+              <View key={field} style={styles.totalItem}>
+                <Text style={styles.totalKey}>{BOX_SCORE_LABELS[field]}</Text>
+                <Text style={styles.totalVal}>{totals[field]}</Text>
+              </View>
+            ))}
+          </View>
+          {saveError ? <Text style={styles.saveError}>{saveError}</Text> : null}
+        </View>
+      ) : saveError ? (
+        <View
+          style={[
+            styles.totalsBar,
+            { paddingBottom: SAVE_FAB_SIZE / 2 + spacing.sm + insets.bottom },
+          ]}
+        >
+          <Text style={styles.saveError}>{saveError}</Text>
+        </View>
+      ) : null}
+
+      <View
+        pointerEvents="box-none"
+        style={[
+          styles.saveFabWrap,
+          { bottom: spacing.md + insets.bottom },
+        ]}
+      >
+        <Pressable
+          style={({ pressed }) => [
+            styles.saveFab,
+            saved && styles.saveFabSaved,
+            saveDisabled && styles.saveFabDisabled,
+            pressed && !saveDisabled && styles.saveFabPressed,
+          ]}
+          disabled={saveDisabled}
+          accessibilityRole="button"
+          accessibilityLabel={saveTitle}
+          accessibilityHint="Save box score stats for this court"
+          onPress={() => {
+            void onSave(draft);
+          }}
+        >
+          {saving ? (
+            <ActivityIndicator color={themeColors.onPrimary} />
+          ) : (
+            <Ionicons
+              name={saved ? "checkmark" : "checkmark-done"}
+              size={26}
+              color={saved ? themeColors.success : themeColors.onPrimary}
+            />
+          )}
+        </Pressable>
+      </View>
+    </>
+  );
+
   if (roster.length === 0) {
     return (
-      <View style={styles.emptyWrap}>
-        <Text style={styles.emptyText}>
-          No players on this court. Re-shuffle teams and try again.
-        </Text>
+      <View style={styles.container}>
+        <View style={styles.emptyWrap}>
+          <Text style={styles.emptyText}>
+            No players on this court. Re-shuffle teams and try again.
+          </Text>
+        </View>
+        {renderBottomChrome()}
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.playerPicker}>
+      <View style={styles.body}>
+        <View style={styles.playerPicker}>
         {teamA?.length && teamB?.length ? (
           <>
             {renderTeamRow("Team A", "A", teamA, colors.teamA, 0)}
@@ -334,7 +418,10 @@ export function GameStatsRecorder({
 
       <ScrollView
         style={styles.scrollArea}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: scrollBottomInset },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator
         nestedScrollEnabled
@@ -454,43 +541,9 @@ export function GameStatsRecorder({
           </View>
         </View>
       </ScrollView>
-
-      <View style={styles.footer}>
-        <View style={styles.totalsRow}>
-          {BOX_SCORE_FIELDS.map((field) => (
-            <View key={field} style={styles.totalItem}>
-              <Text style={styles.totalKey}>{BOX_SCORE_LABELS[field]}</Text>
-              <Text style={styles.totalVal}>{totals[field]}</Text>
-            </View>
-          ))}
-        </View>
-
-        {saveError ? <Text style={styles.saveError}>{saveError}</Text> : null}
-
-        <Button
-          title={
-            saved
-              ? "Saved!"
-              : courtLabel
-                ? `Save ${courtLabel}`
-                : "Save Box Score"
-          }
-          variant={saved ? "tonal" : "primary"}
-          size="lg"
-          loading={saving}
-          disabled={saving}
-          onPress={() => {
-            void onSave(draft);
-          }}
-          icon={
-            <Ionicons
-              name="checkmark-done"
-              size={18}
-              color={saved ? themeColors.success : themeColors.onPrimary}
-            />
-          }
-        />
       </View>
+
+      {renderBottomChrome()}
     </View>
   );
 }
@@ -499,9 +552,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     minHeight: 0,
+    overflow: "hidden",
+  },
+  body: {
+    flex: 1,
+    minHeight: 0,
   },
   emptyWrap: {
     flex: 1,
+    minHeight: 0,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
@@ -774,14 +833,48 @@ const styles = StyleSheet.create({
   statBtnPrimary: {
     borderColor: "transparent",
   },
-  footer: {
-    flexGrow: 0,
-    padding: spacing.md,
+  totalsBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingTop: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.cardBorder,
     backgroundColor: colors.background,
-    gap: spacing.sm,
+    gap: spacing.xs,
+    zIndex: 1,
+  },
+  saveFabWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: SAVE_FAB_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+    elevation: 3,
+  },
+  saveFab: {
+    width: SAVE_FAB_SIZE,
+    height: SAVE_FAB_SIZE,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.card,
+  },
+  saveFabSaved: {
+    backgroundColor: colors.primaryContainer,
+    borderWidth: 2,
+    borderColor: colors.success,
+  },
+  saveFabDisabled: {
+    opacity: 0.45,
+  },
+  saveFabPressed: {
+    opacity: 0.88,
   },
   saveError: {
     ...typography.caption,

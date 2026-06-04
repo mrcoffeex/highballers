@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 
 import { EventLocation } from "../lib/location";
-import { openGoogleMaps } from "../lib/maps";
+import { openGoogleMapsDirections } from "../lib/maps";
 import { colors, spacing, typography } from "../lib/theme";
 import { EventMapPreview } from "./EventMapPreview";
 import { Button } from "./ui";
@@ -12,11 +12,12 @@ interface EventLocationCardProps {
 }
 
 export function EventLocationCard({ location }: EventLocationCardProps) {
-  const openMaps = () => openGoogleMaps(location, location.label);
+  const openDirections = () =>
+    openGoogleMapsDirections(location, location.label);
 
   return (
     <View style={styles.container}>
-      <EventMapPreview location={location} onPress={openMaps} />
+      <EventMapPreview location={location} onPress={openDirections} />
 
       <View style={styles.copy}>
         <View style={styles.labelRow}>
@@ -30,10 +31,10 @@ export function EventLocationCard({ location }: EventLocationCardProps) {
       </View>
 
       <Button
-        title="Open in Google Maps"
+        title="Get directions"
         variant="outline"
-        onPress={openMaps}
-        icon={<Ionicons name="map-outline" size={18} color={colors.primary} />}
+        onPress={openDirections}
+        icon={<Ionicons name="navigate-outline" size={18} color={colors.primary} />}
       />
     </View>
   );

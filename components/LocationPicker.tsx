@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ExpoLocation from "expo-location";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, Region, UrlTile } from "react-native-maps";
 
 import {
   GeocodingResult,
@@ -10,7 +9,9 @@ import {
   searchPlaces,
 } from "../lib/geocoding";
 import { DEFAULT_MAP_CENTER, EventLocation, GeoPoint } from "../lib/location";
+import { OSM_ATTRIBUTION } from "../lib/leafletMap";
 import { colors, radius, spacing, typography } from "../lib/theme";
+import { LeafletMapView } from "./LeafletMapView";
 import {
   Button,
   Input,
@@ -26,8 +27,6 @@ export interface LocationPickerProps {
   initialCenter?: GeoPoint;
 }
 
-const OSM_TILE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-
 export function LocationPicker({
   value,
   onChange,
@@ -39,27 +38,19 @@ export function LocationPicker({
   const [searching, setSearching] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [region, setRegion] = useState<Region>({
-    latitude: value?.latitude ?? initialCenter.latitude,
-    longitude: value?.longitude ?? initialCenter.longitude,
-    latitudeDelta: 0.04,
-    longitudeDelta: 0.04,
-  });
 
-  const markerPoint = useMemo(
-    () =>
-      value ? { latitude: value.latitude, longitude: value.longitude } : null,
-    [value],
+  const mapCenter = useMemo(
+    () => ({
+      latitude: value?.latitude ?? initialCenter.latitude,
+      longitude: value?.longitude ?? initialCenter.longitude,
+    }),
+    [
+      initialCenter.latitude,
+      initialCenter.longitude,
+      value?.latitude,
+      value?.longitude,
+    ],
   );
-
-  useEffect(() => {
-    if (!value) return;
-    setRegion((current) => ({
-      ...current,
-      latitude: value.latitude,
-      longitude: value.longitude,
-    }));
-  }, [value]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -89,11 +80,6 @@ export function LocationPicker({
     onChange(result);
     setQuery(result.label);
     setResults([]);
-    setRegion((current) => ({
-      ...current,
-      latitude: result.latitude,
-      longitude: result.longitude,
-    }));
   };
 
   const handleMapPress = async (point: GeoPoint) => {
@@ -198,31 +184,22 @@ export function LocationPicker({
             <LocationPickerSkeleton />
           </View>
         ) : null}
-        <MapView
-          style={styles.map}
-          region={region}
-          onRegionChangeComplete={setRegion}
-          onPress={(event) =>
-            handleMapPress({
-              latitude: event.nativeEvent.coordinate.latitude,
-              longitude: event.nativeEvent.coordinate.longitude,
-            })
-          }
-        >
-          <UrlTile urlTemplate={OSM_TILE} maximumZ={19} flipY={false} />
-          {markerPoint ? (
-            <Marker
-              coordinate={markerPoint}
-              draggable
-              onDragEnd={(event) =>
-                handleMapPress({
-                  latitude: event.nativeEvent.coordinate.latitude,
-                  longitude: event.nativeEvent.coordinate.longitude,
-                })
-              }
-            />
-          ) : null}
-        </MapView>
+        <LeafletMapView
+          center={mapCenter}
+          height={240}
+          interactive
+          showMarker={Boolean(value)}
+          zoom={value ? 15 : 14}
+          onMapPress={handleMapPress}
+        />
+        <View style={styles.mapHint}>
+          <Ionicons
+            name="hand-left-outline"
+            size={14}
+            color={colors.textMuted}
+          />
+          <Text style={styles.mapHintText}>Tap the map to drop a pin</Text>
+        </View>
       </View>
 
       {value ? (
@@ -244,7 +221,7 @@ export function LocationPicker({
         </Text>
       )}
 
-      <Text style={styles.attribution}>© OpenStreetMap contributors</Text>
+      <Text style={styles.attribution}>{OSM_ATTRIBUTION}</Text>
     </View>
   );
 }
@@ -305,15 +282,23 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   mapOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: `${colors.background}CC`,
     zIndex: 2,
     padding: spacing.md,
     justifyContent: "center",
   },
-  map: {
-    width: "100%",
-    height: 240,
+  mapHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  mapHintText: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   selectedRow: {
     flexDirection: "row",

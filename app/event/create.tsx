@@ -25,7 +25,10 @@ import { useMyClubs } from "../../store/hooks";
 
 export default function CreateEventScreen() {
   const router = useRouter();
-  const { clubId: paramClubId } = useLocalSearchParams<{ clubId?: string }>();
+  const params = useLocalSearchParams<{ clubId?: string | string[] }>();
+  const paramClubId = Array.isArray(params.clubId)
+    ? params.clubId[0]
+    : params.clubId;
   const myClubs = useMyClubs();
   const users = useAppStore((state) => state.users);
   const currentUserId = useAppStore((state) => state.currentUserId);
@@ -114,6 +117,12 @@ export default function CreateEventScreen() {
         : [...current, memberId],
     );
   };
+
+  useEffect(() => {
+    if (paramClubId && myClubs.some((club) => club.id === paramClubId)) {
+      setClubId(paramClubId);
+    }
+  }, [myClubs, paramClubId]);
 
   useEffect(() => {
     setInvitedMemberIds([]);

@@ -299,7 +299,7 @@ export function ScoreboardDrawer({
     <>
       {!visible ? (
         <Pressable
-          style={[styles.fab, { top: insets.top + 56 }]}
+          style={[styles.fab, { top: spacing.sm }]}
           onPress={onOpen}
           accessibilityRole="button"
           accessibilityLabel="Open scoreboard"

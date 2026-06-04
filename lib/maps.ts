@@ -1,22 +1,15 @@
 import { Linking, Platform } from "react-native";
 
 import { GeoPoint } from "./location";
+import { getGoogleMapsDirectionsUrl } from "./mapsUrls";
 
-export function getGoogleMapsUrl(point: GeoPoint, label?: string) {
-  const query = label
-    ? encodeURIComponent(`${label}@${point.latitude},${point.longitude}`)
-    : `${point.latitude},${point.longitude}`;
+export { getGoogleMapsDirectionsUrl } from "./mapsUrls";
 
-  return `https://www.google.com/maps/search/?api=1&query=${query}`;
-}
-
-export function getOsmStaticMapUrl(point: GeoPoint, width = 640, height = 280) {
-  const { latitude, longitude } = point;
-  return `https://static-maps.openstreetmap.de/staticmap.php?center=${latitude},${longitude}&zoom=15&size=${width}x${height}&markers=${latitude},${longitude},red-pushpin`;
-}
-
-export async function openGoogleMaps(point: GeoPoint, label?: string) {
-  const url = getGoogleMapsUrl(point, label);
+export async function openGoogleMapsDirections(
+  point: GeoPoint,
+  label?: string,
+) {
+  const url = getGoogleMapsDirectionsUrl(point, label);
 
   if (Platform.OS === "web" && typeof window !== "undefined") {
     window.open(url, "_blank", "noopener,noreferrer");
@@ -24,4 +17,9 @@ export async function openGoogleMaps(point: GeoPoint, label?: string) {
   }
 
   await Linking.openURL(url);
+}
+
+/** @deprecated Use openGoogleMapsDirections */
+export async function openGoogleMaps(point: GeoPoint, label?: string) {
+  return openGoogleMapsDirections(point, label);
 }

@@ -86,7 +86,10 @@ import { clampPlayersPerGame, getPlayersPerGame } from "../lib/gameFormats";
 import {
   isEventOptionsLocked,
   hasEventStarted,
+  canEditEvent,
   canManageEvent,
+  canManageEventStats,
+  canMarkEventFinished,
   eventHasRecordedStats,
 } from "../lib/gameEvents";
 import {
@@ -1262,12 +1265,39 @@ export const useAppStore = create<AppState>()(
               )
             : undefined;
 
+        let participantIds = [userId];
+        if (visibility === "private" && invitedMemberIds?.length) {
+          const draftEvent: GameEvent = {
+            ...eventData,
+            id,
+            visibility,
+            invitedMemberIds,
+            participantIds,
+            shuffled: false,
+            createdBy: userId,
+          };
+          const { addedIds, skipped } = resolvePlayersToInvite(
+            draftEvent,
+            club,
+            get().users,
+            get().clubBans,
+            invitedMemberIds,
+          );
+          if (addedIds.length === 0) {
+            throw new Error(
+              skipped[0]?.reason ??
+                "No invited players could be added to this game.",
+            );
+          }
+          participantIds = [userId, ...addedIds];
+        }
+
         const newEvent: GameEvent = {
           ...eventData,
           id,
           visibility,
           invitedMemberIds,
-          participantIds: [userId],
+          participantIds,
           shuffled: false,
           createdBy: userId,
         };
@@ -1302,7 +1332,7 @@ export const useAppStore = create<AppState>()(
         if (!event || isEventOptionsLocked(event)) return false;
 
         const club = clubs.find((item) => item.id === event.clubId);
-        if (!canManageEvent(event, currentUserId, club)) return false;
+        if (!canEditEvent(event, currentUserId, club)) return false;
 
         const tier = getCurrentUserTier(get);
         assertFeatureAccess(tier, "create_event");
@@ -1356,9 +1386,16 @@ export const useAppStore = create<AppState>()(
       },
 
       shuffleTeams: async (eventId, playersPerGame) => {
-        const { events, users, gameStatRecords } = get();
+        const { events, users, gameStatRecords, currentUserId, clubs } = get();
         const event = events.find((item) => item.id === eventId);
         if (!event || isEventOptionsLocked(event)) return;
+
+        const club = clubs.find((item) => item.id === event.clubId);
+        if (!canEditEvent(event, currentUserId, club)) {
+          throw new Error(
+            "Only the game creator or club captain can shuffle this game.",
+          );
+        }
 
         if (eventHasRecordedStats(eventId, gameStatRecords)) {
           throw new Error(
@@ -1405,9 +1442,9 @@ export const useAppStore = create<AppState>()(
         }
 
         const club = clubs.find((item) => item.id === event.clubId);
-        if (!canManageEvent(event, currentUserId, club)) {
+        if (!canEditEvent(event, currentUserId, club)) {
           throw new Error(
-            "Only the game creator, captain, or sub-captain can save court assignments.",
+            "Only the game creator or club captain can save court assignments.",
           );
         }
 
@@ -1453,7 +1490,7 @@ export const useAppStore = create<AppState>()(
           return;
 
         const club = clubs.find((item) => item.id === event.clubId);
-        if (!canManageEvent(event, currentUserId, club)) return;
+        if (!canMarkEventFinished(event, currentUserId, club)) return;
 
         assertFeatureAccess(getCurrentUserTier(get), "scorekeeper");
 
@@ -1530,8 +1567,8 @@ export const useAppStore = create<AppState>()(
 
         const event = normalizeEventCourts(rawEvent);
         const club = clubs.find((item) => item.id === event.clubId);
-        if (!canManageEvent(event, currentUserId, club)) {
-          return "Only the game creator, captain, or sub-captain can save stats.";
+        if (!canManageEventStats(event, currentUserId, club)) {
+          return "Only the game creator or club captain can save stats.";
         }
 
         try {

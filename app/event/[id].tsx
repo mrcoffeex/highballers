@@ -177,8 +177,7 @@ export default function EventDetailScreen() {
   const canCancel = canCancelEvent(event, currentUserId, club);
   const hasEventStats = Object.keys(eventStats).length > 0;
   const showShuffleUi = canShowShuffleButton(event);
-  const canRunShuffle =
-    (isJoined || canEdit) && showShuffleUi && !hasEventStats;
+  const canRunShuffle = canEdit && showShuffleUi && !hasEventStats;
 
   const handleShuffle = async () => {
     setShuffling(true);
@@ -248,11 +247,7 @@ export default function EventDetailScreen() {
     try {
       await cancelEvent(event.id);
       setCancelModalVisible(false);
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace(club ? `/clubs/${club.id}` : "/(tabs)");
-      }
+      router.replace("/(tabs)");
     } catch (error) {
       setCancelError(
         formatSyncError(error, "Could not cancel this game. Try again."),
@@ -424,7 +419,7 @@ export default function EventDetailScreen() {
           </Text>
         )}
 
-        {(isJoined || canEdit) && !optionsLocked ? (
+        {canEdit && !optionsLocked ? (
           <>
             <Text style={styles.sectionLabel}>Players per court</Text>
             <PlayersPerGamePicker
@@ -472,7 +467,7 @@ export default function EventDetailScreen() {
           <Text style={styles.shuffleHint}>{shuffleError}</Text>
         ) : null}
 
-        {hasEventStats && (isJoined || canEdit) && !optionsLocked ? (
+        {hasEventStats && canEdit && !optionsLocked ? (
           <Text style={styles.shuffleHint}>
             Re-shuffle is locked after scores are saved. You can still edit court
             assignments below.

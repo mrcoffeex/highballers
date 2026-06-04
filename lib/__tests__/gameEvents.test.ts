@@ -70,6 +70,24 @@ describe("gameEvents", () => {
     expect(canEditEvent(futureEvent, "creator-1", club)).toBe(true);
   });
 
+  it("limits game controls to the creator and club captain", () => {
+    const ongoing = mockEvent({
+      ...futureEvent,
+      dateTime: "2030-06-15T11:00:00.000Z",
+      participantIds: ["p1", "p2"],
+    });
+
+    expect(canEditEvent(futureEvent, "creator-1", club)).toBe(true);
+    expect(canEditEvent(futureEvent, "captain-1", club)).toBe(true);
+    expect(canEditEvent(futureEvent, "sub-1", club)).toBe(false);
+    expect(canRecordEventStats(ongoing, "creator-1", club)).toBe(true);
+    expect(canRecordEventStats(ongoing, "captain-1", club)).toBe(true);
+    expect(canRecordEventStats(ongoing, "sub-1", club)).toBe(false);
+    expect(canMarkEventFinished(ongoing, "creator-1", club)).toBe(true);
+    expect(canMarkEventFinished(ongoing, "captain-1", club)).toBe(true);
+    expect(canMarkEventFinished(ongoing, "sub-1", club)).toBe(false);
+  });
+
   it("blocks edits after options lock", () => {
     vi.setSystemTime(
       new Date(futureEvent.dateTime).getTime() + GAME_OPTIONS_LOCK_MS + 1,

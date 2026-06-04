@@ -156,8 +156,8 @@ export default function EventStatsScreen() {
           />
           <Text style={styles.blockedTitle}>Scorekeeper locked</Text>
           <Text style={styles.blockedText}>
-            Stats can only be recorded before the game closes or within 12 hours
-            after tip-off.
+            Only the game creator or club captain can record stats before the
+            game closes or within 12 hours after tip-off.
           </Text>
         </View>
       </>
@@ -182,7 +182,7 @@ export default function EventStatsScreen() {
   return (
     <>
       <Stack.Screen options={{ headerTitle: "Scorekeeper" }} />
-      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+      <View style={styles.container}>
         {tabs.length > 1 ? (
           <ScrollView
             horizontal
@@ -243,19 +243,21 @@ export default function EventStatsScreen() {
         ) : null}
 
         <View style={styles.recorderWrap}>
-          <GameStatsRecorder
-            key={`${id}-${activeTabIndex}`}
-            participants={activeRoster}
-            teamA={isUnassignedTab ? undefined : selectedGame?.teamA}
-            teamB={isUnassignedTab ? undefined : selectedGame?.teamB}
-            courtLabel={selectedTab?.label}
-            initialStats={eventStats}
-            saving={savingStats}
-            saved={savedTabIndex === activeTabIndex}
-            saveError={saveError}
-            refreshControl={refreshControl}
-            onSave={handleSave}
-          />
+          <View style={styles.recorderBody}>
+            <GameStatsRecorder
+              key={`${id}-${activeTabIndex}`}
+              participants={activeRoster}
+              teamA={isUnassignedTab ? undefined : selectedGame?.teamA}
+              teamB={isUnassignedTab ? undefined : selectedGame?.teamB}
+              courtLabel={selectedTab?.label}
+              initialStats={eventStats}
+              saving={savingStats}
+              saved={savedTabIndex === activeTabIndex}
+              saveError={saveError}
+              refreshControl={refreshControl}
+              onSave={handleSave}
+            />
+          </View>
           {!isUnassignedTab ? (
             <ScoreboardDrawer
               visible={scoreboardOpen}
@@ -298,6 +300,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
     position: "relative",
+  },
+  recorderBody: {
+    flex: 1,
+    minHeight: 0,
   },
   notFound: {
     flex: 1,
