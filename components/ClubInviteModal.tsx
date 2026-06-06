@@ -13,7 +13,8 @@ import {
 import QRCode from "react-native-qrcode-svg";
 
 import { getClubInviteMessage, getClubInviteUrl } from "../lib/clubInvite";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 import { Button } from "./ui";
 
 interface ClubInviteModalProps {
@@ -31,6 +32,8 @@ export function ClubInviteModal({
   visibility,
   onClose,
 }: ClubInviteModalProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [copied, setCopied] = useState(false);
   const inviteUrl = useMemo(() => getClubInviteUrl(clubId), [clubId]);
   const inviteMessage = useMemo(
@@ -141,66 +144,68 @@ export function ClubInviteModal({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    padding: spacing.lg,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.sm,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginBottom: spacing.lg,
-  },
-  qrWrap: {
-    alignSelf: "center",
-    backgroundColor: colors.text,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    marginBottom: spacing.md,
-  },
-  clubName: {
-    ...typography.heading,
-    color: colors.text,
-    textAlign: "center",
-    marginBottom: spacing.md,
-  },
-  linkBox: {
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  linkText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: "center",
-  },
-  actions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  actionBtn: {
-    flex: 1,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: "center",
+      padding: spacing.lg,
+    },
+    sheet: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.lg,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: spacing.sm,
+    },
+    title: {
+      ...typography.heading,
+      color: colors.text,
+    },
+    subtitle: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginBottom: spacing.lg,
+    },
+    qrWrap: {
+      alignSelf: "center",
+      backgroundColor: colors.text,
+      padding: spacing.md,
+      borderRadius: radius.lg,
+      marginBottom: spacing.md,
+    },
+    clubName: {
+      ...typography.heading,
+      color: colors.text,
+      textAlign: "center",
+      marginBottom: spacing.md,
+    },
+    linkBox: {
+      backgroundColor: colors.card,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    linkText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      textAlign: "center",
+    },
+    actions: {
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    actionBtn: {
+      flex: 1,
+    },
+  });
+}

@@ -8,8 +8,7 @@ export function shouldEnableGoogleSignIn(options: {
 
   if (options.platformOs === "web") {
     return (
-      options.webHostname === "localhost" ||
-      options.webHostname === "127.0.0.1"
+      options.webHostname === "localhost" || options.webHostname === "127.0.0.1"
     );
   }
 

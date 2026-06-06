@@ -49,7 +49,14 @@ export function useRefreshControl(onRefreshExtra?: RefreshFn, enabled = true) {
         progressBackgroundColor={colors.surface}
       />
     );
-  }, [colors, enabled, isSupabaseEnabled, onRefreshExtra, onRefresh, refreshing]);
+  }, [
+    colors,
+    enabled,
+    isSupabaseEnabled,
+    onRefreshExtra,
+    onRefresh,
+    refreshing,
+  ]);
 
   return { refreshControl, refreshing, onRefresh };
 }

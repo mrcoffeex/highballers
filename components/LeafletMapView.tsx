@@ -3,7 +3,8 @@ import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 
 import { buildLeafletMapHtml } from "../lib/leafletMap";
-import { colors, radius } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, type ThemeColors } from "../lib/theme";
 import type { LeafletMapViewProps } from "./LeafletMapView.types";
 
 export type { LeafletMapViewProps } from "./LeafletMapView.types";
@@ -14,10 +15,13 @@ export function LeafletMapView({
   interactive = false,
   showMarker = true,
   zoom = 14,
-  markerColor = colors.primary,
+  markerColor,
   onMapPress,
   style,
 }: LeafletMapViewProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const resolvedMarkerColor = markerColor ?? colors.primary;
   const webViewRef = useRef<WebView>(null);
 
   const html = useMemo(
@@ -27,14 +31,14 @@ export function LeafletMapView({
         longitude: center.longitude,
         zoom,
         interactive,
-        markerColor,
+        markerColor: resolvedMarkerColor,
         showMarker,
       }),
     [
       center.latitude,
       center.longitude,
       interactive,
-      markerColor,
+      resolvedMarkerColor,
       showMarker,
       zoom,
     ],
@@ -86,14 +90,16 @@ export function LeafletMapView({
   );
 }
 
-const styles = StyleSheet.create({
-  shell: {
-    borderRadius: radius.lg,
-    overflow: "hidden",
-    backgroundColor: colors.card,
-  },
-  webview: {
-    flex: 1,
-    backgroundColor: colors.card,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    shell: {
+      borderRadius: radius.lg,
+      overflow: "hidden",
+      backgroundColor: colors.card,
+    },
+    webview: {
+      flex: 1,
+      backgroundColor: colors.card,
+    },
+  });
+}

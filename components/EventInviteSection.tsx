@@ -47,8 +47,7 @@ export function EventInviteSection({
   const spotsLeft = getSpotsLeft(event);
 
   const inviteableMembers = useMemo(
-    () =>
-      getInviteableClubMembers(event, club, users, clubBans, currentUserId),
+    () => getInviteableClubMembers(event, club, users, clubBans, currentUserId),
     [club, clubBans, currentUserId, event, users],
   );
 
@@ -82,36 +81,38 @@ export function EventInviteSection({
   }
 
   const pickerBlock = expanded ? (
-        <>
-          <Text style={styles.hint}>
-            Add club members directly to the roster. {spotsLeft} spot
-            {spotsLeft === 1 ? "" : "s"} left.
-          </Text>
-          <EventMemberPicker
-            members={inviteableMembers}
-            selectedIds={selectedIds}
-            onToggle={toggleMember}
-          />
-          {inviteError ? <Text style={styles.error}>{inviteError}</Text> : null}
-          <Button
-            title={
-              selectedIds.length > 0
-                ? `Add ${selectedIds.length} to game`
-                : "Select players"
-            }
-            variant="primary"
-            onPress={() => {
-              void handleInvite();
-            }}
-            disabled={selectedIds.length === 0}
-            loading={inviting}
-            style={styles.submit}
-          />
-        </>
+    <>
+      <Text style={styles.hint}>
+        Add club members directly to the roster. {spotsLeft} spot
+        {spotsLeft === 1 ? "" : "s"} left.
+      </Text>
+      <EventMemberPicker
+        members={inviteableMembers}
+        selectedIds={selectedIds}
+        onToggle={toggleMember}
+      />
+      {inviteError ? <Text style={styles.error}>{inviteError}</Text> : null}
+      <Button
+        title={
+          selectedIds.length > 0
+            ? `Add ${selectedIds.length} to game`
+            : "Select players"
+        }
+        variant="primary"
+        onPress={() => {
+          void handleInvite();
+        }}
+        disabled={selectedIds.length === 0}
+        loading={inviting}
+        style={styles.submit}
+      />
+    </>
   ) : null;
 
   if (embedded) {
-    return pickerBlock ? <View style={styles.embedded}>{pickerBlock}</View> : null;
+    return pickerBlock ? (
+      <View style={styles.embedded}>{pickerBlock}</View>
+    ) : null;
   }
 
   return (
@@ -129,29 +130,29 @@ export function EventInviteSection({
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  wrap: {
-    marginBottom: spacing.sm,
-  },
-  embedded: {
-    marginBottom: spacing.sm,
-    paddingTop: spacing.xs,
-  },
-  toggle: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  hint: {
-    ...typography.caption,
-    color: colors.textDim,
-    marginBottom: spacing.sm,
-  },
-  error: {
-    ...typography.caption,
-    color: colors.error,
-    marginBottom: spacing.sm,
-  },
-  submit: {
-    marginTop: spacing.xs,
-  },
+    wrap: {
+      marginBottom: spacing.sm,
+    },
+    embedded: {
+      marginBottom: spacing.sm,
+      paddingTop: spacing.xs,
+    },
+    toggle: {
+      marginTop: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    hint: {
+      ...typography.caption,
+      color: colors.textDim,
+      marginBottom: spacing.sm,
+    },
+    error: {
+      ...typography.caption,
+      color: colors.error,
+      marginBottom: spacing.sm,
+    },
+    submit: {
+      marginTop: spacing.xs,
+    },
   });
 }

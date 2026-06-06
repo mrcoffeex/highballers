@@ -187,9 +187,7 @@ export default function EventDetailScreen() {
     } catch (error) {
       if (!handleSubscriptionError(error)) {
         setShuffleError(
-          error instanceof Error
-            ? error.message
-            : "Could not shuffle teams.",
+          error instanceof Error ? error.message : "Could not shuffle teams.",
         );
       }
     } finally {
@@ -583,103 +581,103 @@ export default function EventDetailScreen() {
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  notFound: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background,
-  },
-  notFoundText: {
-    color: colors.textMuted,
-  },
-  heroCard: {
-    marginBottom: spacing.lg,
-  },
-  dateRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  dateBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dateMonth: {
-    ...typography.label,
-    color: colors.text,
-    fontSize: 10,
-  },
-  dateDay: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: colors.text,
-  },
-  heroInfo: {
-    flex: 1,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-    fontSize: 20,
-  },
-  club: {
-    ...typography.caption,
-    color: colors.primary,
-    marginBottom: spacing.xs,
-  },
-  meta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
-  },
-  metaText: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  creatorName: {
-    color: colors.primary,
-    fontWeight: "600",
-  },
-  description: {
-    ...typography.body,
-    fontSize: 14,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-  badges: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  courtBlock: {
-    marginBottom: spacing.lg,
-  },
-  courtTitle: {
-    ...typography.heading,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  participantRow: {
-    marginBottom: spacing.sm,
-  },
-  playerLine: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 4,
-    marginLeft: spacing.xs,
-  },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: spacing.lg,
+      paddingBottom: spacing.xxl,
+    },
+    notFound: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+    },
+    notFoundText: {
+      color: colors.textMuted,
+    },
+    heroCard: {
+      marginBottom: spacing.lg,
+    },
+    dateRow: {
+      flexDirection: "row",
+      gap: spacing.md,
+      marginBottom: spacing.md,
+    },
+    dateBox: {
+      width: 60,
+      height: 60,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    dateMonth: {
+      ...typography.label,
+      color: colors.onPrimary,
+      fontSize: 10,
+    },
+    dateDay: {
+      fontSize: 24,
+      fontWeight: "800",
+      color: colors.onPrimary,
+    },
+    heroInfo: {
+      flex: 1,
+    },
+    title: {
+      ...typography.heading,
+      color: colors.text,
+      fontSize: 20,
+    },
+    club: {
+      ...typography.caption,
+      color: colors.primary,
+      marginBottom: spacing.xs,
+    },
+    meta: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginTop: 2,
+    },
+    metaText: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    creatorName: {
+      color: colors.primary,
+      fontWeight: "600",
+    },
+    description: {
+      ...typography.body,
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: spacing.md,
+    },
+    badges: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+    },
+    courtBlock: {
+      marginBottom: spacing.lg,
+    },
+    courtTitle: {
+      ...typography.heading,
+      color: colors.text,
+      marginBottom: spacing.sm,
+    },
+    participantRow: {
+      marginBottom: spacing.sm,
+    },
+    playerLine: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 4,
+      marginLeft: spacing.xs,
+    },
   });
 }

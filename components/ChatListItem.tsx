@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 
 import { formatChatPreview, formatChatTimestamp } from "../lib/clubChat";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../lib/theme";
 import { Club, ClubChatPreview, UserProfile } from "../lib/types";
 import { ClubIcon } from "./ClubIcon";
 import { Card } from "./ui";
@@ -20,6 +21,8 @@ export function ChatListItem({
   sender,
   onPress,
 }: ChatListItemProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const lastMessage = preview.lastMessage;
   const subtitle = lastMessage
     ? sender
@@ -55,36 +58,38 @@ export function ChatListItem({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  content: {
-    flex: 1,
-    minWidth: 0,
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: 2,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-    flex: 1,
-    fontSize: 16,
-  },
-  time: {
-    ...typography.caption,
-    color: colors.textDim,
-    fontSize: 11,
-  },
-  subtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    content: {
+      flex: 1,
+      minWidth: 0,
+    },
+    topRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      marginBottom: 2,
+    },
+    title: {
+      ...typography.heading,
+      color: colors.text,
+      flex: 1,
+      fontSize: 16,
+    },
+    time: {
+      ...typography.caption,
+      color: colors.textDim,
+      fontSize: 11,
+    },
+    subtitle: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+  });
+}

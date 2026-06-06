@@ -3,7 +3,8 @@ import { StyleSheet, View, type ViewStyle } from "react-native";
 
 import { OSM_ATTRIBUTION, OSM_TILE_URL } from "../lib/leafletMap";
 import { GeoPoint } from "../lib/location";
-import { colors, radius } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, type ThemeColors } from "../lib/theme";
 import type { LeafletMapViewProps } from "./LeafletMapView.types";
 
 export function LeafletMapView({
@@ -12,10 +13,13 @@ export function LeafletMapView({
   interactive = false,
   showMarker = true,
   zoom = 14,
-  markerColor = colors.primary,
+  markerColor,
   onMapPress,
   style,
 }: LeafletMapViewProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const resolvedMarkerColor = markerColor ?? colors.primary;
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<import("leaflet").Map | null>(null);
   const markerRef = useRef<import("leaflet").CircleMarker | null>(null);
@@ -67,9 +71,9 @@ export function LeafletMapView({
               markerRef.current = leaflet
                 .circleMarker([lat, lng], {
                   radius: 10,
-                  color: markerColor,
+                  color: resolvedMarkerColor,
                   weight: 3,
-                  fillColor: markerColor,
+                  fillColor: resolvedMarkerColor,
                   fillOpacity: 0.85,
                 })
                 .addTo(map);
@@ -99,9 +103,9 @@ export function LeafletMapView({
         markerRef.current = leaflet
           .circleMarker([center.latitude, center.longitude], {
             radius: 10,
-            color: markerColor,
+            color: resolvedMarkerColor,
             weight: 3,
-            fillColor: markerColor,
+            fillColor: resolvedMarkerColor,
             fillOpacity: 0.85,
           })
           .addTo(map);
@@ -117,7 +121,7 @@ export function LeafletMapView({
     center.latitude,
     center.longitude,
     interactive,
-    markerColor,
+    resolvedMarkerColor,
     showMarker,
     zoom,
   ]);
@@ -129,10 +133,12 @@ export function LeafletMapView({
   );
 }
 
-const styles = StyleSheet.create({
-  shell: {
-    borderRadius: radius.lg,
-    overflow: "hidden",
-    backgroundColor: colors.card,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    shell: {
+      borderRadius: radius.lg,
+      overflow: "hidden",
+      backgroundColor: colors.card,
+    },
+  });
+}

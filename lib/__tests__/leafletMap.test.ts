@@ -13,7 +13,7 @@ describe("buildLeafletMapHtml", () => {
       longitude: 120.9842,
       zoom: 15,
       interactive: true,
-      markerColor: "#F0642F",
+      markerColor: "#3B82F6",
       showMarker: true,
     });
 

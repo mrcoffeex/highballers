@@ -72,53 +72,53 @@ export function ClubCard({
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  card: {
-    marginBottom: spacing.md,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  icon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerText: {
-    flex: 1,
-  },
-  name: {
-    ...typography.heading,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  location: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  description: {
-    ...typography.body,
-    fontSize: 14,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  members: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
+    card: {
+      marginBottom: spacing.md,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    icon: {
+      width: 48,
+      height: 48,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerText: {
+      flex: 1,
+    },
+    name: {
+      ...typography.heading,
+      color: colors.text,
+      marginBottom: 4,
+    },
+    locationRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    location: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    description: {
+      ...typography.body,
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: spacing.sm,
+    },
+    footer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    members: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
   });
 }

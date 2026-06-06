@@ -197,128 +197,128 @@ function MetaStat({
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  content: {
-    flexGrow: 1,
-  },
-  background: {
-    flexGrow: 1,
-    marginHorizontal: -spacing.lg,
-    marginTop: -spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  heroCard: {
-    marginBottom: spacing.lg,
-    padding: spacing.lg,
-  },
-  heroTop: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  avatarCol: {
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  ovrPill: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: radius.full,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    minWidth: 48,
-  },
-  ovrLabel: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 8,
-  },
-  ovrValue: {
-    ...typography.heading,
-    color: colors.secondary,
-    fontSize: 16,
-  },
-  heroInfo: {
-    flex: 1,
-    justifyContent: "center",
-    minWidth: 0,
-  },
-  name: {
-    ...typography.title,
-    color: colors.text,
-    fontSize: 22,
-  },
-  nickname: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontStyle: "italic",
-    marginTop: 2,
-  },
-  position: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-    marginBottom: 2,
-  },
-  bio: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-  metaRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  metaChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    width: "31%",
-    flexGrow: 1,
-    flexBasis: "30%",
-  },
-  metaChipText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 11,
-    flexShrink: 1,
-  },
-  editBtn: {
-    marginTop: spacing.sm,
-  },
-  statsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  statsTitle: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  loading: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  notFound: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  notFoundText: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
+    content: {
+      flexGrow: 1,
+    },
+    background: {
+      flexGrow: 1,
+      marginHorizontal: -spacing.lg,
+      marginTop: -spacing.lg,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    heroCard: {
+      marginBottom: spacing.lg,
+      padding: spacing.lg,
+    },
+    heroTop: {
+      flexDirection: "row",
+      gap: spacing.md,
+      marginBottom: spacing.md,
+    },
+    avatarCol: {
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    ovrPill: {
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      borderRadius: radius.full,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      minWidth: 48,
+    },
+    ovrLabel: {
+      ...typography.label,
+      color: colors.textDim,
+      fontSize: 8,
+    },
+    ovrValue: {
+      ...typography.heading,
+      color: colors.secondary,
+      fontSize: 16,
+    },
+    heroInfo: {
+      flex: 1,
+      justifyContent: "center",
+      minWidth: 0,
+    },
+    name: {
+      ...typography.title,
+      color: colors.text,
+      fontSize: 22,
+    },
+    nickname: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontStyle: "italic",
+      marginTop: 2,
+    },
+    position: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 2,
+      marginBottom: 2,
+    },
+    bio: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginBottom: spacing.md,
+    },
+    metaRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    metaChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 8,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      width: "31%",
+      flexGrow: 1,
+      flexBasis: "30%",
+    },
+    metaChipText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontSize: 11,
+      flexShrink: 1,
+    },
+    editBtn: {
+      marginTop: spacing.sm,
+    },
+    statsHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    statsTitle: {
+      ...typography.heading,
+      color: colors.text,
+    },
+    loading: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    notFound: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    notFoundText: {
+      ...typography.body,
+      color: colors.textMuted,
+    },
   });
 }

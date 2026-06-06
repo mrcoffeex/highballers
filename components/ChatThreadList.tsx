@@ -2,7 +2,8 @@ import { memo, useCallback, useMemo, useRef } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
 import { buildChatListItems, type ChatListItem } from "../lib/chatThread";
-import { colors, spacing, typography } from "../lib/theme";
+import { useThemedStyles } from "../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../lib/theme";
 import { ClubChatMessage, UserProfile } from "../lib/types";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { LoadMoreSkeleton } from "./ui";
@@ -28,6 +29,7 @@ function ChatThreadListInner({
   onLoadOlder,
   listRef,
 }: ChatThreadListProps) {
+  const styles = useThemedStyles(createStyles);
   const endReachedGuard = useRef(false);
   const usersById = useMemo(
     () => new Map(users.map((u) => [u.id, u])),
@@ -100,24 +102,26 @@ function ChatThreadListInner({
 
 export const ChatThreadList = memo(ChatThreadListInner);
 
-const styles = StyleSheet.create({
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  listEmpty: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  emptyWrap: {
-    transform: [{ scaleY: -1 }],
-  },
-  emptyText: {
-    ...typography.body,
-    color: colors.textDim,
-    textAlign: "center",
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    list: {
+      flex: 1,
+    },
+    listContent: {
+      padding: spacing.lg,
+      paddingBottom: spacing.sm,
+    },
+    listEmpty: {
+      flexGrow: 1,
+      justifyContent: "center",
+    },
+    emptyWrap: {
+      transform: [{ scaleY: -1 }],
+    },
+    emptyText: {
+      ...typography.body,
+      color: colors.textDim,
+      textAlign: "center",
+    },
+  });
+}

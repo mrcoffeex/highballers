@@ -497,6 +497,7 @@ export default function ClubMembersScreen() {
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          removeClippedSubviews={false}
           refreshControl={refreshControl}
           renderItem={({ item }) => (
             <View style={styles.memberBlock}>
@@ -526,6 +527,16 @@ export default function ClubMembersScreen() {
                 onSubCaptain={() => {
                   void handleToggleSubCaptain(item.id);
                 }}
+                onMakeCaptain={
+                  captainCanTransfer
+                    ? () =>
+                        setModeration({
+                          userId: item.id,
+                          name: item.nickname ?? item.name,
+                          action: "transfer",
+                        })
+                    : undefined
+                }
                 onSwipeOpen={(methods) => {
                   if (
                     openSwipeRef.current &&
@@ -535,23 +546,12 @@ export default function ClubMembersScreen() {
                   }
                   openSwipeRef.current = methods;
                 }}
+                onSwipeClose={() => {
+                  if (openSwipeRef.current) {
+                    openSwipeRef.current = null;
+                  }
+                }}
               />
-              {captainCanTransfer ? (
-                <View style={styles.adminActions}>
-                  <Button
-                    title="Make Captain"
-                    size="sm"
-                    variant="outline"
-                    onPress={() =>
-                      setModeration({
-                        userId: item.id,
-                        name: item.nickname ?? item.name,
-                        action: "transfer",
-                      })
-                    }
-                  />
-                </View>
-              ) : null}
             </View>
           )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -766,7 +766,9 @@ function MemberRow({
   onKick,
   onBan,
   onSubCaptain,
+  onMakeCaptain,
   onSwipeOpen,
+  onSwipeClose,
 }: {
   player: UserProfile;
   badge?: { label: string; color?: string };
@@ -779,7 +781,9 @@ function MemberRow({
   onKick: () => void;
   onBan: () => void;
   onSubCaptain?: () => void;
+  onMakeCaptain?: () => void;
   onSwipeOpen?: (methods: SwipeableMethods) => void;
+  onSwipeClose?: () => void;
 }) {
   return (
     <SwipeableMemberRow
@@ -787,13 +791,21 @@ function MemberRow({
       onKick={onKick}
       onBan={onBan}
       onSwipeOpen={onSwipeOpen}
+      onSwipeClose={onSwipeClose}
       onSubCaptain={
         showSubCaptainAction && !subCaptainLoading ? onSubCaptain : undefined
       }
       isSubCaptain={isSubCaptain}
       subCaptainAtCapacity={subCaptainAtCapacity}
+      onMakeCaptain={onMakeCaptain}
     >
-      <PlayerCard player={player} compact badge={badge} onPress={onPress} />
+      <PlayerCard
+        player={player}
+        compact
+        flush
+        badge={badge}
+        onPress={onPress}
+      />
     </SwipeableMemberRow>
   );
 }
@@ -886,126 +898,126 @@ function MembersFooter({
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  list: {
-    flex: 1,
-  },
-  content: {
-    padding: spacing.lg,
-    flexGrow: 1,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  summaryCard: {
-    marginBottom: spacing.md,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  summaryInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  summaryTitle: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  summarySubtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-  searchWrap: {
-    position: "relative",
-    marginBottom: spacing.lg,
-  },
-  searchIcon: {
-    position: "absolute",
-    left: spacing.md,
-    top: 14,
-    zIndex: 1,
-  },
-  searchInput: {
-    paddingLeft: spacing.xl + spacing.sm,
-  },
-  section: {
-    marginBottom: spacing.sm,
-  },
-  sectionLabel: {
-    ...typography.label,
-    color: colors.textDim,
-    marginBottom: spacing.sm,
-  },
-  captainHint: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: spacing.sm,
-    lineHeight: 18,
-  },
-  sectionDivider: {
-    height: 1,
-    backgroundColor: colors.cardBorder,
-    marginVertical: spacing.md,
-  },
-  separator: {
-    height: spacing.sm,
-  },
-  memberBlock: {
-    marginBottom: spacing.sm,
-  },
-  adminActions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  actionErrorWrap: {
-    position: "absolute",
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.lg,
-    backgroundColor: withAlpha(colors.error, 0.12),
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: withAlpha(colors.error, 0.35),
-    padding: spacing.md,
-  },
-  actionErrorText: {
-    ...typography.caption,
-    color: colors.error,
-    textAlign: "center",
-  },
-  errorCard: {
-    marginBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  errorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  errorText: {
-    ...typography.body,
-    color: colors.warning,
-    flex: 1,
-  },
-  footer: {
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  footerText: {
-    ...typography.caption,
-    color: colors.textDim,
-  },
+    flex: {
+      flex: 1,
+    },
+    list: {
+      flex: 1,
+    },
+    content: {
+      padding: spacing.lg,
+      flexGrow: 1,
+    },
+    centered: {
+      flex: 1,
+      justifyContent: "center",
+      padding: spacing.lg,
+    },
+    summaryCard: {
+      marginBottom: spacing.md,
+    },
+    summaryRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    summaryInfo: {
+      flex: 1,
+      minWidth: 0,
+    },
+    summaryTitle: {
+      ...typography.heading,
+      color: colors.text,
+    },
+    summarySubtitle: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: spacing.xs,
+    },
+    searchWrap: {
+      position: "relative",
+      marginBottom: spacing.lg,
+    },
+    searchIcon: {
+      position: "absolute",
+      left: spacing.md,
+      top: 14,
+      zIndex: 1,
+    },
+    searchInput: {
+      paddingLeft: spacing.xl + spacing.sm,
+    },
+    section: {
+      marginBottom: spacing.sm,
+    },
+    sectionLabel: {
+      ...typography.label,
+      color: colors.textDim,
+      marginBottom: spacing.sm,
+    },
+    captainHint: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: spacing.sm,
+      lineHeight: 18,
+    },
+    sectionDivider: {
+      height: 1,
+      backgroundColor: colors.cardBorder,
+      marginVertical: spacing.md,
+    },
+    separator: {
+      height: spacing.sm,
+    },
+    memberBlock: {
+      marginBottom: 0,
+    },
+    adminActions: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    actionErrorWrap: {
+      position: "absolute",
+      left: spacing.lg,
+      right: spacing.lg,
+      bottom: spacing.lg,
+      backgroundColor: withAlpha(colors.error, 0.12),
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: withAlpha(colors.error, 0.35),
+      padding: spacing.md,
+    },
+    actionErrorText: {
+      ...typography.caption,
+      color: colors.error,
+      textAlign: "center",
+    },
+    errorCard: {
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    errorRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    errorText: {
+      ...typography.body,
+      color: colors.warning,
+      flex: 1,
+    },
+    footer: {
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: spacing.sm,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.sm,
+    },
+    footerText: {
+      ...typography.caption,
+      color: colors.textDim,
+    },
   });
 }

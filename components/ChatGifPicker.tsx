@@ -17,13 +17,16 @@ import {
   isGiphyConfigured,
   searchGifs,
 } from "../lib/giphy";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 
 type ChatGifPickerProps = {
   onPick: (gif: GiphyGif) => void;
 };
 
 export function ChatGifPicker({ onPick }: ChatGifPickerProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [query, setQuery] = useState("");
   const [gifs, setGifs] = useState<GiphyGif[]>([]);
   const [loading, setLoading] = useState(false);
@@ -157,97 +160,99 @@ export function ChatGifPicker({ onPick }: ChatGifPickerProps) {
 
 const CELL_SIZE = 88;
 
-const styles = StyleSheet.create({
-  container: {
-    height: 260,
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
-    backgroundColor: colors.surface,
-  },
-  searchWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
-    paddingHorizontal: spacing.sm,
-  },
-  searchIcon: {
-    marginRight: spacing.xs,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    color: colors.text,
-    fontSize: 15,
-  },
-  body: {
-    flex: 1,
-    minHeight: 0,
-  },
-  scroll: {
-    flex: 1,
-  },
-  grid: {
-    paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.xs,
-  },
-  gridRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-  },
-  gifCell: {
-    width: CELL_SIZE,
-    height: CELL_SIZE,
-    borderRadius: radius.md,
-    overflow: "hidden",
-    backgroundColor: colors.card,
-  },
-  gifCellPressed: {
-    opacity: 0.85,
-  },
-  gifPreview: {
-    width: "100%",
-    height: "100%",
-  },
-  loadingWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  errorText: {
-    ...typography.caption,
-    color: colors.error,
-    textAlign: "center",
-    padding: spacing.md,
-  },
-  emptyWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  emptyTitle: {
-    ...typography.label,
-    color: colors.text,
-    textAlign: "center",
-  },
-  emptyText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: "center",
-  },
-  attribution: {
-    ...typography.caption,
-    color: colors.textDim,
-    fontSize: 10,
-    textAlign: "center",
-    paddingBottom: spacing.xs,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      height: 260,
+      borderTopWidth: 1,
+      borderTopColor: colors.cardBorder,
+      backgroundColor: colors.surface,
+    },
+    searchWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginHorizontal: spacing.md,
+      marginTop: spacing.sm,
+      marginBottom: spacing.sm,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.card,
+      paddingHorizontal: spacing.sm,
+    },
+    searchIcon: {
+      marginRight: spacing.xs,
+    },
+    searchInput: {
+      flex: 1,
+      height: 40,
+      color: colors.text,
+      fontSize: 15,
+    },
+    body: {
+      flex: 1,
+      minHeight: 0,
+    },
+    scroll: {
+      flex: 1,
+    },
+    grid: {
+      paddingHorizontal: spacing.sm,
+      paddingBottom: spacing.xs,
+    },
+    gridRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.xs,
+    },
+    gifCell: {
+      width: CELL_SIZE,
+      height: CELL_SIZE,
+      borderRadius: radius.md,
+      overflow: "hidden",
+      backgroundColor: colors.card,
+    },
+    gifCellPressed: {
+      opacity: 0.85,
+    },
+    gifPreview: {
+      width: "100%",
+      height: "100%",
+    },
+    loadingWrap: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    errorText: {
+      ...typography.caption,
+      color: colors.error,
+      textAlign: "center",
+      padding: spacing.md,
+    },
+    emptyWrap: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing.lg,
+      gap: spacing.sm,
+    },
+    emptyTitle: {
+      ...typography.label,
+      color: colors.text,
+      textAlign: "center",
+    },
+    emptyText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      textAlign: "center",
+    },
+    attribution: {
+      ...typography.caption,
+      color: colors.textDim,
+      fontSize: 10,
+      textAlign: "center",
+      paddingBottom: spacing.xs,
+    },
+  });
+}

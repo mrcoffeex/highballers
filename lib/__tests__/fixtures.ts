@@ -1,10 +1,4 @@
-import {
-  Club,
-  ClubBan,
-  DEFAULT_STATS,
-  GameEvent,
-  UserProfile,
-} from "../types";
+import { Club, ClubBan, DEFAULT_STATS, GameEvent, UserProfile } from "../types";
 
 let idCounter = 0;
 

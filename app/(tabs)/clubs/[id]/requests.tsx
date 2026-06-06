@@ -12,7 +12,8 @@ import {
   EmptyState,
 } from "../../../../components/ui";
 import { shouldShowEntitySkeleton } from "../../../../lib/entityLoading";
-import { colors, spacing, typography } from "../../../../lib/theme";
+import { useTheme, useThemedStyles } from "../../../../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../../../../lib/theme";
 import { useTabBarPadding } from "../../../../lib/tabBar";
 import { useRefreshControl } from "../../../../lib/useRefreshControl";
 import { useUpgradePrompt } from "../../../../lib/useUpgradePrompt";
@@ -26,6 +27,8 @@ function resolveClubId(id: string | string[] | undefined) {
 }
 
 export default function ClubJoinRequestsScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string | string[] }>();
   const clubId = resolveClubId(id) ?? "";
@@ -174,41 +177,43 @@ export default function ClubJoinRequestsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  notFound: {
-    flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  notFoundText: {
-    color: colors.textMuted,
-    textAlign: "center",
-  },
-  backBtn: {
-    marginTop: spacing.lg,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginBottom: spacing.lg,
-  },
-  requestCard: {
-    marginBottom: spacing.md,
-  },
-  requestActions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  requestBtn: {
-    flex: 1,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: spacing.lg,
+    },
+    notFound: {
+      flex: 1,
+      backgroundColor: colors.background,
+      justifyContent: "center",
+      padding: spacing.lg,
+    },
+    notFoundText: {
+      color: colors.textMuted,
+      textAlign: "center",
+    },
+    backBtn: {
+      marginTop: spacing.lg,
+    },
+    subtitle: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginBottom: spacing.lg,
+    },
+    requestCard: {
+      marginBottom: spacing.md,
+    },
+    requestActions: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    requestBtn: {
+      flex: 1,
+    },
+  });
+}

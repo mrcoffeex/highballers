@@ -8,7 +8,7 @@
     "icon": "./assets/icon.png",
     "scheme": "highballers",
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#0B0F14",
+    "backgroundColor": "#111827",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.highballers.app",
@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0B0F14",
+        "backgroundColor": "#111827",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -65,7 +65,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#F0642F"
+          "color": "#3B82F6"
         }
       ],
       [
@@ -86,7 +86,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0B0F14",
+          "backgroundColor": "#111827",
           "image": "./assets/splash-icon.png",
           "imageWidth": 220,
           "resizeMode": "contain"

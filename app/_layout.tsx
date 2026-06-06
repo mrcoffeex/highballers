@@ -1,4 +1,10 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter } from "@/lib/expoRouter";
+import {
+  DarkTheme,
+  DefaultTheme,
+  Stack,
+  ThemeProvider,
+  useRouter,
+} from "@/lib/expoRouter";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef } from "react";

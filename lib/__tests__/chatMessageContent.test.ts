@@ -32,10 +32,12 @@ describe("chatMessageContent", () => {
 
   it("formats previews", () => {
     expect(formatChatMessagePreview(`${CHAT_GIF_PREFIX}i:abc123`)).toBe("GIF");
-    expect(formatChatMessagePreview(`${CHAT_GIF_PREFIX}https://x.com/a.gif`)).toBe(
-      "GIF",
-    );
+    expect(
+      formatChatMessagePreview(`${CHAT_GIF_PREFIX}https://x.com/a.gif`),
+    ).toBe("GIF");
     expect(formatChatMessagePreview("  hello   world  ")).toBe("hello world");
-    expect(formatChatMessagePreview("a".repeat(100), 10)).toBe("a".repeat(9) + "…");
+    expect(formatChatMessagePreview("a".repeat(100), 10)).toBe(
+      "a".repeat(9) + "…",
+    );
   });
 });

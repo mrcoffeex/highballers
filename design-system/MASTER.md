@@ -6,14 +6,14 @@ Premium basketball social app — energetic, trustworthy, readable in sun and at
 
 ## Color roles
 
-| Token | Role |
-|-------|------|
-| `primary` | Hoop Flame `#F0642F` — CTAs, active nav, key actions |
-| `secondary` | Championship Gold — All-Star, achievements only |
-| `tertiary` / `accent` | Court Teal — team B, links, secondary actions |
-| `outline` / `outlineVariant` | Neutral borders (never use primary for every border) |
-| `borderAccent` | Brand border for selected chips / emphasis |
-| `background` → `screenGradientEnd` | Screen vertical gradients |
+| Token                              | Role                                                 |
+| ---------------------------------- | ---------------------------------------------------- |
+| `primary`                          | Hoop Flame `#F0642F` — CTAs, active nav, key actions |
+| `secondary`                        | Championship Gold — All-Star, achievements only      |
+| `tertiary` / `accent`              | Court Teal — team B, links, secondary actions        |
+| `outline` / `outlineVariant`       | Neutral borders (never use primary for every border) |
+| `borderAccent`                     | Brand border for selected chips / emphasis           |
+| `background` → `screenGradientEnd` | Screen vertical gradients                            |
 
 ## Rules
 

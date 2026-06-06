@@ -8,13 +8,21 @@ import { StatSlider } from "../../components/StatSlider";
 import { Button, FormScreenSkeleton, Input } from "../../components/ui";
 import { shouldShowEntitySkeleton } from "../../lib/entityLoading";
 import { AVATAR_COLORS } from "../../lib/seedData";
-import { colors, radius, spacing, typography } from "../../lib/theme";
+import { useThemedStyles } from "../../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../../lib/theme";
 import { useRefreshControl } from "../../lib/useRefreshControl";
 import { POSITIONS, Position } from "../../lib/types";
 import { useCurrentUser } from "../../store/hooks";
 import { useAppStore } from "../../store/useAppStore";
 
 export default function EditProfileScreen() {
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const user = useCurrentUser();
   const updateProfile = useAppStore((state) => state.updateProfile);
@@ -132,7 +140,7 @@ export default function EditProfileScreen() {
             ]}
           >
             {avatarColor === color ? (
-              <Ionicons name="checkmark" size={18} color={colors.text} />
+              <Ionicons name="checkmark" size={18} color="#FFFFFF" />
             ) : null}
           </Pressable>
         ))}
@@ -192,78 +200,80 @@ export default function EditProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  label: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-    marginTop: spacing.md,
-  },
-  field: {
-    marginBottom: spacing.sm,
-  },
-  textArea: {
-    minHeight: 72,
-    textAlignVertical: "top",
-  },
-  positionRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  positionChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  positionChipActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}15`,
-  },
-  positionText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: "700",
-  },
-  positionTextActive: {
-    color: colors.primary,
-  },
-  colorRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  colorSwatch: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  colorSwatchActive: {
-    borderWidth: 3,
-    borderColor: colors.text,
-  },
-  sectionTitle: {
-    ...typography.heading,
-    color: colors.text,
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  submit: {
-    marginTop: spacing.lg,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: spacing.lg,
+      paddingBottom: spacing.xxl,
+    },
+    label: {
+      ...typography.label,
+      color: colors.textMuted,
+      marginBottom: spacing.sm,
+      marginTop: spacing.md,
+    },
+    field: {
+      marginBottom: spacing.sm,
+    },
+    textArea: {
+      minHeight: 72,
+      textAlignVertical: "top",
+    },
+    positionRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    positionChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    positionChipActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.08),
+    },
+    positionText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "700",
+    },
+    positionTextActive: {
+      color: colors.primary,
+    },
+    colorRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    colorSwatch: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.md,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    colorSwatchActive: {
+      borderWidth: 3,
+      borderColor: colors.primary,
+    },
+    sectionTitle: {
+      ...typography.heading,
+      color: colors.text,
+      marginTop: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    submit: {
+      marginTop: spacing.lg,
+    },
+  });
+}

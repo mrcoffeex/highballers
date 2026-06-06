@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { Card } from "./ui";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useThemedStyles } from "../lib/ThemeProvider";
+import { spacing, typography, withAlpha, type ThemeColors } from "../lib/theme";
 import {
   BOX_SCORE_FIELDS,
   BOX_SCORE_LABELS,
@@ -9,6 +9,7 @@ import {
   EMPTY_BOX_SCORE,
   UserProfile,
 } from "../lib/types";
+import { Card } from "./ui";
 
 interface BoxScoreTableProps {
   participants: UserProfile[];
@@ -35,6 +36,8 @@ export function BoxScoreTable({
   participants,
   statsByPlayer,
 }: BoxScoreTableProps) {
+  const styles = useThemedStyles(createStyles);
+
   if (participants.length === 0) {
     return (
       <Card>
@@ -97,77 +100,79 @@ export function BoxScoreTable({
 
 const COL_WIDTH = 36;
 
-const styles = StyleSheet.create({
-  card: {
-    padding: 0,
-    overflow: "hidden",
-  },
-  empty: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: "center",
-    padding: spacing.md,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
-  },
-  headerCell: {
-    width: COL_WIDTH,
-    ...typography.label,
-    color: colors.textMuted,
-    fontSize: 9,
-    textAlign: "center",
-  },
-  playerCol: {
-    flex: 1,
-    width: undefined,
-    textAlign: "left",
-    paddingRight: spacing.xs,
-  },
-  dataRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-  },
-  stripedRow: {
-    backgroundColor: `${colors.surface}88`,
-  },
-  dataCell: {
-    width: COL_WIDTH,
-    ...typography.caption,
-    color: colors.text,
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  playerName: {
-    textAlign: "left",
-    fontWeight: "500",
-  },
-  footerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
-    backgroundColor: `${colors.primary}18`,
-  },
-  footerCell: {
-    width: COL_WIDTH,
-    ...typography.label,
-    color: colors.primary,
-    fontSize: 9,
-    textAlign: "center",
-  },
-  totalValue: {
-    fontSize: 12,
-    fontWeight: "800",
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      padding: 0,
+      overflow: "hidden",
+    },
+    empty: {
+      ...typography.caption,
+      color: colors.textMuted,
+      textAlign: "center",
+      padding: spacing.md,
+    },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+    },
+    headerCell: {
+      width: COL_WIDTH,
+      ...typography.label,
+      color: colors.textMuted,
+      fontSize: 9,
+      textAlign: "center",
+    },
+    playerCol: {
+      flex: 1,
+      width: undefined,
+      textAlign: "left",
+      paddingRight: spacing.xs,
+    },
+    dataRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+    },
+    stripedRow: {
+      backgroundColor: withAlpha(colors.surface, 0.55),
+    },
+    dataCell: {
+      width: COL_WIDTH,
+      ...typography.caption,
+      color: colors.text,
+      textAlign: "center",
+      fontWeight: "600",
+    },
+    playerName: {
+      textAlign: "left",
+      fontWeight: "500",
+    },
+    footerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: colors.cardBorder,
+      backgroundColor: withAlpha(colors.primary, 0.1),
+    },
+    footerCell: {
+      width: COL_WIDTH,
+      ...typography.label,
+      color: colors.primary,
+      fontSize: 9,
+      textAlign: "center",
+    },
+    totalValue: {
+      fontSize: 12,
+      fontWeight: "800",
+    },
+  });
+}

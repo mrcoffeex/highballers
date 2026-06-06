@@ -1,7 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 import { UserProfile } from "../lib/types";
 import { Avatar } from "./ui";
 
@@ -16,6 +23,9 @@ export function EventMemberPicker({
   selectedIds,
   onToggle,
 }: EventMemberPickerProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   if (members.length === 0) {
     return (
       <Text style={styles.empty}>
@@ -56,41 +66,43 @@ export function EventMemberPicker({
   );
 }
 
-const styles = StyleSheet.create({
-  list: {
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.cardBorder,
-  },
-  rowSelected: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}12`,
-  },
-  info: {
-    flex: 1,
-  },
-  name: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: "600",
-  },
-  position: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  empty: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    list: {
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      padding: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+    },
+    rowSelected: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.07),
+    },
+    info: {
+      flex: 1,
+    },
+    name: {
+      ...typography.body,
+      color: colors.text,
+      fontWeight: "600",
+    },
+    position: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    empty: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginBottom: spacing.md,
+    },
+  });
+}

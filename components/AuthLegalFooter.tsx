@@ -16,10 +16,7 @@ export function AuthLegalFooter() {
           Terms & Conditions
         </Text>{" "}
         and{" "}
-        <Text
-          style={styles.link}
-          onPress={() => router.push("/legal/privacy")}
-        >
+        <Text style={styles.link} onPress={() => router.push("/legal/privacy")}>
           Privacy Policy
         </Text>
         .

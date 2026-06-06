@@ -123,7 +123,6 @@ export function canRecordEventStats(
   club?: EventClubContext | null,
 ): boolean {
   return (
-    canManageEventStats(event, userId, club) &&
-    event.participantIds.length > 0
+    canManageEventStats(event, userId, club) && event.participantIds.length > 0
   );
 }

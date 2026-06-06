@@ -60,7 +60,10 @@ export function patchExpoOpenForWindows() {
   return { patched: true, reason: "patched" };
 }
 
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/"))) {
+if (
+  process.argv[1] &&
+  import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/"))
+) {
   const result = patchExpoOpenForWindows();
   if (result.patched) {
     console.log(`Expo CLI browser opener: ${result.reason}`);

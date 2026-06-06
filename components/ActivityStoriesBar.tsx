@@ -3,7 +3,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ScrollView, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ActivityStoryGroup } from "../lib/activityStories";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 import { Avatar } from "./ui";
 
 interface ActivityStoriesBarProps {
@@ -19,6 +20,8 @@ export function ActivityStoriesBar({
   onOpenGroup,
   compact,
 }: ActivityStoriesBarProps) {
+  const styles = useThemedStyles(createStyles);
+
   if (groups.length === 0) {
     return null;
   }
@@ -65,8 +68,10 @@ function StoryAvatarRing({
   hasUnviewed: boolean;
   isOwn: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const ringColors: [string, string, ...string[]] = hasUnviewed
-    ? [colors.primary, colors.secondary, colors.accent]
+    ? [colors.primary, colors.accent, colors.teamB]
     : [colors.cardBorder, colors.cardBorder];
 
   return (
@@ -85,7 +90,7 @@ function StoryAvatarRing({
         />
         {isOwn ? (
           <View style={styles.ownBadge}>
-            <Ionicons name="add" size={12} color={colors.text} />
+            <Ionicons name="add" size={12} color={colors.onPrimary} />
           </View>
         ) : null}
       </View>
@@ -93,96 +98,98 @@ function StoryAvatarRing({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    marginBottom: spacing.lg,
-  },
-  wrapCompact: {
-    marginBottom: 0,
-  },
-  heading: {
-    ...typography.label,
-    color: colors.textDim,
-    marginBottom: spacing.sm,
-  },
-  row: {
-    gap: spacing.md,
-    paddingRight: spacing.md,
-  },
-  item: {
-    alignItems: "center",
-    width: 72,
-  },
-  ring: {
-    width: 68,
-    height: 68,
-    borderRadius: radius.full,
-    padding: 3,
-    marginBottom: spacing.xs,
-  },
-  ringInner: {
-    flex: 1,
-    borderRadius: radius.full,
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  ownBadge: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    width: 20,
-    height: 20,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: colors.background,
-  },
-  name: {
-    ...typography.caption,
-    color: colors.text,
-    fontWeight: "600",
-    fontSize: 11,
-    maxWidth: 72,
-    textAlign: "center",
-  },
-  count: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 9,
-  },
-  emptyWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-    padding: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  emptyRing: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
-    borderWidth: 2,
-    borderColor: colors.cardBorder,
-    borderStyle: "dashed",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyLabel: {
-    ...typography.caption,
-    color: colors.text,
-    fontWeight: "700",
-  },
-  emptyHint: {
-    ...typography.caption,
-    color: colors.textDim,
-    flex: 1,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    wrap: {
+      marginBottom: spacing.lg,
+    },
+    wrapCompact: {
+      marginBottom: 0,
+    },
+    heading: {
+      ...typography.label,
+      color: colors.textDim,
+      marginBottom: spacing.sm,
+    },
+    row: {
+      gap: spacing.md,
+      paddingRight: spacing.md,
+    },
+    item: {
+      alignItems: "center",
+      width: 72,
+    },
+    ring: {
+      width: 68,
+      height: 68,
+      borderRadius: radius.full,
+      padding: 3,
+      marginBottom: spacing.xs,
+    },
+    ringInner: {
+      flex: 1,
+      borderRadius: radius.full,
+      backgroundColor: colors.background,
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+    },
+    ownBadge: {
+      position: "absolute",
+      right: 0,
+      bottom: 0,
+      width: 20,
+      height: 20,
+      borderRadius: radius.full,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: colors.background,
+    },
+    name: {
+      ...typography.caption,
+      color: colors.text,
+      fontWeight: "600",
+      fontSize: 11,
+      maxWidth: 72,
+      textAlign: "center",
+    },
+    count: {
+      ...typography.label,
+      color: colors.textDim,
+      fontSize: 9,
+    },
+    emptyWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+      padding: spacing.sm,
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    emptyRing: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.full,
+      borderWidth: 2,
+      borderColor: colors.cardBorder,
+      borderStyle: "dashed",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    emptyLabel: {
+      ...typography.caption,
+      color: colors.text,
+      fontWeight: "700",
+    },
+    emptyHint: {
+      ...typography.caption,
+      color: colors.textDim,
+      flex: 1,
+    },
+  });
+}

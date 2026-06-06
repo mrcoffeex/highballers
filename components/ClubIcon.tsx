@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
 
-import { colors, radius } from "../lib/theme";
+import { radius, withAlpha } from "../lib/theme";
 
 interface ClubIconProps {
   name: string;
@@ -31,7 +31,11 @@ export function ClubIcon({
     <View
       style={[
         styles.icon,
-        { width: size, height: size, backgroundColor: `${iconColor}22` },
+        {
+          width: size,
+          height: size,
+          backgroundColor: withAlpha(iconColor, 0.13),
+        },
       ]}
     >
       <Ionicons name="basketball" size={size * 0.5} color={iconColor} />

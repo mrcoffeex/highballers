@@ -21,7 +21,8 @@ import { formatSyncError } from "../../../../lib/syncErrors";
 import { shouldShowEntitySkeleton } from "../../../../lib/entityLoading";
 import { getClubMemberCap } from "../../../../lib/subscription";
 import { useUpgradePrompt } from "../../../../lib/useUpgradePrompt";
-import { colors, spacing, typography } from "../../../../lib/theme";
+import { useTheme, useThemedStyles } from "../../../../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../../../../lib/theme";
 import { useTabBarPadding } from "../../../../lib/tabBar";
 import { useRefreshControl } from "../../../../lib/useRefreshControl";
 import { isUserBannedFromClub } from "../../../../lib/clubBans";
@@ -52,6 +53,8 @@ function resolveClubId(id: string | string[] | undefined) {
 }
 
 export default function ClubDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { id: rawId } = useLocalSearchParams<{ id: string | string[] }>();
   const clubId = resolveClubId(rawId);
   const router = useRouter();
@@ -316,7 +319,9 @@ export default function ClubDetailScreen() {
           style={styles.actionBtn}
         />
         {joinError ? <Text style={styles.bannedHint}>{joinError}</Text> : null}
-        {leaveError ? <Text style={styles.bannedHint}>{leaveError}</Text> : null}
+        {leaveError ? (
+          <Text style={styles.bannedHint}>{leaveError}</Text>
+        ) : null}
         {isBanned ? (
           <Text style={styles.bannedHint}>
             You were banned from this club. Contact the captain if you think
@@ -348,7 +353,7 @@ export default function ClubDetailScreen() {
                   params: { clubId: club.id },
                 })
               }
-              icon={<Ionicons name="add" size={18} color={colors.text} />}
+              icon={<Ionicons name="add" size={18} color={colors.onTertiary} />}
               style={styles.actionBtn}
             />
             <Button
@@ -514,6 +519,9 @@ function StatPill({
   value: string;
   label: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.statPill}>
       <Ionicons name={icon} size={16} color={colors.primary} />
@@ -523,100 +531,102 @@ function StatPill({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  notFound: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background,
-  },
-  notFoundText: {
-    color: colors.textMuted,
-  },
-  hero: {
-    alignItems: "center",
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-  },
-  location: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  description: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
-    marginBottom: spacing.lg,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  statPill: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 12,
-    minWidth: 80,
-  },
-  statValue: {
-    ...typography.heading,
-    color: colors.text,
-    marginTop: 4,
-  },
-  statLabel: {
-    ...typography.caption,
-    color: colors.textDim,
-    fontSize: 11,
-  },
-  actionBtn: {
-    marginBottom: spacing.sm,
-  },
-  bannedHint: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: "center",
-    marginBottom: spacing.md,
-  },
-  headerBtn: {
-    marginRight: spacing.sm,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-    justifyContent: "center",
-  },
-  empty: {
-    ...typography.body,
-    color: colors.textDim,
-    textAlign: "center",
-    paddingVertical: spacing.lg,
-  },
-  visibilityCard: {
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-  },
-  visibilityTitle: {
-    ...typography.label,
-    color: colors.text,
-  },
-  visibilityHint: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  visibilityError: {
-    ...typography.caption,
-    color: colors.error,
-    textAlign: "center",
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: spacing.lg,
+    },
+    notFound: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+    },
+    notFoundText: {
+      color: colors.textMuted,
+    },
+    hero: {
+      alignItems: "center",
+      marginBottom: spacing.lg,
+      gap: spacing.sm,
+    },
+    location: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginBottom: spacing.sm,
+    },
+    description: {
+      ...typography.body,
+      color: colors.textMuted,
+      textAlign: "center",
+      marginBottom: spacing.lg,
+    },
+    statsRow: {
+      flexDirection: "row",
+      gap: spacing.md,
+    },
+    statPill: {
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 12,
+      minWidth: 80,
+    },
+    statValue: {
+      ...typography.heading,
+      color: colors.text,
+      marginTop: 4,
+    },
+    statLabel: {
+      ...typography.caption,
+      color: colors.textDim,
+      fontSize: 11,
+    },
+    actionBtn: {
+      marginBottom: spacing.sm,
+    },
+    bannedHint: {
+      ...typography.caption,
+      color: colors.textMuted,
+      textAlign: "center",
+      marginBottom: spacing.md,
+    },
+    headerBtn: {
+      marginRight: spacing.sm,
+    },
+    badgeRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.xs,
+      justifyContent: "center",
+    },
+    empty: {
+      ...typography.body,
+      color: colors.textDim,
+      textAlign: "center",
+      paddingVertical: spacing.lg,
+    },
+    visibilityCard: {
+      marginBottom: spacing.lg,
+      gap: spacing.sm,
+    },
+    visibilityTitle: {
+      ...typography.label,
+      color: colors.text,
+    },
+    visibilityHint: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    visibilityError: {
+      ...typography.caption,
+      color: colors.error,
+      textAlign: "center",
+    },
+  });
+}

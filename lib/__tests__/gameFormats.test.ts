@@ -26,7 +26,9 @@ describe("gameFormats", () => {
     expect(
       getPlayersPerGame(
         mockEvent({
-          courtGames: [{ teamA: ["a", "b", "c", "d"], teamB: ["e", "f", "g", "h"] }],
+          courtGames: [
+            { teamA: ["a", "b", "c", "d"], teamB: ["e", "f", "g", "h"] },
+          ],
         }),
       ),
     ).toBe(8);

@@ -63,13 +63,7 @@ describe("eventInvite", () => {
       participantIds: ["creator-1", "member-1"],
     });
 
-    const result = resolvePlayersToInvite(
-      full,
-      club,
-      users,
-      [],
-      ["member-2"],
-    );
+    const result = resolvePlayersToInvite(full, club, users, [], ["member-2"]);
     expect(result.addedIds).toEqual([]);
     expect(result.skipped[0]?.reason).toMatch(/full/i);
   });

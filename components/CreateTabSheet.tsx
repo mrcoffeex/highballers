@@ -3,7 +3,15 @@ import { useRouter } from "@/lib/expoRouter";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
+import { useClubMembershipLimits } from "../store/hooks";
 
 interface CreateTabSheetProps {
   visible: boolean;
@@ -11,8 +19,12 @@ interface CreateTabSheetProps {
 }
 
 export function CreateTabSheet({ visible, onClose }: CreateTabSheetProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const limits = useClubMembershipLimits();
+  const clubCreateDisabled = !limits.canCreateClub;
 
   const handleNewGame = () => {
     onClose();
@@ -20,6 +32,8 @@ export function CreateTabSheet({ visible, onClose }: CreateTabSheetProps) {
   };
 
   const handleNewClub = () => {
+    if (clubCreateDisabled) return;
+
     onClose();
     router.push("/(tabs)/clubs/create");
   };
@@ -49,7 +63,7 @@ export function CreateTabSheet({ visible, onClose }: CreateTabSheetProps) {
             <View
               style={[
                 styles.optionIcon,
-                { backgroundColor: `${colors.accent}20` },
+                { backgroundColor: withAlpha(colors.accent, 0.12) },
               ]}
             >
               <Ionicons
@@ -67,26 +81,51 @@ export function CreateTabSheet({ visible, onClose }: CreateTabSheetProps) {
             <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
           </Pressable>
 
-          <Pressable style={styles.option} onPress={handleNewClub}>
+          <Pressable
+            style={[styles.option, clubCreateDisabled && styles.optionDisabled]}
+            onPress={handleNewClub}
+            disabled={clubCreateDisabled}
+            accessibilityState={{ disabled: clubCreateDisabled }}
+          >
             <View
               style={[
                 styles.optionIcon,
-                { backgroundColor: `${colors.primary}20` },
+                {
+                  backgroundColor: withAlpha(
+                    colors.primary,
+                    clubCreateDisabled ? 0.06 : 0.12,
+                  ),
+                },
               ]}
             >
               <Ionicons
-                name="people-outline"
+                name={clubCreateDisabled ? "lock-closed" : "people-outline"}
                 size={24}
-                color={colors.primary}
+                color={clubCreateDisabled ? colors.textDim : colors.primary}
               />
             </View>
             <View style={styles.optionText}>
-              <Text style={styles.optionTitle}>New Club</Text>
+              <Text
+                style={[
+                  styles.optionTitle,
+                  clubCreateDisabled && styles.optionTitleDisabled,
+                ]}
+              >
+                New Club
+              </Text>
               <Text style={styles.optionDescription}>
-                Create a club for your pickup crew
+                {clubCreateDisabled
+                  ? "You've already created your club"
+                  : "Create a club for your pickup crew"}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+            {clubCreateDisabled ? null : (
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={colors.textDim}
+              />
+            )}
           </Pressable>
 
           <Pressable style={styles.cancelBtn} onPress={onClose}>
@@ -98,82 +137,90 @@ export function CreateTabSheet({ visible, onClose }: CreateTabSheetProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderBottomWidth: 0,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-  handle: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: radius.full,
-    backgroundColor: colors.cardBorder,
-    marginBottom: spacing.md,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-    textAlign: "center",
-  },
-  subtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: "center",
-    marginTop: spacing.xs,
-    marginBottom: spacing.lg,
-  },
-  option: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  optionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  optionText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  optionTitle: {
-    ...typography.heading,
-    color: colors.text,
-    fontSize: 16,
-  },
-  optionDescription: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  cancelBtn: {
-    alignItems: "center",
-    paddingVertical: spacing.md,
-    marginTop: spacing.sm,
-  },
-  cancelText: {
-    ...typography.body,
-    color: colors.textMuted,
-    fontWeight: "600",
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: "flex-end",
+    },
+    sheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: radius.xl,
+      borderTopRightRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderBottomWidth: 0,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
+    },
+    handle: {
+      alignSelf: "center",
+      width: 40,
+      height: 4,
+      borderRadius: radius.full,
+      backgroundColor: colors.cardBorder,
+      marginBottom: spacing.md,
+    },
+    title: {
+      ...typography.heading,
+      color: colors.text,
+      textAlign: "center",
+    },
+    subtitle: {
+      ...typography.caption,
+      color: colors.textMuted,
+      textAlign: "center",
+      marginTop: spacing.xs,
+      marginBottom: spacing.lg,
+    },
+    option: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      backgroundColor: colors.card,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    optionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.md,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    optionText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    optionTitle: {
+      ...typography.heading,
+      color: colors.text,
+      fontSize: 16,
+    },
+    optionDescription: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    optionDisabled: {
+      opacity: 0.72,
+    },
+    optionTitleDisabled: {
+      color: colors.textMuted,
+    },
+    cancelBtn: {
+      alignItems: "center",
+      paddingVertical: spacing.md,
+      marginTop: spacing.sm,
+    },
+    cancelText: {
+      ...typography.body,
+      color: colors.textMuted,
+      fontWeight: "600",
+    },
+  });
+}

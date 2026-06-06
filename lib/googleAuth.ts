@@ -11,7 +11,10 @@ import {
   pickOAuthRedirectUri,
 } from "./oauthRedirect";
 
-export { NATIVE_OAUTH_REDIRECT_URI, pickOAuthRedirectUri } from "./oauthRedirect";
+export {
+  NATIVE_OAUTH_REDIRECT_URI,
+  pickOAuthRedirectUri,
+} from "./oauthRedirect";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -97,7 +100,10 @@ export function getOAuthRedirectUri() {
 
 /** Redirect URLs to whitelist in Supabase Auth → URL Configuration. */
 export function getOAuthRedirectUriHints(): string[] {
-  const hints = new Set<string>([getOAuthRedirectUri(), nativeOAuthRedirectUri()]);
+  const hints = new Set<string>([
+    getOAuthRedirectUri(),
+    nativeOAuthRedirectUri(),
+  ]);
 
   if (Platform.OS === "web") {
     hints.add("http://localhost:8081/oauth-callback");

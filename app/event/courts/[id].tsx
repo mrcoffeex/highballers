@@ -9,7 +9,8 @@ import { FormScreenSkeleton } from "../../../components/ui";
 import { shouldShowEntitySkeleton } from "../../../lib/entityLoading";
 import { canEditEvent } from "../../../lib/gameEvents";
 import { getPlayersPerGame } from "../../../lib/gameFormats";
-import { colors, spacing, typography } from "../../../lib/theme";
+import { useThemedStyles } from "../../../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../../../lib/theme";
 import { formatSyncError } from "../../../lib/syncErrors";
 import { SubscriptionError } from "../../../lib/subscription";
 import { useFloatingAlert } from "../../../lib/useFloatingAlert";
@@ -19,6 +20,7 @@ import { useClub, useEvent } from "../../../store/hooks";
 import { useAppStore } from "../../../store/useAppStore";
 
 export default function EditEventCourtsScreen() {
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const event = useEvent(id);
@@ -41,9 +43,7 @@ export default function EditEventCourtsScreen() {
     [event?.participantIds, users],
   );
 
-  const canEdit = event
-    ? canEditEvent(event, currentUserId, club)
-    : false;
+  const canEdit = event ? canEditEvent(event, currentUserId, club) : false;
   const playersPerGame = event ? getPlayersPerGame(event) : 10;
   const initialCourtGames = useMemo<CourtGame[]>(
     () =>
@@ -125,28 +125,30 @@ export default function EditEventCourtsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    position: "relative",
-  },
-  blocked: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background,
-    padding: spacing.xl,
-    gap: spacing.sm,
-  },
-  blockedTitle: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  blockedText: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
-    fontSize: 14,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      position: "relative",
+    },
+    blocked: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+      padding: spacing.xl,
+      gap: spacing.sm,
+    },
+    blockedTitle: {
+      ...typography.heading,
+      color: colors.text,
+    },
+    blockedText: {
+      ...typography.body,
+      color: colors.textMuted,
+      textAlign: "center",
+      fontSize: 14,
+    },
+  });
+}

@@ -1,7 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 import { ClubVisibility } from "../lib/types";
 
 type ClubVisibilityPickerProps = {
@@ -19,6 +26,9 @@ export function ClubVisibilityPicker({
   onRequirePro,
   disabled = false,
 }: ClubVisibilityPickerProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.typeRow}>
       <Pressable
@@ -79,40 +89,42 @@ export function ClubVisibilityPicker({
   );
 }
 
-const styles = StyleSheet.create({
-  typeRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  typeCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  typeCardActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}12`,
-  },
-  typeCardLocked: {
-    opacity: 0.72,
-  },
-  typeCardDisabled: {
-    opacity: 0.6,
-  },
-  typeTitle: {
-    ...typography.heading,
-    color: colors.textMuted,
-    fontSize: 15,
-  },
-  typeTitleActive: {
-    color: colors.primary,
-  },
-  typeDesc: {
-    ...typography.caption,
-    color: colors.textDim,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    typeRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    typeCard: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      borderRadius: radius.lg,
+      padding: spacing.md,
+      gap: spacing.xs,
+    },
+    typeCardActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.07),
+    },
+    typeCardLocked: {
+      opacity: 0.72,
+    },
+    typeCardDisabled: {
+      opacity: 0.6,
+    },
+    typeTitle: {
+      ...typography.heading,
+      color: colors.textMuted,
+      fontSize: 15,
+    },
+    typeTitleActive: {
+      color: colors.primary,
+    },
+    typeDesc: {
+      ...typography.caption,
+      color: colors.textDim,
+    },
+  });
+}

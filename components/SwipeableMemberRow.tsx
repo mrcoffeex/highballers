@@ -20,7 +20,7 @@ import {
   type ThemeColors,
 } from "../lib/theme";
 
-const ACTION_WIDTH = 80;
+const ACTION_WIDTH = 84;
 
 export type SwipeableMethods = {
   close: () => void;
@@ -35,11 +35,14 @@ type SwipeableMemberRowProps = {
   onKick: () => void;
   onBan: () => void;
   onSwipeOpen?: (methods: SwipeableMethods) => void;
+  onSwipeClose?: () => void;
   style?: StyleProp<ViewStyle>;
   /** Captain-only: assign or remove sub-captain (max 2 per club). */
   onSubCaptain?: () => void;
   isSubCaptain?: boolean;
   subCaptainAtCapacity?: boolean;
+  /** Current captain only: transfer captain role to this member. */
+  onMakeCaptain?: () => void;
 };
 
 type ThemedActionStyles = ReturnType<typeof createStyles>;
@@ -60,7 +63,7 @@ function SubCaptainAction({
   colors: ThemeColors;
 }) {
   const disabled = atCapacity && !isSubCaptain;
-  const label = isSubCaptain ? "Remove" : "+ Sub-Captain";
+  const label = isSubCaptain ? "Remove" : "Sub-Cap";
 
   return (
     <Pressable
@@ -81,7 +84,7 @@ function SubCaptainAction({
       <Ionicons
         name={isSubCaptain ? "shield-outline" : "add-circle-outline"}
         size={compact ? 18 : 22}
-        color={disabled ? colors.textDim : colors.accent}
+        color={disabled ? colors.textDim : colors.primary}
       />
       <Text
         style={[
@@ -97,12 +100,53 @@ function SubCaptainAction({
   );
 }
 
+function CaptainAction({
+  onPress,
+  compact,
+  styles,
+  colors,
+}: {
+  onPress: () => void;
+  compact?: boolean;
+  styles: ThemedActionStyles;
+  colors: ThemeColors;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Make captain"
+      style={({ pressed }) => [
+        compact ? styles.webAction : styles.action,
+        styles.captainAction,
+        pressed && styles.actionPressed,
+      ]}
+      onPress={onPress}
+    >
+      <Ionicons name="shield-checkmark-outline" size={compact ? 18 : 22} color={colors.warning} />
+      <Text style={[styles.actionLabel, styles.captainLabel]} numberOfLines={2}>
+        Captain
+      </Text>
+    </Pressable>
+  );
+}
+
+function countSwipeActions(
+  onSubCaptain?: () => void,
+  onMakeCaptain?: () => void,
+) {
+  let count = 2;
+  if (onSubCaptain) count += 1;
+  if (onMakeCaptain) count += 1;
+  return count;
+}
+
 function InlineMemberActions({
   onKick,
   onBan,
   onSubCaptain,
   isSubCaptain,
   subCaptainAtCapacity,
+  onMakeCaptain,
   styles,
   colors,
 }: Pick<
@@ -112,6 +156,7 @@ function InlineMemberActions({
   | "onSubCaptain"
   | "isSubCaptain"
   | "subCaptainAtCapacity"
+  | "onMakeCaptain"
 > & {
   styles: ThemedActionStyles;
   colors: ThemeColors;
@@ -154,6 +199,14 @@ function InlineMemberActions({
           colors={colors}
         />
       ) : null}
+      {onMakeCaptain ? (
+        <CaptainAction
+          compact
+          onPress={onMakeCaptain}
+          styles={styles}
+          colors={colors}
+        />
+      ) : null}
     </View>
   );
 }
@@ -166,8 +219,12 @@ type NativeSwipeableProps = SwipeableMemberRowProps & {
     friction?: number;
     overshootRight?: boolean;
     rightThreshold?: number;
+    activeOffsetX?: number | [number, number];
+    failOffsetY?: number | [number, number];
     containerStyle?: StyleProp<ViewStyle>;
+    childrenContainerStyle?: StyleProp<ViewStyle>;
     onSwipeableWillOpen?: () => void;
+    onSwipeableClose?: () => void;
     renderRightActions?: () => React.ReactNode;
     children: React.ReactNode;
   }>;
@@ -179,16 +236,18 @@ function NativeSwipeableMemberRow({
   onKick,
   onBan,
   onSwipeOpen,
+  onSwipeClose,
   style,
   onSubCaptain,
   isSubCaptain = false,
   subCaptainAtCapacity = false,
+  onMakeCaptain,
   styles,
   colors,
   Swipeable,
 }: NativeSwipeableProps) {
   const swipeRef = useRef<SwipeableMethods>(null);
-  const actionCount = onSubCaptain ? 3 : 2;
+  const actionCount = countSwipeActions(onSubCaptain, onMakeCaptain);
   const actionsWidth = ACTION_WIDTH * actionCount;
 
   const closeThen = (action: () => void) => {
@@ -205,10 +264,16 @@ function NativeSwipeableMemberRow({
       ref={swipeRef}
       friction={2}
       overshootRight={false}
-      rightThreshold={ACTION_WIDTH}
+      rightThreshold={Math.min(ACTION_WIDTH, actionsWidth * 0.35)}
+      activeOffsetX={[-12, 12]}
+      failOffsetY={[-10, 10]}
       containerStyle={[styles.swipeContainer, style]}
+      childrenContainerStyle={styles.childContainer}
       onSwipeableWillOpen={() => {
         if (swipeRef.current) onSwipeOpen?.(swipeRef.current);
+      }}
+      onSwipeableClose={() => {
+        onSwipeClose?.();
       }}
       renderRightActions={() => (
         <View style={[styles.actionsRow, { width: actionsWidth }]}>
@@ -251,6 +316,13 @@ function NativeSwipeableMemberRow({
               colors={colors}
             />
           ) : null}
+          {onMakeCaptain ? (
+            <CaptainAction
+              onPress={() => closeThen(onMakeCaptain)}
+              styles={styles}
+              colors={colors}
+            />
+          ) : null}
         </View>
       )}
     >
@@ -271,7 +343,9 @@ export function SwipeableMemberRow(props: SwipeableMemberRowProps) {
     onSubCaptain,
     isSubCaptain,
     subCaptainAtCapacity,
+    onMakeCaptain,
     onSwipeOpen,
+    onSwipeClose,
   } = props;
   const [Swipeable, setSwipeable] = useState<
     NativeSwipeableProps["Swipeable"] | null
@@ -296,13 +370,14 @@ export function SwipeableMemberRow(props: SwipeableMemberRowProps) {
   if (Platform.OS === "web" || isExpoGoNative() || !Swipeable) {
     return (
       <View style={[styles.wrapper, style]}>
-        {children}
+        <View style={styles.webCardShell}>{children}</View>
         <InlineMemberActions
           onKick={onKick}
           onBan={onBan}
           onSubCaptain={onSubCaptain}
           isSubCaptain={isSubCaptain}
           subCaptainAtCapacity={subCaptainAtCapacity}
+          onMakeCaptain={onMakeCaptain}
           styles={styles}
           colors={colors}
         />
@@ -316,6 +391,8 @@ export function SwipeableMemberRow(props: SwipeableMemberRowProps) {
       styles={styles}
       colors={colors}
       Swipeable={Swipeable}
+      onSwipeClose={onSwipeClose}
+      onSwipeOpen={onSwipeOpen}
     />
   );
 }
@@ -328,29 +405,43 @@ function createStyles(colors: ThemeColors) {
     swipeContainer: {
       overflow: "hidden",
       borderRadius: radius.lg,
-      marginBottom: spacing.sm,
+    },
+    childContainer: {
+      borderRadius: radius.lg,
+      backgroundColor: colors.surface,
     },
     actionsRow: {
       flexDirection: "row",
-      height: "100%",
+      alignSelf: "stretch",
     },
     action: {
       width: ACTION_WIDTH,
+      alignSelf: "stretch",
       alignItems: "center",
       justifyContent: "center",
       gap: spacing.xs,
       paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.sm,
     },
     kickAction: {
-      backgroundColor: withAlpha(colors.warning, 0.14),
+      backgroundColor: withAlpha(colors.warning, 0.18),
+      borderLeftWidth: StyleSheet.hairlineWidth,
+      borderLeftColor: withAlpha(colors.warning, 0.35),
     },
     banAction: {
-      backgroundColor: withAlpha(colors.error, 0.14),
+      backgroundColor: withAlpha(colors.error, 0.18),
+      borderLeftWidth: StyleSheet.hairlineWidth,
+      borderLeftColor: withAlpha(colors.error, 0.35),
     },
     subCaptainAction: {
-      backgroundColor: withAlpha(colors.accent, 0.14),
+      backgroundColor: withAlpha(colors.primary, 0.14),
       borderLeftWidth: StyleSheet.hairlineWidth,
-      borderLeftColor: colors.cardBorder,
+      borderLeftColor: withAlpha(colors.primary, 0.3),
+    },
+    captainAction: {
+      backgroundColor: withAlpha(colors.warning, 0.14),
+      borderLeftWidth: StyleSheet.hairlineWidth,
+      borderLeftColor: withAlpha(colors.warning, 0.3),
     },
     actionDisabled: {
       opacity: 0.45,
@@ -374,7 +465,14 @@ function createStyles(colors: ThemeColors) {
       color: colors.error,
     },
     subCaptainLabel: {
-      color: colors.accent,
+      color: colors.primary,
+    },
+    captainLabel: {
+      color: colors.warning,
+    },
+    webCardShell: {
+      borderRadius: radius.lg,
+      overflow: "hidden",
     },
     webActions: {
       flexDirection: "row",

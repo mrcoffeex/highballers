@@ -203,7 +203,11 @@ export const TIER_COMPARISON: Array<{
     basic: "Create 1 · join 5 others · 100 members",
     allStar: "Unlimited",
   },
-  { label: "Games", basic: "Create & join up to 100", allStar: "Join any size" },
+  {
+    label: "Games",
+    basic: "Create & join up to 100",
+    allStar: "Join any size",
+  },
   {
     label: "Organizer tools",
     basic: "Create · edit · finish · shuffle · courts",

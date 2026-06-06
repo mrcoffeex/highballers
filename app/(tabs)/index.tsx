@@ -223,80 +223,80 @@ function QuickAction({
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  heroBanner: {
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: withAlpha(colors.primary, 0.22),
-  },
-  heroContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: spacing.sm,
-  },
-  greeting: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  userName: {
-    ...typography.title,
-    color: colors.text,
-    fontSize: 28,
-  },
-  ratingBadge: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  ratingLabel: {
-    ...typography.label,
-    color: colors.textMuted,
-    fontSize: 10,
-  },
-  ratingValue: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  heroSub: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  leaderboardsBtn: {
-    alignSelf: "flex-start",
-  },
-  emptyCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.xl,
-    alignItems: "center",
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  emptyText: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  emptyBtn: {
-    marginTop: spacing.sm,
-  },
-  quickActions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  quickAction: {
-    flex: 1,
-  },
+    heroBanner: {
+      borderRadius: radius.xl,
+      padding: spacing.lg,
+      marginBottom: spacing.xl,
+      borderWidth: 1,
+      borderColor: withAlpha(colors.primary, 0.22),
+    },
+    heroContent: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: spacing.sm,
+    },
+    greeting: {
+      ...typography.body,
+      color: colors.textMuted,
+    },
+    userName: {
+      ...typography.title,
+      color: colors.text,
+      fontSize: 28,
+    },
+    ratingBadge: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.md,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    ratingLabel: {
+      ...typography.label,
+      color: colors.textMuted,
+      fontSize: 10,
+    },
+    ratingValue: {
+      fontSize: 24,
+      fontWeight: "800",
+      color: colors.primary,
+    },
+    heroSub: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginBottom: spacing.sm,
+    },
+    leaderboardsBtn: {
+      alignSelf: "flex-start",
+    },
+    emptyCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.xl,
+      alignItems: "center",
+      marginBottom: spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    emptyText: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginTop: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    emptyBtn: {
+      marginTop: spacing.sm,
+    },
+    quickActions: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginTop: spacing.md,
+    },
+    quickAction: {
+      flex: 1,
+    },
   });
 }

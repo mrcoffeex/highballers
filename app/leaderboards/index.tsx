@@ -18,11 +18,21 @@ import {
   LeaderboardCategory,
   LeaderboardPeriod,
 } from "../../lib/leaderboards";
-import { colors, getScreenGradient, radius, spacing, typography } from "../../lib/theme";
+import { useTheme, useThemedStyles } from "../../lib/ThemeProvider";
+import {
+  getScreenGradient,
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../../lib/theme";
 import { useCurrentUser } from "../../store/hooks";
 import { useAppStore } from "../../store/useAppStore";
 
 export default function LeaderboardsScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const user = useCurrentUser();
   const users = useAppStore((state) => state.users);
@@ -118,11 +128,7 @@ export default function LeaderboardsScreen() {
       >
         <View style={styles.hero}>
           <View style={styles.heroIcon}>
-            <Ionicons
-              name="podium-outline"
-              size={24}
-              color={colors.secondary}
-            />
+            <Ionicons name="podium-outline" size={24} color={colors.primary} />
           </View>
           <View style={styles.heroText}>
             <Text style={styles.heroTitle}>Rankings</Text>
@@ -219,121 +225,123 @@ export default function LeaderboardsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  background: {
-    marginHorizontal: -spacing.lg,
-    marginTop: -spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  hero: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  heroIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.full,
-    backgroundColor: `${colors.secondary}20`,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: `${colors.secondary}44`,
-  },
-  heroText: {
-    flex: 1,
-  },
-  heroTitle: {
-    ...typography.heading,
-    color: colors.text,
-    fontSize: 20,
-  },
-  heroSub: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  myRankPill: {
-    alignItems: "center",
-    backgroundColor: `${colors.primary}18`,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: `${colors.primary}44`,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  myRankLabel: {
-    ...typography.label,
-    color: colors.primary,
-    fontSize: 9,
-  },
-  myRankValue: {
-    ...typography.heading,
-    color: colors.text,
-    fontSize: 16,
-  },
-  tabs: {
-    gap: spacing.sm,
-    paddingBottom: spacing.sm,
-  },
-  tab: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  tabActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}18`,
-  },
-  tabText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: "700",
-  },
-  tabTextActive: {
-    color: colors.primary,
-  },
-  periodTabs: {
-    gap: spacing.sm,
-    paddingBottom: spacing.md,
-  },
-  periodTab: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  periodTabActive: {
-    borderColor: colors.secondary,
-    backgroundColor: `${colors.secondary}18`,
-  },
-  periodTabText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: "700",
-  },
-  periodTabTextActive: {
-    color: colors.secondary,
-  },
-  listHeading: {
-    ...typography.label,
-    color: colors.textDim,
-    marginBottom: spacing.xs,
-  },
-  listNote: {
-    ...typography.caption,
-    color: colors.textDim,
-    marginBottom: spacing.sm,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    background: {
+      marginHorizontal: -spacing.lg,
+      marginTop: -spacing.lg,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    hero: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    heroIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.full,
+      backgroundColor: withAlpha(colors.primary, 0.12),
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: withAlpha(colors.primary, 0.27),
+    },
+    heroText: {
+      flex: 1,
+    },
+    heroTitle: {
+      ...typography.heading,
+      color: colors.text,
+      fontSize: 20,
+    },
+    heroSub: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    myRankPill: {
+      alignItems: "center",
+      backgroundColor: withAlpha(colors.primary, 0.09),
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: withAlpha(colors.primary, 0.27),
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    myRankLabel: {
+      ...typography.label,
+      color: colors.primary,
+      fontSize: 9,
+    },
+    myRankValue: {
+      ...typography.heading,
+      color: colors.text,
+      fontSize: 16,
+    },
+    tabs: {
+      gap: spacing.sm,
+      paddingBottom: spacing.sm,
+    },
+    tab: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.full,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    tabActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.09),
+    },
+    tabText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "700",
+    },
+    tabTextActive: {
+      color: colors.primary,
+    },
+    periodTabs: {
+      gap: spacing.sm,
+      paddingBottom: spacing.md,
+    },
+    periodTab: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.full,
+      backgroundColor: colors.surfaceContainerLow,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    periodTabActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.09),
+    },
+    periodTabText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "700",
+    },
+    periodTabTextActive: {
+      color: colors.primary,
+    },
+    listHeading: {
+      ...typography.label,
+      color: colors.textDim,
+      marginBottom: spacing.xs,
+    },
+    listNote: {
+      ...typography.caption,
+      color: colors.textDim,
+      marginBottom: spacing.sm,
+    },
+  });
+}

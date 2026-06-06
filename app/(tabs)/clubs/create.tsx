@@ -11,12 +11,21 @@ import { BASIC_MAX_CLUB_MEMBERS } from "../../../lib/subscription";
 import { useUpgradePrompt } from "../../../lib/useUpgradePrompt";
 import { AVATAR_COLORS } from "../../../lib/seedData";
 import { formatSyncError } from "../../../lib/syncErrors";
-import { colors, radius, spacing, typography } from "../../../lib/theme";
+import { useTheme, useThemedStyles } from "../../../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../../../lib/theme";
 import { ClubVisibility } from "../../../lib/types";
 import { useClubMembershipLimits, useIsAllStar } from "../../../store/hooks";
 import { useAppStore } from "../../../store/useAppStore";
 
 export default function CreateClubScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const createClub = useAppStore((state) => state.createClub);
   const upgradeToAllStar = useAppStore((state) => state.upgradeToAllStar);
@@ -148,7 +157,7 @@ export default function CreateClubScreen() {
             ]}
           >
             {iconColor === color ? (
-              <Ionicons name="checkmark" size={18} color={colors.text} />
+              <Ionicons name="checkmark" size={18} color="#FFFFFF" />
             ) : null}
           </Pressable>
         ))}
@@ -177,71 +186,73 @@ export default function CreateClubScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  planBanner: {
-    backgroundColor: `${colors.primary}12`,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: `${colors.primary}44`,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    gap: spacing.xs,
-  },
-  planBannerTitle: {
-    ...typography.label,
-    color: colors.primary,
-  },
-  planBannerText: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  label: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-    marginTop: spacing.md,
-  },
-  field: {
-    marginBottom: spacing.sm,
-  },
-  visibilityPicker: {
-    marginBottom: spacing.md,
-  },
-  textArea: {
-    minHeight: 88,
-    textAlignVertical: "top",
-  },
-  colorRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  colorSwatch: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  colorSwatchActive: {
-    borderWidth: 3,
-    borderColor: colors.text,
-  },
-  submit: {
-    marginTop: spacing.lg,
-  },
-  error: {
-    ...typography.body,
-    color: colors.error,
-    marginTop: spacing.md,
-    textAlign: "center",
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: spacing.lg,
+    },
+    planBanner: {
+      backgroundColor: withAlpha(colors.primary, 0.07),
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: withAlpha(colors.primary, 0.27),
+      padding: spacing.md,
+      marginBottom: spacing.md,
+      gap: spacing.xs,
+    },
+    planBannerTitle: {
+      ...typography.label,
+      color: colors.primary,
+    },
+    planBannerText: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    label: {
+      ...typography.label,
+      color: colors.textMuted,
+      marginBottom: spacing.sm,
+      marginTop: spacing.md,
+    },
+    field: {
+      marginBottom: spacing.sm,
+    },
+    visibilityPicker: {
+      marginBottom: spacing.md,
+    },
+    textArea: {
+      minHeight: 88,
+      textAlignVertical: "top",
+    },
+    colorRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    colorSwatch: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.md,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    colorSwatchActive: {
+      borderWidth: 3,
+      borderColor: colors.primary,
+    },
+    submit: {
+      marginTop: spacing.lg,
+    },
+    error: {
+      ...typography.body,
+      color: colors.error,
+      marginTop: spacing.md,
+      textAlign: "center",
+    },
+  });
+}

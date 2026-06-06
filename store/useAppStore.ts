@@ -13,10 +13,7 @@ import {
 } from "../lib/googleAuth";
 import { isSupabaseEnabled } from "../lib/config";
 import { devStartAtLogin } from "../lib/devConfig";
-import {
-  sendEmailOtpCode,
-  verifyEmailOtpCode,
-} from "../lib/emailOtpAuth";
+import { sendEmailOtpCode, verifyEmailOtpCode } from "../lib/emailOtpAuth";
 import {
   cancelGameReminder,
   registerForPushNotifications,
@@ -256,6 +253,15 @@ async function resolveClubLogoUrl(
 let authListenerRegistered = false;
 let devLoginResetApplied = false;
 
+function isStaleAuthSessionError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message
+      : "";
+  return /invalid refresh token|refresh token not found/i.test(message);
+}
+
 function getCurrentUser(get: () => AppState): UserProfile | null {
   const { currentUserId, users } = get();
   if (!currentUserId) return null;
@@ -303,7 +309,12 @@ export const useAppStore = create<AppState>()(
         }
 
         try {
-          const { data } = await supabase.auth.getSession();
+          const { data, error } = await supabase.auth.getSession();
+          if (error && isStaleAuthSessionError(error)) {
+            await get().signOut();
+            return;
+          }
+
           set({ session: data.session });
 
           if (data.session?.user) {
@@ -312,6 +323,11 @@ export const useAppStore = create<AppState>()(
           } else {
             set({ authReady: true });
           }
+        } catch (error) {
+          if (isStaleAuthSessionError(error)) {
+            await get().signOut();
+            return;
+          }
         } finally {
           set({ authChecked: true });
         }
@@ -319,22 +335,28 @@ export const useAppStore = create<AppState>()(
         if (!authListenerRegistered) {
           authListenerRegistered = true;
           supabase.auth.onAuthStateChange(async (_event, session) => {
-            set({ session });
-            if (session?.user) {
-              set({ authReady: false });
-              await get().hydrateSessionUser(session.user.id);
-            } else {
-              set({
-                authReady: true,
-                currentUserId: null,
-                onboardingComplete: false,
-                users: isSupabaseEnabled ? [] : SEED_PLAYERS,
-                clubs: isSupabaseEnabled ? [] : SEED_CLUBS,
-                events: isSupabaseEnabled ? [] : SEED_EVENTS,
-                joinRequests: [],
-                clubBans: [],
-                gameStatRecords: [],
-              });
+            try {
+              set({ session });
+              if (session?.user) {
+                set({ authReady: false });
+                await get().hydrateSessionUser(session.user.id);
+              } else {
+                set({
+                  authReady: true,
+                  currentUserId: null,
+                  onboardingComplete: false,
+                  users: isSupabaseEnabled ? [] : SEED_PLAYERS,
+                  clubs: isSupabaseEnabled ? [] : SEED_CLUBS,
+                  events: isSupabaseEnabled ? [] : SEED_EVENTS,
+                  joinRequests: [],
+                  clubBans: [],
+                  gameStatRecords: [],
+                });
+              }
+            } catch (error) {
+              if (isStaleAuthSessionError(error)) {
+                await get().signOut();
+              }
             }
           });
         }
@@ -1219,9 +1241,7 @@ export const useAppStore = create<AppState>()(
         }
 
         const invitedMemberIds = isPrivateEvent(event)
-          ? [
-              ...new Set([...(event.invitedMemberIds ?? []), ...addedIds]),
-            ]
+          ? [...new Set([...(event.invitedMemberIds ?? []), ...addedIds])]
           : event.invitedMemberIds;
 
         const updatedEvent: GameEvent = {

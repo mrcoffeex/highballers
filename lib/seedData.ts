@@ -1,14 +1,14 @@
 import { Club, GameEvent, Position, UserProfile } from "./types";
 
 export const AVATAR_COLORS = [
-  "#F0642F",
-  "#2EC4B6",
-  "#F5B942",
+  "#3B82F6",
+  "#2563EB",
+  "#60A5FA",
+  "#64748B",
   "#8B5CF6",
   "#EC4899",
   "#38BDF8",
   "#059669",
-  "#D4521F",
 ];
 
 const DAVSUR_PLAYER_NAMES = [

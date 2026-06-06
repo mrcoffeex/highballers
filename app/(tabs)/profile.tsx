@@ -78,7 +78,10 @@ export default function ProfileScreen() {
   if (!user) {
     if (showDataLoading) {
       return (
-        <TabSkeletonOverlay showDataLoading skeleton={<ProfileScreenSkeleton />}>
+        <TabSkeletonOverlay
+          showDataLoading
+          skeleton={<ProfileScreenSkeleton />}
+        >
           <View style={styles.placeholder} />
         </TabSkeletonOverlay>
       );
@@ -108,7 +111,11 @@ export default function ProfileScreen() {
             {session ? (
               <SignOutButton onSignOut={goToAuth} />
             ) : (
-              <Button title="Sign in" size="lg" onPress={() => void goToAuth()} />
+              <Button
+                title="Sign in"
+                size="lg"
+                onPress={() => void goToAuth()}
+              />
             )}
             <ThemeSettingsCard />
           </View>
@@ -311,11 +318,8 @@ export default function ProfileScreen() {
             <ThemeSettingsCard />
             <LegalSettingsCard />
 
-            {isSupabaseEnabled ? (
-              <SignOutButton onSignOut={goToAuth} />
-            ) : null}
+            {isSupabaseEnabled ? <SignOutButton onSignOut={goToAuth} /> : null}
           </View>
-
         </LinearGradient>
       </Screen>
 
@@ -379,239 +383,239 @@ function MetaChip({
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  background: {
-    marginHorizontal: -spacing.lg,
-    marginTop: -spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  heroCard: {
-    marginBottom: spacing.md,
-    padding: spacing.lg,
-    overflow: "hidden",
-    position: "relative",
-    backgroundColor: colors.heroCard,
-    borderColor: `${colors.primary}33`,
-  },
-  heroCardPro: {
-    borderColor: `${colors.secondary}44`,
-  },
-  heroGlowPrimary: {
-    position: "absolute",
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: `${colors.primary}24`,
-    right: -70,
-    top: -80,
-  },
-  heroGlowSecondary: {
-    position: "absolute",
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: `${colors.secondary}18`,
-    left: -52,
-    bottom: -72,
-  },
-  heroContent: {
-    position: "relative",
-    zIndex: 1,
-    gap: spacing.lg,
-  },
-  heroIdentity: {
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  avatarStack: {
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  avatarHalo: {
-    padding: 4,
-    borderRadius: radius.full,
-    backgroundColor: `${colors.text}0A`,
-    borderWidth: 1,
-    borderColor: `${colors.primary}44`,
-  },
-  ovrPill: {
-    alignItems: "center",
-    backgroundColor: colors.heroOvrPill,
-    borderRadius: radius.full,
-    borderWidth: 2,
-    borderColor: colors.secondary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 5,
-    minWidth: 64,
-  },
-  ovrLabel: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 8,
-  },
-  ovrValue: {
-    ...typography.heading,
-    color: colors.secondary,
-    fontSize: 18,
-    lineHeight: 20,
-  },
-  nameBlock: {
-    alignItems: "center",
-    width: "100%",
-    paddingHorizontal: spacing.sm,
-  },
-  name: {
-    ...typography.title,
-    color: colors.text,
-    fontSize: 26,
-    lineHeight: 30,
-    textAlign: "center",
-  },
-  nickname: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontStyle: "italic",
-    marginTop: 4,
-    textAlign: "center",
-  },
-  tagRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    width: "100%",
-  },
-  positionPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    backgroundColor: `${colors.primary}14`,
-    borderWidth: 1,
-    borderColor: `${colors.primary}2E`,
-  },
-  position: {
-    ...typography.label,
-    color: colors.text,
-    fontSize: 10,
-  },
-  heroMeta: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  metaChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: `${colors.surface}CC`,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    width: "48%",
-    flexGrow: 1,
-    flexBasis: "46%",
-  },
-  metaChipText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 11,
-    flexShrink: 1,
-  },
-  heroActions: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: spacing.sm,
-  },
-  heroActionBtn: {
-    flex: 1,
-  },
-  sectionHeader: {
-    marginBottom: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  sectionTitle: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  sectionSubtitle: {
-    ...typography.caption,
-    color: colors.textDim,
-    marginTop: 2,
-  },
-  statsCard: {
-    marginBottom: spacing.lg,
-  },
-  attributesCard: {
-    marginBottom: spacing.lg,
-    gap: spacing.xs,
-  },
-  attributesDivider: {
-    height: 1,
-    backgroundColor: colors.cardBorder,
-    marginVertical: spacing.md,
-  },
-  accountActions: {
-    marginTop: spacing.sm,
-  },
-  statRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  statLabel: {
-    width: 72,
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  statBarTrack: {
-    flex: 1,
-    height: 8,
-    backgroundColor: colors.cardBorder,
-    borderRadius: radius.full,
-    overflow: "hidden",
-  },
-  statBarFill: {
-    height: "100%",
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-  },
-  statValue: {
-    width: 24,
-    ...typography.caption,
-    color: colors.secondary,
-    fontWeight: "700",
-    textAlign: "right",
-  },
-  placeholder: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  accountFallback: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  accountFallbackTitle: {
-    ...typography.title,
-    color: colors.text,
-    textAlign: "center",
-  },
-  accountFallbackBody: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
-    marginBottom: spacing.md,
-  },
+    background: {
+      marginHorizontal: -spacing.lg,
+      marginTop: -spacing.lg,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    heroCard: {
+      marginBottom: spacing.md,
+      padding: spacing.lg,
+      overflow: "hidden",
+      position: "relative",
+      backgroundColor: colors.heroCard,
+      borderColor: `${colors.primary}33`,
+    },
+    heroCardPro: {
+      borderColor: `${colors.secondary}44`,
+    },
+    heroGlowPrimary: {
+      position: "absolute",
+      width: 180,
+      height: 180,
+      borderRadius: 90,
+      backgroundColor: `${colors.primary}24`,
+      right: -70,
+      top: -80,
+    },
+    heroGlowSecondary: {
+      position: "absolute",
+      width: 140,
+      height: 140,
+      borderRadius: 70,
+      backgroundColor: `${colors.secondary}18`,
+      left: -52,
+      bottom: -72,
+    },
+    heroContent: {
+      position: "relative",
+      zIndex: 1,
+      gap: spacing.lg,
+    },
+    heroIdentity: {
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    avatarStack: {
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    avatarHalo: {
+      padding: 4,
+      borderRadius: radius.full,
+      backgroundColor: `${colors.text}0A`,
+      borderWidth: 1,
+      borderColor: `${colors.primary}44`,
+    },
+    ovrPill: {
+      alignItems: "center",
+      backgroundColor: colors.heroOvrPill,
+      borderRadius: radius.full,
+      borderWidth: 2,
+      borderColor: colors.secondary,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 5,
+      minWidth: 64,
+    },
+    ovrLabel: {
+      ...typography.label,
+      color: colors.textDim,
+      fontSize: 8,
+    },
+    ovrValue: {
+      ...typography.heading,
+      color: colors.secondary,
+      fontSize: 18,
+      lineHeight: 20,
+    },
+    nameBlock: {
+      alignItems: "center",
+      width: "100%",
+      paddingHorizontal: spacing.sm,
+    },
+    name: {
+      ...typography.title,
+      color: colors.text,
+      fontSize: 26,
+      lineHeight: 30,
+      textAlign: "center",
+    },
+    nickname: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontStyle: "italic",
+      marginTop: 4,
+      textAlign: "center",
+    },
+    tagRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      width: "100%",
+    },
+    positionPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
+      borderRadius: radius.full,
+      backgroundColor: `${colors.primary}14`,
+      borderWidth: 1,
+      borderColor: `${colors.primary}2E`,
+    },
+    position: {
+      ...typography.label,
+      color: colors.text,
+      fontSize: 10,
+    },
+    heroMeta: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+    },
+    metaChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      backgroundColor: `${colors.surface}CC`,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 8,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      width: "48%",
+      flexGrow: 1,
+      flexBasis: "46%",
+    },
+    metaChipText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontSize: 11,
+      flexShrink: 1,
+    },
+    heroActions: {
+      flexDirection: "row",
+      alignItems: "stretch",
+      gap: spacing.sm,
+    },
+    heroActionBtn: {
+      flex: 1,
+    },
+    sectionHeader: {
+      marginBottom: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    sectionTitle: {
+      ...typography.heading,
+      color: colors.text,
+    },
+    sectionSubtitle: {
+      ...typography.caption,
+      color: colors.textDim,
+      marginTop: 2,
+    },
+    statsCard: {
+      marginBottom: spacing.lg,
+    },
+    attributesCard: {
+      marginBottom: spacing.lg,
+      gap: spacing.xs,
+    },
+    attributesDivider: {
+      height: 1,
+      backgroundColor: colors.cardBorder,
+      marginVertical: spacing.md,
+    },
+    accountActions: {
+      marginTop: spacing.sm,
+    },
+    statRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    statLabel: {
+      width: 72,
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    statBarTrack: {
+      flex: 1,
+      height: 8,
+      backgroundColor: colors.cardBorder,
+      borderRadius: radius.full,
+      overflow: "hidden",
+    },
+    statBarFill: {
+      height: "100%",
+      backgroundColor: colors.primary,
+      borderRadius: radius.full,
+    },
+    statValue: {
+      width: 24,
+      ...typography.caption,
+      color: colors.secondary,
+      fontWeight: "700",
+      textAlign: "right",
+    },
+    placeholder: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    accountFallback: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    accountFallbackTitle: {
+      ...typography.title,
+      color: colors.text,
+      textAlign: "center",
+    },
+    accountFallbackBody: {
+      ...typography.body,
+      color: colors.textMuted,
+      textAlign: "center",
+      marginBottom: spacing.md,
+    },
   });
 }

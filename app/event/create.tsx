@@ -16,7 +16,14 @@ import { useUpgradePrompt } from "../../lib/useUpgradePrompt";
 import { useSubscriptionTier } from "../../store/hooks";
 import { searchPlaces } from "../../lib/geocoding";
 import { EventLocation } from "../../lib/location";
-import { colors, radius, spacing, typography } from "../../lib/theme";
+import { useTheme, useThemedStyles } from "../../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../../lib/theme";
 import { formatSyncError } from "../../lib/syncErrors";
 import { EventVisibility } from "../../lib/types";
 import { canCreatePrivateGame } from "../../lib/clubRoles";
@@ -24,6 +31,8 @@ import { getDefaultGameDateTime, useAppStore } from "../../store/useAppStore";
 import { useMyClubs } from "../../store/hooks";
 
 export default function CreateEventScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ clubId?: string | string[] }>();
   const paramClubId = Array.isArray(params.clubId)
@@ -370,115 +379,117 @@ export default function CreateEventScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  empty: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  emptyTitle: {
-    ...typography.heading,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  emptyDesc: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginBottom: spacing.lg,
-    textAlign: "center",
-  },
-  label: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-    marginTop: spacing.md,
-  },
-  clubPicker: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  clubOption: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  clubOptionActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}15`,
-  },
-  clubOptionText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: "600",
-  },
-  clubOptionTextActive: {
-    color: colors.primary,
-  },
-  typeRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  typeCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  typeCardActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}12`,
-  },
-  typeTitle: {
-    ...typography.heading,
-    color: colors.textMuted,
-    fontSize: 15,
-  },
-  typeTitleActive: {
-    color: colors.primary,
-  },
-  typeDesc: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  typeCardLocked: {
-    opacity: 0.72,
-  },
-  inviteHint: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  field: {
-    marginBottom: spacing.sm,
-  },
-  textArea: {
-    minHeight: 88,
-    textAlignVertical: "top",
-  },
-  errorHint: {
-    ...typography.caption,
-    color: colors.error,
-    marginBottom: spacing.sm,
-  },
-  submit: {
-    marginTop: spacing.lg,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: spacing.lg,
+    },
+    empty: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing.lg,
+    },
+    emptyTitle: {
+      ...typography.heading,
+      color: colors.text,
+      marginBottom: spacing.sm,
+    },
+    emptyDesc: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginBottom: spacing.lg,
+      textAlign: "center",
+    },
+    label: {
+      ...typography.label,
+      color: colors.textMuted,
+      marginBottom: spacing.sm,
+      marginTop: spacing.md,
+    },
+    clubPicker: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    clubOption: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.full,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    clubOptionActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.08),
+    },
+    clubOptionText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "600",
+    },
+    clubOptionTextActive: {
+      color: colors.primary,
+    },
+    typeRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    typeCard: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      borderRadius: radius.lg,
+      padding: spacing.md,
+      gap: spacing.xs,
+    },
+    typeCardActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.07),
+    },
+    typeTitle: {
+      ...typography.heading,
+      color: colors.textMuted,
+      fontSize: 15,
+    },
+    typeTitleActive: {
+      color: colors.primary,
+    },
+    typeDesc: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    typeCardLocked: {
+      opacity: 0.72,
+    },
+    inviteHint: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginBottom: spacing.sm,
+    },
+    field: {
+      marginBottom: spacing.sm,
+    },
+    textArea: {
+      minHeight: 88,
+      textAlignVertical: "top",
+    },
+    errorHint: {
+      ...typography.caption,
+      color: colors.error,
+      marginBottom: spacing.sm,
+    },
+    submit: {
+      marginTop: spacing.lg,
+    },
+  });
+}

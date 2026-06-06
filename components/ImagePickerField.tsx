@@ -4,7 +4,8 @@ import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Avatar } from "./ui";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
 
 interface ImagePickerFieldProps {
   label: string;
@@ -25,6 +26,9 @@ export function ImagePickerField({
   size = 96,
   onPick,
 }: ImagePickerFieldProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
@@ -67,36 +71,38 @@ export function ImagePickerField({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: spacing.md,
-  },
-  label: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-  },
-  copy: {
-    flex: 1,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-    fontSize: 16,
-  },
-  subtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      marginBottom: spacing.md,
+    },
+    label: {
+      ...typography.label,
+      color: colors.textMuted,
+      marginBottom: spacing.sm,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radius.lg,
+      padding: spacing.md,
+    },
+    copy: {
+      flex: 1,
+    },
+    title: {
+      ...typography.heading,
+      color: colors.text,
+      fontSize: 16,
+    },
+    subtitle: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+  });
+}

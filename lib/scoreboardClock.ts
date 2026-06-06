@@ -160,7 +160,9 @@ export function setQuarterMinutes(
   };
 }
 
-export function resetQuarterClock(state: ScoreboardClockState): ScoreboardClockState {
+export function resetQuarterClock(
+  state: ScoreboardClockState,
+): ScoreboardClockState {
   return {
     ...state,
     gameRunning: false,
@@ -168,7 +170,9 @@ export function resetQuarterClock(state: ScoreboardClockState): ScoreboardClockS
   };
 }
 
-export function advancePeriod(state: ScoreboardClockState): ScoreboardClockState {
+export function advancePeriod(
+  state: ScoreboardClockState,
+): ScoreboardClockState {
   return {
     ...state,
     period: state.period + 1,

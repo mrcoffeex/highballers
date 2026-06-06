@@ -82,7 +82,7 @@ function createStyles(colors: ThemeColors) {
     },
     value: {
       ...typography.heading,
-      color: colors.secondary,
+      color: colors.primary,
       fontSize: 16,
     },
     track: {

@@ -83,8 +83,11 @@ export function useScoreboard(storageKey: string) {
 
     const interval = setInterval(() => {
       const current = stateRef.current;
-      const { state: next, gameBuzzer, shotBuzzer } =
-        tickScoreboardWithAlerts(current);
+      const {
+        state: next,
+        gameBuzzer,
+        shotBuzzer,
+      } = tickScoreboardWithAlerts(current);
       if (gameBuzzer) void playGameBuzzer();
       if (shotBuzzer) void playShotClockBuzzer();
       setState(next);

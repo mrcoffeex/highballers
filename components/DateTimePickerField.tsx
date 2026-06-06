@@ -14,7 +14,14 @@ import {
   View,
 } from "react-native";
 
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 
 interface DateTimePickerFieldProps {
   value: Date;
@@ -127,6 +134,10 @@ function PickerSheet({
   onChange: (date: Date) => void;
   onClose: () => void;
 }) {
+  const { isDark } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const pickerTheme = isDark ? "dark" : "light";
+
   const handleChange = (event: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS === "android") {
       onClose();
@@ -150,7 +161,7 @@ function PickerSheet({
         minimumDate={mode === "date" ? minimumDate : undefined}
         onChange={handleChange}
         display="default"
-        themeVariant="dark"
+        themeVariant={pickerTheme}
       />
     );
   }
@@ -206,7 +217,7 @@ function PickerSheet({
             minimumDate={mode === "date" ? minimumDate : undefined}
             onChange={handleChange}
             display="spinner"
-            themeVariant="dark"
+            themeVariant={pickerTheme}
             style={styles.iosPicker}
           />
         </Pressable>
@@ -226,6 +237,9 @@ function SegmentButton({
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable
       onPress={onPress}
@@ -256,6 +270,8 @@ export function DateTimePickerField({
   onChange,
   minimumDate,
 }: DateTimePickerFieldProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const minDate = minimumDate ?? new Date();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerMode, setPickerMode] = useState<PickerMode>("date");
@@ -302,7 +318,11 @@ export function DateTimePickerField({
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[`${colors.primary}22`, `${colors.accent}12`, colors.surface]}
+        colors={[
+          withAlpha(colors.primary, 0.13),
+          withAlpha(colors.accent, 0.07),
+          colors.surface,
+        ]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.heroCard}
@@ -414,208 +434,210 @@ export function DateTimePickerField({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  heroCard: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: `${colors.primary}35`,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  heroTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  heroIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
-    backgroundColor: `${colors.primary}18`,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  heroEyebrow: {
-    ...typography.label,
-    color: colors.primary,
-    fontSize: 11,
-  },
-  heroTitle: {
-    ...typography.title,
-    color: colors.text,
-    fontSize: 28,
-    lineHeight: 32,
-  },
-  heroMeta: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  warningRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingTop: spacing.xs,
-  },
-  warningText: {
-    ...typography.caption,
-    color: colors.error,
-  },
-  tileRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  tile: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  tilePressed: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}10`,
-  },
-  tileIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.sm,
-    backgroundColor: colors.card,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tileLabel: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 10,
-  },
-  tileValue: {
-    ...typography.heading,
-    color: colors.text,
-    fontSize: 15,
-  },
-  presetsLabel: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 10,
-  },
-  presetsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  presetChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  presetChipActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}18`,
-  },
-  presetText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: "600",
-  },
-  presetTextActive: {
-    color: colors.primary,
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: colors.overlay,
-  },
-  modalSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    paddingBottom: spacing.xl,
-    borderTopWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  modalHandle: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: radius.full,
-    backgroundColor: colors.cardBorder,
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  modalTitle: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  doneText: {
-    ...typography.heading,
-    color: colors.primary,
-    fontSize: 16,
-  },
-  segmentRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  segmentBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  segmentBtnActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}15`,
-  },
-  segmentLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: "600",
-  },
-  segmentLabelActive: {
-    color: colors.primary,
-  },
-  pickerPreview: {
-    alignItems: "center",
-    marginBottom: spacing.sm,
-    gap: 2,
-  },
-  pickerPreviewDate: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  pickerPreviewTime: {
-    ...typography.heading,
-    color: colors.text,
-    fontSize: 22,
-  },
-  iosPicker: {
-    height: 200,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      gap: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    heroCard: {
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: withAlpha(colors.primary, 0.21),
+      padding: spacing.lg,
+      gap: spacing.sm,
+    },
+    heroTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    heroIconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.md,
+      backgroundColor: withAlpha(colors.primary, 0.09),
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    heroCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    heroEyebrow: {
+      ...typography.label,
+      color: colors.primary,
+      fontSize: 11,
+    },
+    heroTitle: {
+      ...typography.title,
+      color: colors.text,
+      fontSize: 28,
+      lineHeight: 32,
+    },
+    heroMeta: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    warningRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+      paddingTop: spacing.xs,
+    },
+    warningText: {
+      ...typography.caption,
+      color: colors.error,
+    },
+    tileRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    tile: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radius.lg,
+      padding: spacing.md,
+      gap: spacing.xs,
+    },
+    tilePressed: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.06),
+    },
+    tileIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: radius.sm,
+      backgroundColor: colors.card,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    tileLabel: {
+      ...typography.label,
+      color: colors.textDim,
+      fontSize: 10,
+    },
+    tileValue: {
+      ...typography.heading,
+      color: colors.text,
+      fontSize: 15,
+    },
+    presetsLabel: {
+      ...typography.label,
+      color: colors.textDim,
+      fontSize: 10,
+    },
+    presetsRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+    },
+    presetChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.full,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    presetChipActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.09),
+    },
+    presetText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "600",
+    },
+    presetTextActive: {
+      color: colors.primary,
+    },
+    modalBackdrop: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: colors.overlay,
+    },
+    modalSheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: radius.xl,
+      borderTopRightRadius: radius.xl,
+      paddingBottom: spacing.xl,
+      borderTopWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    modalHandle: {
+      alignSelf: "center",
+      width: 40,
+      height: 4,
+      borderRadius: radius.full,
+      backgroundColor: colors.cardBorder,
+      marginTop: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    modalHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    modalTitle: {
+      ...typography.heading,
+      color: colors.text,
+    },
+    doneText: {
+      ...typography.heading,
+      color: colors.primary,
+      fontSize: 16,
+    },
+    segmentRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    segmentBtn: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.xs,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.full,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    segmentBtnActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.08),
+    },
+    segmentLabel: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "600",
+    },
+    segmentLabelActive: {
+      color: colors.primary,
+    },
+    pickerPreview: {
+      alignItems: "center",
+      marginBottom: spacing.sm,
+      gap: 2,
+    },
+    pickerPreviewDate: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    pickerPreviewTime: {
+      ...typography.heading,
+      color: colors.text,
+      fontSize: 22,
+    },
+    iosPicker: {
+      height: 200,
+    },
+  });
+}

@@ -792,7 +792,10 @@ export async function addEventParticipantsRemote(
   if (error && error.code !== "23505") throw error;
 }
 
-export async function addEventInvitesRemote(eventId: string, userIds: string[]) {
+export async function addEventInvitesRemote(
+  eventId: string,
+  userIds: string[],
+) {
   const supabase = getSupabase();
   if (!supabase || userIds.length === 0) return;
 

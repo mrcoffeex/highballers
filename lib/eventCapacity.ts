@@ -1,7 +1,4 @@
-import {
-  BASIC_MAX_EVENT_SIZE,
-  SubscriptionError,
-} from "./subscription";
+import { BASIC_MAX_EVENT_SIZE, SubscriptionError } from "./subscription";
 import type { SubscriptionTier } from "./types";
 
 export const EVENT_MIN_PLAYERS = 10;
@@ -11,7 +8,9 @@ export const EVENT_MAX_PLAYER_PRESETS = [
 ] as const;
 
 export function getMaxEventPlayersForTier(tier: SubscriptionTier): number {
-  return tier === "all_star" ? ALL_STAR_MAX_EVENT_PLAYERS : BASIC_MAX_EVENT_SIZE;
+  return tier === "all_star"
+    ? ALL_STAR_MAX_EVENT_PLAYERS
+    : BASIC_MAX_EVENT_SIZE;
 }
 
 export function getAllowedMaxPlayerPresets(tier: SubscriptionTier): number[] {

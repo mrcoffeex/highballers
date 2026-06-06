@@ -4,7 +4,8 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { buildEventStoryGroups } from "../lib/activityStories";
 import { useActivityStoryViews } from "../lib/useActivityStoryViews";
-import { colors, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { spacing, typography, withAlpha, type ThemeColors } from "../lib/theme";
 import { Club, GameEvent } from "../lib/types";
 import { useAppStore } from "../store/useAppStore";
 import { ActivityStoriesBar } from "./ActivityStoriesBar";
@@ -17,6 +18,8 @@ interface EventGameStoriesProps {
 }
 
 export function EventGameStories({ event, club }: EventGameStoriesProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const currentUserId = useAppStore((state) => state.currentUserId);
   const users = useAppStore((state) => state.users);
   const gameStatRecords = useAppStore((state) => state.gameStatRecords);
@@ -63,7 +66,7 @@ export function EventGameStories({ event, club }: EventGameStoriesProps) {
     <View style={styles.wrap}>
       <View style={styles.header}>
         <View style={styles.headerIcon}>
-          <Ionicons name="albums-outline" size={20} color={colors.secondary} />
+          <Ionicons name="albums-outline" size={20} color={colors.primary} />
         </View>
         <View style={styles.headerText}>
           <Text style={styles.title}>Game stories</Text>
@@ -110,45 +113,47 @@ export function EventGameStories({ event, club }: EventGameStoriesProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    marginBottom: spacing.lg,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: `${colors.secondary}18`,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: `${colors.secondary}33`,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-    fontSize: 17,
-  },
-  subtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  shareBtn: {
-    marginTop: spacing.sm,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    wrap: {
+      marginBottom: spacing.lg,
+      padding: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    headerIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: withAlpha(colors.primary, 0.09),
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: withAlpha(colors.primary, 0.2),
+    },
+    headerText: {
+      flex: 1,
+    },
+    title: {
+      ...typography.heading,
+      color: colors.text,
+      fontSize: 17,
+    },
+    subtitle: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    shareBtn: {
+      marginTop: spacing.sm,
+    },
+  });
+}

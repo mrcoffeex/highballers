@@ -17,7 +17,14 @@ import {
   isActiveCourtGame,
   sanitizeCourtGames,
 } from "../lib/eventRoster";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 import { CourtGame, UserProfile } from "../lib/types";
 
 interface CourtAssignmentsEditorProps {
@@ -48,6 +55,8 @@ export function CourtAssignmentsEditor({
   bottomInset = 0,
   onSave,
 }: CourtAssignmentsEditorProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const teamSize = getTeamSize(playersPerGame);
   const gameSizeLabel = formatGameSizeLabel(playersPerGame);
   const [courtGames, setCourtGames] = useState<CourtGame[]>(() =>
@@ -171,7 +180,12 @@ export function CourtAssignmentsEditor({
 
     return (
       <View style={styles.teamColumn}>
-        <View style={[styles.teamHeader, { borderBottomColor: `${color}44` }]}>
+        <View
+          style={[
+            styles.teamHeader,
+            { borderBottomColor: withAlpha(color, 0.27) },
+          ]}
+        >
           <View style={[styles.teamDot, { backgroundColor: color }]} />
           <Text style={[styles.teamTitle, { color }]}>{label}</Text>
           <Text style={styles.teamCount}>
@@ -179,7 +193,7 @@ export function CourtAssignmentsEditor({
           </Text>
           {selectedUnassignedId && !teamFull ? (
             <Pressable
-              style={[styles.addBtn, { borderColor: `${color}88` }]}
+              style={[styles.addBtn, { borderColor: withAlpha(color, 0.53) }]}
               onPress={() => addToTeam(courtIndex, selectedUnassignedId, side)}
               accessibilityLabel={`Add to ${label}`}
             >
@@ -415,7 +429,11 @@ export function CourtAssignmentsEditor({
           loading={saving}
           onPress={handleSave}
           icon={
-            <Ionicons name="checkmark-done" size={18} color={colors.text} />
+            <Ionicons
+              name="checkmark-done"
+              size={18}
+              color={colors.onPrimary}
+            />
           }
         />
       </View>
@@ -425,309 +443,311 @@ export function CourtAssignmentsEditor({
 
 const TEAM_COLUMN_MIN_HEIGHT = 200;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    minHeight: 0,
-  },
-  emptyWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.xl,
-    gap: spacing.md,
-  },
-  emptyTitle: {
-    ...typography.heading,
-    color: colors.text,
-    fontSize: 18,
-  },
-  emptyText: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  header: {
-    flexGrow: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
-    backgroundColor: colors.surface,
-  },
-  courtTabs: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
-    gap: spacing.sm,
-    alignItems: "center",
-  },
-  courtTab: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    minWidth: 76,
-  },
-  courtTabActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}14`,
-  },
-  courtTabTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  courtTabText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: "700",
-  },
-  courtTabTextActive: {
-    color: colors.primary,
-  },
-  courtTabMeta: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 10,
-    marginTop: 2,
-  },
-  addCourtTab: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderStyle: "dashed",
-    minHeight: 48,
-    justifyContent: "center",
-  },
-  addCourtTabText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: "600",
-  },
-  statusBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  statusLabel: {
-    ...typography.caption,
-    color: colors.text,
-    fontWeight: "600",
-    flex: 1,
-    minWidth: 120,
-  },
-  statusHint: {
-    ...typography.caption,
-    color: colors.textDim,
-    fontSize: 11,
-  },
-  readyPill: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-    backgroundColor: `${colors.success}22`,
-    borderWidth: 1,
-    borderColor: `${colors.success}55`,
-  },
-  readyPillText: {
-    ...typography.label,
-    color: colors.success,
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  removeCourtText: {
-    ...typography.caption,
-    color: colors.error,
-    fontWeight: "600",
-  },
-  workspace: {
-    flex: 1,
-    minHeight: 0,
-    padding: spacing.md,
-  },
-  teamsRow: {
-    flex: 1,
-    flexDirection: "row",
-    gap: spacing.sm,
-    minHeight: TEAM_COLUMN_MIN_HEIGHT,
-  },
-  teamDivider: {
-    width: 1,
-    backgroundColor: colors.cardBorder,
-    marginVertical: spacing.xs,
-  },
-  teamColumn: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: TEAM_COLUMN_MIN_HEIGHT,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    overflow: "hidden",
-  },
-  teamHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-  },
-  teamDot: {
-    width: 8,
-    height: 8,
-    borderRadius: radius.full,
-  },
-  teamTitle: {
-    ...typography.label,
-    fontSize: 11,
-    fontWeight: "700",
-    flex: 1,
-  },
-  teamCount: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 11,
-    fontVariant: ["tabular-nums"],
-  },
-  addBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.card,
-  },
-  teamScroll: {
-    flex: 1,
-  },
-  teamScrollContent: {
-    padding: spacing.sm,
-    gap: spacing.xs,
-    flexGrow: 1,
-  },
-  playerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingVertical: 6,
-    paddingHorizontal: spacing.xs,
-    borderRadius: radius.sm,
-    backgroundColor: colors.card,
-  },
-  playerName: {
-    ...typography.caption,
-    color: colors.text,
-    fontWeight: "600",
-    flex: 1,
-    minWidth: 0,
-  },
-  iconBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
-  },
-  emptyTeam: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.lg,
-    gap: spacing.xs,
-  },
-  emptyTeamText: {
-    ...typography.caption,
-    color: colors.textDim,
-    textAlign: "center",
-  },
-  emptySlot: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: colors.cardBorder,
-    alignItems: "center",
-  },
-  emptySlotText: {
-    ...typography.label,
-    color: colors.textDim,
-    fontSize: 10,
-  },
-  footer: {
-    flexGrow: 0,
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
-    backgroundColor: colors.surface,
-    paddingTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
-  footerHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-  },
-  unassignedTitle: {
-    ...typography.label,
-    color: colors.warning,
-    fontWeight: "700",
-  },
-  unassignedHint: {
-    ...typography.caption,
-    color: colors.textDim,
-    flex: 1,
-    textAlign: "right",
-  },
-  substitutesScroll: {
-    maxHeight: 88,
-    flexGrow: 0,
-  },
-  substitutesContent: {
-    gap: spacing.sm,
-    alignItems: "flex-start",
-    paddingBottom: spacing.xs,
-  },
-  unassignedChip: {
-    width: 72,
-    alignItems: "center",
-    padding: spacing.xs,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
-    gap: 4,
-  },
-  unassignedChipActive: {
-    borderColor: colors.warning,
-    backgroundColor: `${colors.warning}18`,
-  },
-  unassignedName: {
-    ...typography.label,
-    color: colors.textMuted,
-    fontSize: 10,
-    maxWidth: 68,
-    textAlign: "center",
-  },
-  allAssigned: {
-    ...typography.caption,
-    color: colors.textMuted,
-    alignSelf: "center",
-    paddingVertical: spacing.md,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      minHeight: 0,
+    },
+    emptyWrap: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing.xl,
+      gap: spacing.md,
+    },
+    emptyTitle: {
+      ...typography.heading,
+      color: colors.text,
+      fontSize: 18,
+    },
+    emptyText: {
+      ...typography.body,
+      color: colors.textMuted,
+      textAlign: "center",
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    header: {
+      flexGrow: 0,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+      backgroundColor: colors.surface,
+    },
+    courtTabs: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xs,
+      gap: spacing.sm,
+      alignItems: "center",
+    },
+    courtTab: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.md,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      minWidth: 76,
+    },
+    courtTabActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.08),
+    },
+    courtTabTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    courtTabText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "700",
+    },
+    courtTabTextActive: {
+      color: colors.primary,
+    },
+    courtTabMeta: {
+      ...typography.label,
+      color: colors.textDim,
+      fontSize: 10,
+      marginTop: 2,
+    },
+    addCourtTab: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderStyle: "dashed",
+      minHeight: 48,
+      justifyContent: "center",
+    },
+    addCourtTabText: {
+      ...typography.caption,
+      color: colors.primary,
+      fontWeight: "600",
+    },
+    statusBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.sm,
+    },
+    statusLabel: {
+      ...typography.caption,
+      color: colors.text,
+      fontWeight: "600",
+      flex: 1,
+      minWidth: 120,
+    },
+    statusHint: {
+      ...typography.caption,
+      color: colors.textDim,
+      fontSize: 11,
+    },
+    readyPill: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+      borderRadius: radius.full,
+      backgroundColor: withAlpha(colors.success, 0.13),
+      borderWidth: 1,
+      borderColor: withAlpha(colors.success, 0.33),
+    },
+    readyPillText: {
+      ...typography.label,
+      color: colors.success,
+      fontSize: 10,
+      fontWeight: "700",
+    },
+    removeCourtText: {
+      ...typography.caption,
+      color: colors.error,
+      fontWeight: "600",
+    },
+    workspace: {
+      flex: 1,
+      minHeight: 0,
+      padding: spacing.md,
+    },
+    teamsRow: {
+      flex: 1,
+      flexDirection: "row",
+      gap: spacing.sm,
+      minHeight: TEAM_COLUMN_MIN_HEIGHT,
+    },
+    teamDivider: {
+      width: 1,
+      backgroundColor: colors.cardBorder,
+      marginVertical: spacing.xs,
+    },
+    teamColumn: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: TEAM_COLUMN_MIN_HEIGHT,
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      overflow: "hidden",
+    },
+    teamHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+    },
+    teamDot: {
+      width: 8,
+      height: 8,
+      borderRadius: radius.full,
+    },
+    teamTitle: {
+      ...typography.label,
+      fontSize: 11,
+      fontWeight: "700",
+      flex: 1,
+    },
+    teamCount: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontSize: 11,
+      fontVariant: ["tabular-nums"],
+    },
+    addBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.card,
+    },
+    teamScroll: {
+      flex: 1,
+    },
+    teamScrollContent: {
+      padding: spacing.sm,
+      gap: spacing.xs,
+      flexGrow: 1,
+    },
+    playerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+      paddingVertical: 6,
+      paddingHorizontal: spacing.xs,
+      borderRadius: radius.sm,
+      backgroundColor: colors.card,
+    },
+    playerName: {
+      ...typography.caption,
+      color: colors.text,
+      fontWeight: "600",
+      flex: 1,
+      minWidth: 0,
+    },
+    iconBtn: {
+      width: 26,
+      height: 26,
+      borderRadius: radius.full,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surface,
+    },
+    emptyTeam: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: spacing.lg,
+      gap: spacing.xs,
+    },
+    emptyTeamText: {
+      ...typography.caption,
+      color: colors.textDim,
+      textAlign: "center",
+    },
+    emptySlot: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderStyle: "dashed",
+      borderColor: colors.cardBorder,
+      alignItems: "center",
+    },
+    emptySlotText: {
+      ...typography.label,
+      color: colors.textDim,
+      fontSize: 10,
+    },
+    footer: {
+      flexGrow: 0,
+      borderTopWidth: 1,
+      borderTopColor: colors.cardBorder,
+      backgroundColor: colors.surface,
+      paddingTop: spacing.sm,
+      paddingHorizontal: spacing.md,
+      gap: spacing.sm,
+    },
+    footerHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+    },
+    unassignedTitle: {
+      ...typography.label,
+      color: colors.warning,
+      fontWeight: "700",
+    },
+    unassignedHint: {
+      ...typography.caption,
+      color: colors.textDim,
+      flex: 1,
+      textAlign: "right",
+    },
+    substitutesScroll: {
+      maxHeight: 88,
+      flexGrow: 0,
+    },
+    substitutesContent: {
+      gap: spacing.sm,
+      alignItems: "flex-start",
+      paddingBottom: spacing.xs,
+    },
+    unassignedChip: {
+      width: 72,
+      alignItems: "center",
+      padding: spacing.xs,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.card,
+      gap: 4,
+    },
+    unassignedChipActive: {
+      borderColor: colors.warning,
+      backgroundColor: withAlpha(colors.warning, 0.09),
+    },
+    unassignedName: {
+      ...typography.label,
+      color: colors.textMuted,
+      fontSize: 10,
+      maxWidth: 68,
+      textAlign: "center",
+    },
+    allAssigned: {
+      ...typography.caption,
+      color: colors.textMuted,
+      alignSelf: "center",
+      paddingVertical: spacing.md,
+    },
+  });
+}

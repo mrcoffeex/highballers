@@ -11,7 +11,8 @@ import { isSupabaseEnabled } from "../../../lib/config";
 import { chatPreviewsCacheKey } from "../../../lib/tabCache";
 import { fetchChatPreviews } from "../../../lib/supabaseSync";
 import { getRemoteCache } from "../../../lib/remoteCache";
-import { colors, spacing, typography } from "../../../lib/theme";
+import { useTheme, useThemedStyles } from "../../../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../../../lib/theme";
 import { useCachedFetch } from "../../../lib/useCachedFetch";
 import { ClubChatPreview } from "../../../lib/types";
 import { useMyClubs } from "../../../store/hooks";
@@ -19,6 +20,8 @@ import { useAppStore } from "../../../store/useAppStore";
 
 export default function ChatsScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const myClubs = useMyClubs();
   const users = useAppStore((state) => state.users);
   const clubIds = useMemo(() => myClubs.map((club) => club.id), [myClubs]);
@@ -134,15 +137,17 @@ export default function ChatsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  title: {
-    ...typography.title,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginBottom: spacing.lg,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    title: {
+      ...typography.title,
+      color: colors.text,
+      marginBottom: spacing.xs,
+    },
+    subtitle: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginBottom: spacing.lg,
+    },
+  });
+}

@@ -34,7 +34,14 @@ import {
   sendClubChatMessage,
   subscribeToClubChat,
 } from "../../../lib/supabaseSync";
-import { colors, radius, spacing, typography } from "../../../lib/theme";
+import { useTheme, useThemedStyles } from "../../../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../../../lib/theme";
 import type { ChatListItem } from "../../../lib/chatThread";
 import { ClubChatMessage } from "../../../lib/types";
 import { useClub } from "../../../store/hooks";
@@ -52,7 +59,11 @@ export default function ClubChatScreen() {
   const hydrated = useAppStore((state) => state.hydrated);
   const users = useAppStore((state) => state.users);
   const currentUserId = useAppStore((state) => state.currentUserId);
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
+  const headerOffset = insets.top + (Platform.OS === "ios" ? 44 : 56);
+  const composerBottomInset = Math.max(insets.bottom, spacing.sm);
   const floatingAlert = useFloatingAlert();
   const listRef = useRef<FlatList<ChatListItem>>(null);
 
@@ -288,12 +299,12 @@ export default function ClubChatScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? headerOffset : 0}
       >
         <FloatingAlert
           message={floatingAlert.message}
           variant={floatingAlert.variant}
-          bottomInset={insets.bottom}
+          bottomInset={composerBottomInset}
           onDismiss={floatingAlert.dismiss}
         />
         {loading && messages.length === 0 ? (
@@ -321,12 +332,7 @@ export default function ClubChatScreen() {
           <ChatGifPicker onPick={(gif) => void handleSendGif(gif)} />
         ) : null}
 
-        <View
-          style={[
-            styles.composer,
-            { paddingBottom: Math.max(insets.bottom, spacing.sm) },
-          ]}
-        >
+        <View style={[styles.composer, { paddingBottom: composerBottomInset }]}>
           <View style={styles.composerRow}>
             <Pressable
               onPress={() => toggleComposerPanel("emoji")}
@@ -393,7 +399,7 @@ export default function ClubChatScreen() {
                 {sending ? (
                   <SkeletonCircle size={18} />
                 ) : (
-                  <Ionicons name="send" size={18} color={colors.text} />
+                  <Ionicons name="send" size={18} color={colors.onPrimary} />
                 )}
               </Pressable>
             </View>
@@ -404,91 +410,93 @@ export default function ClubChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    position: "relative",
-    backgroundColor: colors.background,
-  },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-  },
-  errorText: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
-  },
-  composer: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
-    backgroundColor: colors.surface,
-    gap: spacing.sm,
-  },
-  composerRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.xs,
-  },
-  accessoryBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    marginBottom: 1,
-  },
-  accessoryBtnActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}18`,
-  },
-  inputShell: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    minHeight: 48,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
-    paddingLeft: spacing.md,
-    paddingRight: spacing.xs,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs,
-    overflow: "hidden",
-  },
-  input: {
-    flex: 1,
-    minHeight: 36,
-    maxHeight: 120,
-    paddingTop: Platform.OS === "ios" ? 8 : 6,
-    paddingBottom: Platform.OS === "ios" ? 8 : 6,
-    paddingRight: spacing.xs,
-    color: colors.text,
-    fontSize: 16,
-    lineHeight: 20,
-    borderWidth: 0,
-    backgroundColor: "transparent",
-    ...(Platform.OS === "web" ? { outlineWidth: 0 } : {}),
-  },
-  sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 1,
-  },
-  sendBtnDisabled: {
-    opacity: 0.45,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+      position: "relative",
+      backgroundColor: colors.background,
+    },
+    centered: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+      padding: spacing.lg,
+    },
+    errorText: {
+      ...typography.body,
+      color: colors.textMuted,
+      textAlign: "center",
+    },
+    composer: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: colors.cardBorder,
+      backgroundColor: colors.surface,
+      gap: spacing.sm,
+    },
+    composerRow: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      gap: spacing.xs,
+    },
+    accessoryBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.full,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      marginBottom: 1,
+    },
+    accessoryBtnActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.1),
+    },
+    inputShell: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "flex-end",
+      minHeight: 48,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.card,
+      paddingLeft: spacing.md,
+      paddingRight: spacing.xs,
+      paddingVertical: spacing.xs,
+      gap: spacing.xs,
+      overflow: "hidden",
+    },
+    input: {
+      flex: 1,
+      minHeight: 36,
+      maxHeight: 120,
+      paddingTop: Platform.OS === "ios" ? 8 : 6,
+      paddingBottom: Platform.OS === "ios" ? 8 : 6,
+      paddingRight: spacing.xs,
+      color: colors.text,
+      fontSize: 16,
+      lineHeight: 20,
+      borderWidth: 0,
+      backgroundColor: "transparent",
+      ...(Platform.OS === "web" ? { outlineWidth: 0 } : {}),
+    },
+    sendBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.full,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 1,
+    },
+    sendBtnDisabled: {
+      opacity: 0.45,
+    },
+  });
+}

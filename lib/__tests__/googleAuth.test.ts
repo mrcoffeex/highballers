@@ -30,8 +30,8 @@ describe("pickOAuthRedirectUri", () => {
   });
 
   it("keeps native preview redirect unchanged", () => {
-    expect(
-      pickOAuthRedirectUri(undefined, NATIVE_OAUTH_REDIRECT_URI),
-    ).toBe(NATIVE_OAUTH_REDIRECT_URI);
+    expect(pickOAuthRedirectUri(undefined, NATIVE_OAUTH_REDIRECT_URI)).toBe(
+      NATIVE_OAUTH_REDIRECT_URI,
+    );
   });
 });

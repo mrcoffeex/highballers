@@ -5,7 +5,14 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { getGifMessageUrl, isGifMessage } from "../lib/chatMessageContent";
 import { isPendingChatMessageId } from "../lib/chatThread";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 import { UserProfile } from "../lib/types";
 import { Avatar } from "./ui";
 
@@ -27,6 +34,8 @@ function ChatMessageBubbleInner({
   isMine,
   showAvatar,
 }: ChatMessageBubbleProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const gifUrl = getGifMessageUrl(message.body);
   const isGif = isGifMessage(message.body) && gifUrl != null;
   const timeLabel = useMemo(
@@ -87,76 +96,78 @@ function ChatMessageBubbleInner({
 
 export const ChatMessageBubble = memo(ChatMessageBubbleInner);
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  rowMine: {
-    justifyContent: "flex-end",
-  },
-  rowTheirs: {
-    justifyContent: "flex-start",
-  },
-  avatarSpacer: {
-    width: 32,
-  },
-  bubble: {
-    maxWidth: "78%",
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-  },
-  bubbleGif: {
-    paddingHorizontal: spacing.xs,
-    paddingTop: spacing.xs,
-    maxWidth: "72%",
-  },
-  bubblePending: {
-    opacity: 0.72,
-  },
-  bubbleMine: {
-    backgroundColor: colors.primary,
-    borderColor: `${colors.primary}80`,
-    borderBottomRightRadius: radius.sm,
-  },
-  bubbleTheirs: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderBottomLeftRadius: radius.sm,
-  },
-  senderName: {
-    ...typography.caption,
-    color: colors.secondary,
-    fontWeight: "700",
-    marginBottom: 2,
-  },
-  body: {
-    ...typography.body,
-    color: colors.text,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  bodyMine: {
-    color: colors.text,
-  },
-  gif: {
-    width: 200,
-    height: 200,
-    borderRadius: radius.md,
-    backgroundColor: colors.background,
-  },
-  time: {
-    ...typography.caption,
-    color: colors.textDim,
-    fontSize: 10,
-    marginTop: spacing.xs,
-    alignSelf: "flex-end",
-  },
-  timeMine: {
-    color: `${colors.text}CC`,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      marginBottom: spacing.sm,
+      gap: spacing.sm,
+    },
+    rowMine: {
+      justifyContent: "flex-end",
+    },
+    rowTheirs: {
+      justifyContent: "flex-start",
+    },
+    avatarSpacer: {
+      width: 32,
+    },
+    bubble: {
+      maxWidth: "78%",
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderWidth: 1,
+    },
+    bubbleGif: {
+      paddingHorizontal: spacing.xs,
+      paddingTop: spacing.xs,
+      maxWidth: "72%",
+    },
+    bubblePending: {
+      opacity: 0.72,
+    },
+    bubbleMine: {
+      backgroundColor: colors.primary,
+      borderColor: withAlpha(colors.primary, 0.5),
+      borderBottomRightRadius: radius.sm,
+    },
+    bubbleTheirs: {
+      backgroundColor: colors.card,
+      borderColor: colors.cardBorder,
+      borderBottomLeftRadius: radius.sm,
+    },
+    senderName: {
+      ...typography.caption,
+      color: colors.primary,
+      fontWeight: "700",
+      marginBottom: 2,
+    },
+    body: {
+      ...typography.body,
+      color: colors.text,
+      fontSize: 15,
+      lineHeight: 21,
+    },
+    bodyMine: {
+      color: colors.onPrimary,
+    },
+    gif: {
+      width: 200,
+      height: 200,
+      borderRadius: radius.md,
+      backgroundColor: colors.surfaceVariant,
+    },
+    time: {
+      ...typography.caption,
+      color: colors.textDim,
+      fontSize: 10,
+      marginTop: spacing.xs,
+      alignSelf: "flex-end",
+    },
+    timeMine: {
+      color: withAlpha(colors.onPrimary, 0.8),
+    },
+  });
+}

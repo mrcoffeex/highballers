@@ -9,7 +9,13 @@ import { Button, Card } from "./ui";
 import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
 import { describeCourtCapacity } from "../lib/gameFormats";
 import { getSpotsLeft } from "../lib/eventInvite";
-import { radius, spacing, typography, type ThemeColors } from "../lib/theme";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 import { Club, ClubBan, GameEvent, UserProfile } from "../lib/types";
 
 export type EventActionsPanelProps = {
@@ -120,8 +126,7 @@ export function EventActionsPanel({
 
   const showParticipation = isClubMember && !optionsLocked;
   const showOrganizer =
-    !optionsLocked &&
-    (canEdit || canRecordStats || canFinish || canAddPlayers);
+    !optionsLocked && (canEdit || canRecordStats || canFinish || canAddPlayers);
   const showSettings = canEdit && !optionsLocked;
   const showDanger = canCancel;
 
@@ -171,7 +176,11 @@ export function EventActionsPanel({
 
       {optionsLocked ? (
         <View style={[styles.statusBanner, styles.statusBannerWarning]}>
-          <Ionicons name="lock-closed-outline" size={18} color={colors.warning} />
+          <Ionicons
+            name="lock-closed-outline"
+            size={18}
+            color={colors.warning}
+          />
           <Text style={styles.statusText}>
             {event.finishedAt
               ? "Finished — roster and stats are read-only."
@@ -408,7 +417,7 @@ function createStyles(colors: ThemeColors) {
       marginBottom: spacing.sm,
     },
     statusBannerWarning: {
-      backgroundColor: `${colors.warning}14`,
+      backgroundColor: withAlpha(colors.warning, 0.08),
     },
     statusText: {
       ...typography.caption,

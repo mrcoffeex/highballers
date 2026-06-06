@@ -1,6 +1,7 @@
 export const LEAFLET_VERSION = "1.9.4";
 
-export const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+export const OSM_TILE_URL =
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 export const OSM_ATTRIBUTION = "© OpenStreetMap contributors";
 
@@ -39,7 +40,7 @@ export function buildLeafletMapHtml(options: LeafletMapHtmlOptions): string {
         width: 100%;
         margin: 0;
         padding: 0;
-        background: #141b24;
+        background: #1f2937;
       }
       .leaflet-control-attribution {
         font-size: 9px;

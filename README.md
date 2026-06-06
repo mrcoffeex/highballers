@@ -7,6 +7,7 @@ Built with [Expo SDK 56](https://docs.expo.dev/versions/v56.0.0/) (React Native 
 ## Features
 
 ### Clubs
+
 - Create and join clubs (public or private)
 - Club captain and sub-captain roles
 - Member list with search, kick/ban, and sub-captain assignment
@@ -15,6 +16,7 @@ Built with [Expo SDK 56](https://docs.expo.dev/versions/v56.0.0/) (React Native 
 - Club group chat with GIF support (GIPHY)
 
 ### Games
+
 - Schedule open or invite-only games with location, map preview, and directions (Google Maps)
 - Join/leave roster; creators and club captains can add members directly
 - Shuffle players into balanced multi-court lineups (configurable players per court)
@@ -23,25 +25,27 @@ Built with [Expo SDK 56](https://docs.expo.dev/versions/v56.0.0/) (React Native 
 - Game actions panel: join, shuffle, courts, roster, scorekeeper, edit, finish, or cancel — in one place
 
 ### Players
+
 - Profiles with stats, ratings, and game history
 - Leaderboards
 - Light and dark theme (system or manual)
 
 ### Subscriptions
+
 - **Basic Baller** and **All-Star Baller** tiers (in-app purchase via `expo-iap`)
 - Tier limits on club count, event size, and premium features
 
 ## Tech stack
 
-| Layer | Choice |
-| --- | --- |
-| App | Expo ~56, Expo Router, TypeScript |
-| UI | React Native, React Native Paper, custom theme tokens |
-| State | Zustand |
-| Backend | Supabase (Postgres, Auth, RLS, Storage) |
-| Maps | Leaflet (in-app preview), Google Maps URLs (directions) |
-| Tests | Vitest |
-| Builds | EAS Build |
+| Layer   | Choice                                                  |
+| ------- | ------------------------------------------------------- |
+| App     | Expo ~56, Expo Router, TypeScript                       |
+| UI      | React Native, React Native Paper, custom theme tokens   |
+| State   | Zustand                                                 |
+| Backend | Supabase (Postgres, Auth, RLS, Storage)                 |
+| Maps    | Leaflet (in-app preview), Google Maps URLs (directions) |
+| Tests   | Vitest                                                  |
+| Builds  | EAS Build                                               |
 
 ## Prerequisites
 
@@ -71,9 +75,9 @@ cp .env.example .env
 
 Required:
 
-| Variable | Description |
-| --- | --- |
-| `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| Variable                               | Description                                 |
+| -------------------------------------- | ------------------------------------------- |
+| `EXPO_PUBLIC_SUPABASE_URL`             | Supabase project URL                        |
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable (anon) key — not the secret key |
 
 Optional (see `.env.example` for full list):
@@ -114,19 +118,19 @@ Scan the QR code with Expo Go, or use a [development build](https://docs.expo.de
 
 ## Scripts
 
-| Command | Description |
-| --- | --- |
-| `npm run start:dev` | Start Expo dev server |
-| `npm run web:dev` | Start for web |
-| `npm run android:dev` | Android dev with LAN Metro host |
-| `npm run android:dev:tunnel` | Android dev via tunnel |
-| `npm run ios:dev` | iOS dev |
-| `npm test` | Run Vitest unit tests |
-| `npm run test:watch` | Vitest watch mode |
-| `npm run build:apk` | EAS preview APK (Android) |
-| `npm run build:ios` | EAS preview build (iOS) |
-| `npm run build:mobile` | EAS preview, both platforms |
-| `npm run eas:env:push` | Push env vars to EAS (see `scripts/push-eas-env.sh`) |
+| Command                      | Description                                          |
+| ---------------------------- | ---------------------------------------------------- |
+| `npm run start:dev`          | Start Expo dev server                                |
+| `npm run web:dev`            | Start for web                                        |
+| `npm run android:dev`        | Android dev with LAN Metro host                      |
+| `npm run android:dev:tunnel` | Android dev via tunnel                               |
+| `npm run ios:dev`            | iOS dev                                              |
+| `npm test`                   | Run Vitest unit tests                                |
+| `npm run test:watch`         | Vitest watch mode                                    |
+| `npm run build:apk`          | EAS preview APK (Android)                            |
+| `npm run build:ios`          | EAS preview build (iOS)                              |
+| `npm run build:mobile`       | EAS preview, both platforms                          |
+| `npm run eas:env:push`       | Push env vars to EAS (see `scripts/push-eas-env.sh`) |
 
 Production-style local runs (`npm start`, `npm run android`, etc.) use `--no-dev --minify`.
 
@@ -165,13 +169,13 @@ highballers/
 
 ## Permissions model (summary)
 
-| Action | Who |
-| --- | --- |
+| Action                                          | Who                              |
+| ----------------------------------------------- | -------------------------------- |
 | Shuffle, edit game, courts, scorekeeper, finish | Game creator or **club captain** |
-| Add players to game | Game creator or **club captain** |
-| Cancel game, invite players (legacy manage) | Creator, captain, or sub-captain |
-| Transfer club captain | Current captain only |
-| Leave club as captain | Must transfer captain role first |
+| Add players to game                             | Game creator or **club captain** |
+| Cancel game, invite players (legacy manage)     | Creator, captain, or sub-captain |
+| Transfer club captain                           | Current captain only             |
+| Leave club as captain                           | Must transfer captain role first |
 
 Game options lock **12 hours after scheduled tip-off** (or when marked finished).
 

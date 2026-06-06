@@ -11,7 +11,14 @@ import {
   isEventMaxPlayerPreset,
   parseEventMaxPlayersInput,
 } from "../lib/eventCapacity";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 import { SubscriptionTier } from "../lib/types";
 import { Input } from "./ui";
 
@@ -38,6 +45,8 @@ export function EventMaxPlayersPicker({
   onRequireUpgrade,
   minPlayers = EVENT_MIN_PLAYERS,
 }: EventMaxPlayersPickerProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const maxCap = getMaxEventPlayersForTier(tier);
   const allowedPresets = useMemo(
     () => getAllowedMaxPlayerPresets(tier),
@@ -160,58 +169,60 @@ export function useResolvedEventMaxPlayers(
 
 export { isEventMaxPlayerPreset };
 
-const styles = StyleSheet.create({
-  hint: {
-    ...typography.caption,
-    color: colors.textDim,
-    marginBottom: spacing.sm,
-  },
-  playerPicker: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  playerOption: {
-    minWidth: 72,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    alignItems: "center",
-    gap: 2,
-  },
-  playerOptionActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}15`,
-  },
-  playerOptionLocked: {
-    opacity: 0.55,
-  },
-  lockIcon: {
-    marginBottom: 2,
-  },
-  playerOptionValue: {
-    ...typography.heading,
-    color: colors.textMuted,
-    fontSize: 18,
-  },
-  playerOptionValueActive: {
-    color: colors.primary,
-  },
-  playerOptionValueLocked: {
-    color: colors.textDim,
-  },
-  customWrap: {
-    marginBottom: spacing.sm,
-  },
-  field: {
-    marginBottom: spacing.xs,
-  },
-  customHint: {
-    ...typography.caption,
-    color: colors.textDim,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    hint: {
+      ...typography.caption,
+      color: colors.textDim,
+      marginBottom: spacing.sm,
+    },
+    playerPicker: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    playerOption: {
+      minWidth: 72,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.lg,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignItems: "center",
+      gap: 2,
+    },
+    playerOptionActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.08),
+    },
+    playerOptionLocked: {
+      opacity: 0.55,
+    },
+    lockIcon: {
+      marginBottom: 2,
+    },
+    playerOptionValue: {
+      ...typography.heading,
+      color: colors.textMuted,
+      fontSize: 18,
+    },
+    playerOptionValueActive: {
+      color: colors.primary,
+    },
+    playerOptionValueLocked: {
+      color: colors.textDim,
+    },
+    customWrap: {
+      marginBottom: spacing.sm,
+    },
+    field: {
+      marginBottom: spacing.xs,
+    },
+    customHint: {
+      ...typography.caption,
+      color: colors.textDim,
+    },
+  });
+}

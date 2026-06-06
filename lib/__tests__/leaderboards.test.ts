@@ -10,9 +10,7 @@ import { mockClub, mockEvent, mockUser } from "./fixtures";
 
 const NOW = new Date(2026, 5, 15, 12, 0, 0);
 
-function mockStat(
-  overrides: Partial<GameStatRecord> = {},
-): GameStatRecord {
+function mockStat(overrides: Partial<GameStatRecord> = {}): GameStatRecord {
   return {
     id: overrides.id ?? "stat-1",
     eventId: overrides.eventId ?? "event-1",

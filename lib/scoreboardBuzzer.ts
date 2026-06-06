@@ -36,9 +36,9 @@ async function ensureBuzzerPlayer(): Promise<AudioPlayer | null> {
 }
 
 async function playFallbackBuzzer() {
-  await Haptics.notificationAsync(
-    Haptics.NotificationFeedbackType.Error,
-  ).catch(() => undefined);
+  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(
+    () => undefined,
+  );
   await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(
     () => undefined,
   );

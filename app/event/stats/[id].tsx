@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams } from "@/lib/expoRouter";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -15,7 +15,14 @@ import {
   UNASSIGNED_ROSTER_INDEX,
   UNASSIGNED_ROSTER_LABEL,
 } from "../../../lib/eventRoster";
-import { colors, radius, spacing, typography } from "../../../lib/theme";
+import { useTheme, useThemedStyles } from "../../../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../../../lib/theme";
 import { useRefreshControl } from "../../../lib/useRefreshControl";
 import { BoxScoreStats } from "../../../lib/types";
 import {
@@ -32,8 +39,12 @@ interface ScorekeeperTab {
   label: string;
 }
 
+type ScorekeeperViewMode = "scorekeeper" | "scoreboard";
+
 export default function EventStatsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const event = useEvent(id);
   const club = useClub(event?.clubId ?? "");
@@ -47,7 +58,7 @@ export default function EventStatsScreen() {
   const [savingStats, setSavingStats] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedTabIndex, setSavedTabIndex] = useState<number | null>(null);
-  const [scoreboardOpen, setScoreboardOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ScorekeeperViewMode>("scorekeeper");
   const { refreshControl } = useRefreshControl();
 
   const courtGames = useCourtGames(event, users);
@@ -132,6 +143,21 @@ export default function EventStatsScreen() {
     setSaveError(null);
   };
 
+  const headerTitle =
+    tabs.length > 1 && selectedTab?.label
+      ? selectedTab.label
+      : viewMode === "scoreboard"
+        ? "Scoreboard"
+        : "Scorekeeper";
+
+  const showScoreboardToggle = !isUnassignedTab;
+
+  useEffect(() => {
+    if (isUnassignedTab && viewMode === "scoreboard") {
+      setViewMode("scorekeeper");
+    }
+  }, [isUnassignedTab, viewMode]);
+
   if (!event) {
     if (shouldShowEntitySkeleton(event, hydrated, events.length === 0)) {
       return <ScorekeeperSkeleton />;
@@ -181,88 +207,155 @@ export default function EventStatsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerTitle: "Scorekeeper" }} />
+      <Stack.Screen options={{ headerTitle }} />
       <View style={styles.container}>
-        {tabs.length > 1 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.gameTabsScroll}
-            contentContainerStyle={styles.gameTabsBar}
-          >
-            {tabs.map((tab) => {
-              const selected = tab.index === activeTabIndex;
-              const saved = savedTabIndex === tab.index;
-              const isUnassigned = tab.index === UNASSIGNED_ROSTER_INDEX;
-
-              return (
-                <Pressable
-                  key={tab.label}
+        {showScoreboardToggle ? (
+          <View style={styles.viewToggleStrip}>
+            <View style={styles.viewToggleRow}>
+              <Pressable
+                style={[
+                  styles.viewToggleBtn,
+                  viewMode === "scorekeeper" && styles.viewToggleBtnActive,
+                ]}
+                onPress={() => setViewMode("scorekeeper")}
+                accessibilityRole="button"
+                accessibilityState={{ selected: viewMode === "scorekeeper" }}
+              >
+                <Ionicons
+                  name="stats-chart-outline"
+                  size={16}
+                  color={
+                    viewMode === "scorekeeper"
+                      ? colors.primary
+                      : colors.textMuted
+                  }
+                />
+                <Text
                   style={[
-                    styles.gameTab,
-                    selected && styles.gameTabActive,
-                    isUnassigned && selected && styles.gameTabUnassignedActive,
+                    styles.viewToggleLabel,
+                    viewMode === "scorekeeper" && styles.viewToggleLabelActive,
                   ]}
-                  onPress={() => handleSelectTab(tab.index)}
                 >
-                  {isUnassigned ? (
-                    <Ionicons
-                      name="person-outline"
-                      size={13}
-                      color={selected ? colors.warning : colors.textMuted}
-                    />
-                  ) : null}
-                  <Text
+                  Scorekeeper
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.viewToggleBtn,
+                  viewMode === "scoreboard" && styles.viewToggleBtnActive,
+                ]}
+                onPress={() => setViewMode("scoreboard")}
+                accessibilityRole="button"
+                accessibilityState={{ selected: viewMode === "scoreboard" }}
+              >
+                <Ionicons
+                  name="timer-outline"
+                  size={16}
+                  color={
+                    viewMode === "scoreboard"
+                      ? colors.primary
+                      : colors.textMuted
+                  }
+                />
+                <Text
+                  style={[
+                    styles.viewToggleLabel,
+                    viewMode === "scoreboard" && styles.viewToggleLabelActive,
+                  ]}
+                >
+                  Scoreboard
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {tabs.length > 1 ? (
+          <View style={styles.gameTabsStrip}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.gameTabsScroll}
+              contentContainerStyle={styles.gameTabsBar}
+            >
+              {tabs.map((tab) => {
+                const selected = tab.index === activeTabIndex;
+                const saved = savedTabIndex === tab.index;
+                const isUnassigned = tab.index === UNASSIGNED_ROSTER_INDEX;
+
+                return (
+                  <Pressable
+                    key={tab.label}
                     style={[
-                      styles.gameTabText,
-                      selected && styles.gameTabTextActive,
-                      isUnassigned && selected && styles.gameTabTextUnassigned,
+                      styles.gameTab,
+                      selected && styles.gameTabActive,
+                      isUnassigned &&
+                        selected &&
+                        styles.gameTabUnassignedActive,
                     ]}
-                    numberOfLines={1}
+                    onPress={() => handleSelectTab(tab.index)}
                   >
-                    {tab.label}
-                  </Text>
-                  {isUnassigned && waitlist.length > 0 ? (
-                    <View style={styles.gameTabCount}>
-                      <Text style={styles.gameTabCountText}>
-                        {waitlist.length}
-                      </Text>
-                    </View>
-                  ) : null}
-                  {saved ? (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={14}
-                      color={colors.success}
-                    />
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+                    {isUnassigned ? (
+                      <Ionicons
+                        name="person-outline"
+                        size={13}
+                        color={selected ? colors.warning : colors.textMuted}
+                      />
+                    ) : null}
+                    <Text
+                      style={[
+                        styles.gameTabText,
+                        selected && styles.gameTabTextActive,
+                        isUnassigned &&
+                          selected &&
+                          styles.gameTabTextUnassigned,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {tab.label}
+                    </Text>
+                    {isUnassigned && waitlist.length > 0 ? (
+                      <View style={styles.gameTabCount}>
+                        <Text style={styles.gameTabCountText}>
+                          {waitlist.length}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {saved ? (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={14}
+                        color={colors.success}
+                      />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
         ) : null}
 
         <View style={styles.recorderWrap}>
-          <View style={styles.recorderBody}>
-            <GameStatsRecorder
-              key={`${id}-${activeTabIndex}`}
-              participants={activeRoster}
-              teamA={isUnassignedTab ? undefined : selectedGame?.teamA}
-              teamB={isUnassignedTab ? undefined : selectedGame?.teamB}
-              courtLabel={selectedTab?.label}
-              initialStats={eventStats}
-              saving={savingStats}
-              saved={savedTabIndex === activeTabIndex}
-              saveError={saveError}
-              refreshControl={refreshControl}
-              onSave={handleSave}
-            />
-          </View>
-          {!isUnassignedTab ? (
+          {viewMode === "scorekeeper" ? (
+            <View style={styles.recorderBody}>
+              <GameStatsRecorder
+                key={`${id}-${activeTabIndex}`}
+                participants={activeRoster}
+                teamA={isUnassignedTab ? undefined : selectedGame?.teamA}
+                teamB={isUnassignedTab ? undefined : selectedGame?.teamB}
+                courtLabel={selectedTab?.label}
+                initialStats={eventStats}
+                saving={savingStats}
+                saved={savedTabIndex === activeTabIndex}
+                saveError={saveError}
+                refreshControl={refreshControl}
+                onSave={handleSave}
+              />
+            </View>
+          ) : (
             <ScoreboardDrawer
-              visible={scoreboardOpen}
-              onOpen={() => setScoreboardOpen(true)}
-              onClose={() => setScoreboardOpen(false)}
+              embedded
+              visible
               teamALabel="Team A"
               teamBLabel="Team B"
               controls={{
@@ -284,111 +377,153 @@ export default function EventStatsScreen() {
                 resetAll: scoreboard.resetAll,
               }}
             />
-          ) : null}
+          )}
         </View>
       </View>
     </>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  recorderWrap: {
-    flex: 1,
-    minHeight: 0,
-    position: "relative",
-  },
-  recorderBody: {
-    flex: 1,
-    minHeight: 0,
-  },
-  notFound: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background,
-  },
-  notFoundText: {
-    color: colors.textMuted,
-  },
-  blocked: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background,
-    padding: spacing.xl,
-    gap: spacing.sm,
-  },
-  blockedTitle: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  blockedText: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
-    fontSize: 14,
-  },
-  gameTabsScroll: {
-    flexGrow: 0,
-    maxHeight: 44,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  gameTabsBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
-  gameTab: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    height: 36,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  gameTabActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}18`,
-  },
-  gameTabUnassignedActive: {
-    borderColor: colors.warning,
-    backgroundColor: `${colors.warning}18`,
-  },
-  gameTabText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: "600",
-    fontSize: 13,
-  },
-  gameTabTextActive: {
-    color: colors.primary,
-  },
-  gameTabTextUnassigned: {
-    color: colors.warning,
-  },
-  gameTabCount: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: radius.full,
-    backgroundColor: `${colors.warning}33`,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  gameTabCountText: {
-    ...typography.label,
-    color: colors.warning,
-    fontSize: 10,
-    fontWeight: "700",
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    recorderWrap: {
+      flex: 1,
+      minHeight: 0,
+      position: "relative",
+    },
+    recorderBody: {
+      flex: 1,
+      minHeight: 0,
+    },
+    notFound: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+    },
+    notFoundText: {
+      color: colors.textMuted,
+    },
+    blocked: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+      padding: spacing.xl,
+      gap: spacing.sm,
+    },
+    blockedTitle: {
+      ...typography.heading,
+      color: colors.text,
+    },
+    blockedText: {
+      ...typography.body,
+      color: colors.textMuted,
+      textAlign: "center",
+      fontSize: 14,
+    },
+    viewToggleStrip: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    viewToggleRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    viewToggleBtn: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.xs,
+      minHeight: 40,
+      borderRadius: radius.full,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    viewToggleBtnActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.1),
+    },
+    viewToggleLabel: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "600",
+      fontSize: 13,
+    },
+    viewToggleLabelActive: {
+      color: colors.primary,
+    },
+    gameTabsStrip: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+      backgroundColor: colors.surface,
+    },
+    gameTabsScroll: {
+      flexGrow: 0,
+      maxHeight: 48,
+    },
+    gameTabsBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      gap: spacing.sm,
+    },
+    gameTab: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      height: 36,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.full,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    gameTabActive: {
+      borderColor: colors.primary,
+      backgroundColor: withAlpha(colors.primary, 0.1),
+    },
+    gameTabUnassignedActive: {
+      borderColor: colors.warning,
+      backgroundColor: withAlpha(colors.warning, 0.1),
+    },
+    gameTabText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "600",
+      fontSize: 13,
+    },
+    gameTabTextActive: {
+      color: colors.primary,
+    },
+    gameTabTextUnassigned: {
+      color: colors.warning,
+    },
+    gameTabCount: {
+      minWidth: 18,
+      height: 18,
+      borderRadius: radius.full,
+      backgroundColor: withAlpha(colors.warning, 0.2),
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 4,
+    },
+    gameTabCountText: {
+      ...typography.label,
+      color: colors.warning,
+      fontSize: 10,
+      fontWeight: "700",
+    },
+  });
+}

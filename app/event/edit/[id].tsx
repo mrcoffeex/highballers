@@ -15,13 +15,20 @@ import { shouldShowEntitySkeleton } from "../../../lib/entityLoading";
 import { clampEventMaxPlayers } from "../../../lib/eventCapacity";
 import { canEditEvent, hasEventStarted } from "../../../lib/gameEvents";
 import { EventLocation } from "../../../lib/location";
-import { colors, radius, spacing, typography } from "../../../lib/theme";
+import { useTheme, useThemedStyles } from "../../../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  type ThemeColors,
+} from "../../../lib/theme";
 import { useRefreshControl } from "../../../lib/useRefreshControl";
 import { useUpgradePrompt } from "../../../lib/useUpgradePrompt";
 import { useClub, useEvent, useSubscriptionTier } from "../../../store/hooks";
 import { useAppStore } from "../../../store/useAppStore";
 
 export default function EditEventScreen() {
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const event = useEvent(id);
@@ -32,12 +39,8 @@ export default function EditEventScreen() {
   const events = useAppStore((state) => state.events);
   const hydrated = useAppStore((state) => state.hydrated);
   const tier = useSubscriptionTier();
-  const {
-    upgradeVisible,
-    upgradeReason,
-    promptUpgrade,
-    closeUpgrade,
-  } = useUpgradePrompt();
+  const { upgradeVisible, upgradeReason, promptUpgrade, closeUpgrade } =
+    useUpgradePrompt();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -52,9 +55,7 @@ export default function EditEventScreen() {
   const [initialized, setInitialized] = useState(false);
   const { refreshControl } = useRefreshControl();
 
-  const canEdit = event
-    ? canEditEvent(event, currentUserId, club)
-    : false;
+  const canEdit = event ? canEditEvent(event, currentUserId, club) : false;
   const eventStarted = event ? hasEventStarted(event) : false;
   const joinedCount = event?.participantIds.length ?? 0;
 
@@ -254,66 +255,68 @@ export default function EditEventScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  blocked: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  blockedTitle: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  blockedText: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
-    fontSize: 14,
-  },
-  label: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-    marginTop: spacing.md,
-  },
-  clubReadonly: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    alignSelf: "flex-start",
-    marginBottom: spacing.sm,
-  },
-  clubReadonlyText: {
-    ...typography.caption,
-    color: colors.text,
-    fontWeight: "600",
-  },
-  field: {
-    marginBottom: spacing.sm,
-  },
-  textArea: {
-    minHeight: 88,
-    textAlignVertical: "top",
-  },
-  errorHint: {
-    ...typography.caption,
-    color: colors.error,
-    marginBottom: spacing.sm,
-  },
-  submit: {
-    marginTop: spacing.lg,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: spacing.lg,
+    },
+    blocked: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing.lg,
+      gap: spacing.sm,
+    },
+    blockedTitle: {
+      ...typography.heading,
+      color: colors.text,
+    },
+    blockedText: {
+      ...typography.body,
+      color: colors.textMuted,
+      textAlign: "center",
+      fontSize: 14,
+    },
+    label: {
+      ...typography.label,
+      color: colors.textMuted,
+      marginBottom: spacing.sm,
+      marginTop: spacing.md,
+    },
+    clubReadonly: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.full,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      alignSelf: "flex-start",
+      marginBottom: spacing.sm,
+    },
+    clubReadonlyText: {
+      ...typography.caption,
+      color: colors.text,
+      fontWeight: "600",
+    },
+    field: {
+      marginBottom: spacing.sm,
+    },
+    textArea: {
+      minHeight: 88,
+      textAlignVertical: "top",
+    },
+    errorHint: {
+      ...typography.caption,
+      color: colors.error,
+      marginBottom: spacing.sm,
+    },
+    submit: {
+      marginTop: spacing.lg,
+    },
+  });
+}

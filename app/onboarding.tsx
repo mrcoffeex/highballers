@@ -121,10 +121,7 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={getAuthGradient(colors)}
-      style={styles.container}
-    >
+    <LinearGradient colors={getAuthGradient(colors)} style={styles.container}>
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
@@ -326,133 +323,133 @@ export default function OnboardingScreen() {
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scroll: {
-    paddingHorizontal: spacing.lg,
-  },
-  hero: {
-    alignItems: "center",
-    marginBottom: spacing.xl,
-  },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: withAlpha(colors.primary, 0.12),
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.md,
-    borderWidth: 2,
-    borderColor: withAlpha(colors.primary, 0.35),
-  },
-  brand: {
-    ...typography.hero,
-    color: colors.text,
-  },
-  tagline: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginTop: spacing.sm,
-    textAlign: "center",
-  },
-  steps: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
-  },
-  stepDot: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.cardBorder,
-  },
-  stepDotActive: {
-    backgroundColor: colors.primary,
-  },
-  stepContent: {
-    gap: spacing.sm,
-  },
-  stepTitle: {
-    ...typography.title,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  stepDesc: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginBottom: spacing.lg,
-  },
-  input: {
-    marginBottom: spacing.sm,
-  },
-  cta: {
-    marginTop: spacing.lg,
-  },
-  positionGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  positionCard: {
-    width: "30%",
-    flexGrow: 1,
-    paddingVertical: spacing.lg,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.cardBorder,
-    alignItems: "center",
-  },
-  positionCardActive: {
-    borderColor: colors.borderAccent,
-    backgroundColor: withAlpha(colors.primary, 0.1),
-  },
-  positionText: {
-    ...typography.heading,
-    color: colors.textMuted,
-    fontSize: 20,
-  },
-  positionTextActive: {
-    color: colors.primary,
-  },
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginTop: spacing.lg,
-  },
-  flexBtn: {
-    flex: 1,
-  },
-  error: {
-    ...typography.caption,
-    color: colors.error,
-    textAlign: "center",
-    marginTop: spacing.sm,
-  },
-  preview: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  previewName: {
-    ...typography.heading,
-    color: colors.text,
-  },
-  previewMeta: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
+    container: {
+      flex: 1,
+    },
+    scroll: {
+      paddingHorizontal: spacing.lg,
+    },
+    hero: {
+      alignItems: "center",
+      marginBottom: spacing.xl,
+    },
+    logoCircle: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: withAlpha(colors.primary, 0.12),
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: spacing.md,
+      borderWidth: 2,
+      borderColor: withAlpha(colors.primary, 0.35),
+    },
+    brand: {
+      ...typography.hero,
+      color: colors.text,
+    },
+    tagline: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginTop: spacing.sm,
+      textAlign: "center",
+    },
+    steps: {
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: spacing.sm,
+      marginBottom: spacing.xl,
+    },
+    stepDot: {
+      width: 32,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.cardBorder,
+    },
+    stepDotActive: {
+      backgroundColor: colors.primary,
+    },
+    stepContent: {
+      gap: spacing.sm,
+    },
+    stepTitle: {
+      ...typography.title,
+      color: colors.text,
+      marginBottom: spacing.xs,
+    },
+    stepDesc: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginBottom: spacing.lg,
+    },
+    input: {
+      marginBottom: spacing.sm,
+    },
+    cta: {
+      marginTop: spacing.lg,
+    },
+    positionGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    positionCard: {
+      width: "30%",
+      flexGrow: 1,
+      paddingVertical: spacing.lg,
+      borderRadius: radius.lg,
+      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      alignItems: "center",
+    },
+    positionCardActive: {
+      borderColor: colors.borderAccent,
+      backgroundColor: withAlpha(colors.primary, 0.1),
+    },
+    positionText: {
+      ...typography.heading,
+      color: colors.textMuted,
+      fontSize: 20,
+    },
+    positionTextActive: {
+      color: colors.primary,
+    },
+    navRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      marginTop: spacing.lg,
+    },
+    flexBtn: {
+      flex: 1,
+    },
+    error: {
+      ...typography.caption,
+      color: colors.error,
+      textAlign: "center",
+      marginTop: spacing.sm,
+    },
+    preview: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      backgroundColor: colors.surface,
+      padding: spacing.md,
+      borderRadius: radius.lg,
+      marginTop: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    previewName: {
+      ...typography.heading,
+      color: colors.text,
+    },
+    previewMeta: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
   });
 }

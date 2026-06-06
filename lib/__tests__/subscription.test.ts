@@ -27,9 +27,7 @@ describe("subscription", () => {
   });
 
   it("limits basic users to one owned club", () => {
-    const clubs = [
-      mockClub({ adminId: "basic-1", memberIds: ["basic-1"] }),
-    ];
+    const clubs = [mockClub({ adminId: "basic-1", memberIds: ["basic-1"] })];
     expect(countOwnedClubs(clubs, "basic-1")).toBe(1);
     expect(canCreateClub("basic", clubs, "basic-1").ok).toBe(false);
     expect(canCreateClub("all_star", clubs, "basic-1").ok).toBe(true);
@@ -57,11 +55,12 @@ describe("subscription", () => {
       memberIds: ["cap-6"],
       visibility: "open",
     });
-    expect(canJoinClub("basic", [...clubs, sixth], "basic-1", sixth, basicUser).ok).toBe(
-      false,
-    );
     expect(
-      canJoinClub("basic", clubs.slice(0, 2), "basic-1", joined[0], basicUser).ok,
+      canJoinClub("basic", [...clubs, sixth], "basic-1", sixth, basicUser).ok,
+    ).toBe(false);
+    expect(
+      canJoinClub("basic", clubs.slice(0, 2), "basic-1", joined[0], basicUser)
+        .ok,
     ).toBe(true);
   });
 
@@ -71,9 +70,9 @@ describe("subscription", () => {
       adminId: "cap",
       memberIds: ["cap"],
     });
-    expect(
-      canJoinClub("basic", [], "basic-1", privateClub, proUser).ok,
-    ).toBe(false);
+    expect(canJoinClub("basic", [], "basic-1", privateClub, proUser).ok).toBe(
+      false,
+    );
   });
 
   it("limits basic users to events with 100 players or fewer", () => {

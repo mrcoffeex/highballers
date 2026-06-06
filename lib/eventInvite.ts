@@ -95,7 +95,10 @@ export function resolvePlayersToInvite(
     };
     const access = canUserJoinEvent(userId, projectedEvent);
     if (!access.ok) {
-      skipped.push({ userId, reason: access.reason ?? "Cannot join this game." });
+      skipped.push({
+        userId,
+        reason: access.reason ?? "Cannot join this game.",
+      });
       continue;
     }
 

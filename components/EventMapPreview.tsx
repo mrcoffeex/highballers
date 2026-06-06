@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet } from "react-native";
 
 import { GeoPoint } from "../lib/location";
-import { colors, radius } from "../lib/theme";
+import { useThemedStyles } from "../lib/ThemeProvider";
+import { radius, type ThemeColors } from "../lib/theme";
 import { LeafletMapView } from "./LeafletMapView";
 
 interface EventMapPreviewProps {
@@ -10,6 +11,8 @@ interface EventMapPreviewProps {
 }
 
 export function EventMapPreview({ location, onPress }: EventMapPreviewProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable onPress={onPress} style={styles.shell}>
       <LeafletMapView
@@ -23,12 +26,14 @@ export function EventMapPreview({ location, onPress }: EventMapPreviewProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  shell: {
-    borderRadius: radius.lg,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    shell: {
+      borderRadius: radius.lg,
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.card,
+    },
+  });
+}

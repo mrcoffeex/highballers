@@ -1,7 +1,14 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { CHAT_EMOJI_GROUPS, type ChatEmojiGroup } from "../lib/chatEmojis";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useThemedStyles } from "../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 
 type ChatEmojiPickerProps = {
   recentEmojis: string[];
@@ -12,6 +19,7 @@ export function ChatEmojiPicker({
   recentEmojis,
   onPick,
 }: ChatEmojiPickerProps) {
+  const styles = useThemedStyles(createStyles);
   const groups: ChatEmojiGroup[] =
     recentEmojis.length > 0
       ? [
@@ -55,45 +63,47 @@ export function ChatEmojiPicker({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    height: 220,
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
-    backgroundColor: colors.surface,
-  },
-  gridScroll: {
-    flex: 1,
-  },
-  grid: {
-    paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.sm,
-  },
-  section: {
-    marginBottom: spacing.sm,
-  },
-  sectionLabel: {
-    ...typography.caption,
-    color: colors.textDim,
-    marginBottom: spacing.xs,
-    marginLeft: spacing.xs,
-  },
-  emojiRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  emojiBtn: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.md,
-  },
-  emojiBtnPressed: {
-    backgroundColor: `${colors.primary}22`,
-  },
-  emoji: {
-    fontSize: 26,
-    lineHeight: 30,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      height: 220,
+      borderTopWidth: 1,
+      borderTopColor: colors.cardBorder,
+      backgroundColor: colors.surface,
+    },
+    gridScroll: {
+      flex: 1,
+    },
+    grid: {
+      paddingHorizontal: spacing.sm,
+      paddingBottom: spacing.sm,
+    },
+    section: {
+      marginBottom: spacing.sm,
+    },
+    sectionLabel: {
+      ...typography.caption,
+      color: colors.textDim,
+      marginBottom: spacing.xs,
+      marginLeft: spacing.xs,
+    },
+    emojiRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+    emojiBtn: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radius.md,
+    },
+    emojiBtnPressed: {
+      backgroundColor: withAlpha(colors.primary, 0.14),
+    },
+    emoji: {
+      fontSize: 26,
+      lineHeight: 30,
+    },
+  });
+}

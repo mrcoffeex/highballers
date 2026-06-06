@@ -1,12 +1,14 @@
 import { Stack } from "@/lib/expoRouter";
 
-import { colors } from "../../../lib/theme";
+import { useTheme } from "../../../lib/ThemeProvider";
 
 export const unstable_settings = {
   initialRouteName: "index",
 };
 
 export default function ClubsLayout() {
+  const { colors } = useTheme();
+
   return (
     <Stack
       screenOptions={{

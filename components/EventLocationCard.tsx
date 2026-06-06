@@ -2,11 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 
 import { EventLocation } from "../lib/location";
-import {
-  openGoogleMapsDirections,
-  openGoogleMapsPlace,
-} from "../lib/maps";
-import { colors, spacing, typography } from "../lib/theme";
+import { openGoogleMapsDirections, openGoogleMapsPlace } from "../lib/maps";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import { spacing, typography, type ThemeColors } from "../lib/theme";
 import { EventMapPreview } from "./EventMapPreview";
 import { Button } from "./ui";
 
@@ -15,6 +13,8 @@ interface EventLocationCardProps {
 }
 
 export function EventLocationCard({ location }: EventLocationCardProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const openPlace = () => openGoogleMapsPlace(location, location.label);
   const openDirections = () =>
     openGoogleMapsDirections(location, location.label);
@@ -38,37 +38,41 @@ export function EventLocationCard({ location }: EventLocationCardProps) {
         title="Get directions"
         variant="outline"
         onPress={openDirections}
-        icon={<Ionicons name="navigate-outline" size={18} color={colors.primary} />}
+        icon={
+          <Ionicons name="navigate-outline" size={18} color={colors.primary} />
+        }
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  copy: {
-    gap: spacing.xs,
-  },
-  labelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  label: {
-    ...typography.label,
-    color: colors.textMuted,
-    fontSize: 10,
-  },
-  address: {
-    ...typography.body,
-    color: colors.text,
-    fontSize: 15,
-  },
-  coords: {
-    ...typography.caption,
-    color: colors.textDim,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    copy: {
+      gap: spacing.xs,
+    },
+    labelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    label: {
+      ...typography.label,
+      color: colors.textMuted,
+      fontSize: 10,
+    },
+    address: {
+      ...typography.body,
+      color: colors.text,
+      fontSize: 15,
+    },
+    coords: {
+      ...typography.caption,
+      color: colors.textDim,
+    },
+  });
+}

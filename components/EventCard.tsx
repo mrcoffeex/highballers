@@ -119,116 +119,116 @@ export function EventCard({
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  card: {
-    marginBottom: spacing.md,
-  },
-  topRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  dateBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  dateBoxOngoing: {
-    borderWidth: 2,
-    borderColor: colors.success,
-  },
-  dateBoxDone: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  liveDot: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.success,
-    borderWidth: 1,
-    borderColor: colors.background,
-  },
-  dateMonth: {
-    ...typography.label,
-    color: colors.text,
-    fontSize: 10,
-  },
-  dateDay: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: colors.text,
-    lineHeight: 24,
-  },
-  dateTextDone: {
-    color: colors.textMuted,
-  },
-  content: {
-    flex: 1,
-    minWidth: 0,
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: 2,
-  },
-  title: {
-    ...typography.heading,
-    color: colors.text,
-    flex: 1,
-  },
-  titleDone: {
-    color: colors.textMuted,
-  },
-  club: {
-    ...typography.caption,
-    color: colors.primary,
-    marginBottom: spacing.xs,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    flexWrap: "wrap",
-  },
-  meta: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginRight: spacing.sm,
-    flexShrink: 1,
-  },
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
-  },
-  spots: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  spotsText: {
-    ...typography.caption,
-    color: colors.success,
-  },
-  spotsFull: {
-    color: colors.warning,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
+    card: {
+      marginBottom: spacing.md,
+    },
+    topRow: {
+      flexDirection: "row",
+      gap: spacing.md,
+      marginBottom: spacing.md,
+    },
+    dateBox: {
+      width: 56,
+      height: 56,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      position: "relative",
+    },
+    dateBoxOngoing: {
+      borderWidth: 2,
+      borderColor: colors.success,
+    },
+    dateBoxDone: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    liveDot: {
+      position: "absolute",
+      top: 6,
+      right: 6,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.success,
+      borderWidth: 1,
+      borderColor: colors.background,
+    },
+    dateMonth: {
+      ...typography.label,
+      color: colors.text,
+      fontSize: 10,
+    },
+    dateDay: {
+      fontSize: 22,
+      fontWeight: "800",
+      color: colors.text,
+      lineHeight: 24,
+    },
+    dateTextDone: {
+      color: colors.textMuted,
+    },
+    content: {
+      flex: 1,
+      minWidth: 0,
+    },
+    titleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      marginBottom: 2,
+    },
+    title: {
+      ...typography.heading,
+      color: colors.text,
+      flex: 1,
+    },
+    titleDone: {
+      color: colors.textMuted,
+    },
+    club: {
+      ...typography.caption,
+      color: colors.primary,
+      marginBottom: spacing.xs,
+    },
+    metaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      flexWrap: "wrap",
+    },
+    meta: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginRight: spacing.sm,
+      flexShrink: 1,
+    },
+    footer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: colors.cardBorder,
+    },
+    spots: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    spotsText: {
+      ...typography.caption,
+      color: colors.success,
+    },
+    spotsFull: {
+      color: colors.warning,
+    },
+    badgeRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
   });
 }

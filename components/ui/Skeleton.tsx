@@ -104,10 +104,7 @@ export function SkeletonButtonLabel({
   return <Skeleton width={width} height={14} borderRadius={radius.sm} />;
 }
 
-function cardShell(
-  styles: ReturnType<typeof createStyles>,
-  style?: ViewStyle,
-) {
+function cardShell(styles: ReturnType<typeof createStyles>, style?: ViewStyle) {
   return [styles.cardShell, style];
 }
 
@@ -575,244 +572,244 @@ export function AppBootstrapSkeleton() {
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  block: {
-    backgroundColor: colors.surfaceContainerHighest,
-  },
-  flex: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  listGap: {
-    gap: spacing.sm,
-  },
-  lineGap: {
-    marginTop: spacing.sm,
-  },
-  sectionGap: {
-    marginTop: spacing.lg,
-  },
-  cardShell: {
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  chatItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  chatContent: {
-    flex: 1,
-    minWidth: 0,
-  },
-  chatTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  thread: {
-    flex: 1,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  messageRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  messageRowLeft: {
-    justifyContent: "flex-start",
-  },
-  messageRowRight: {
-    justifyContent: "flex-end",
-  },
-  messageBubble: {
-    maxWidth: "78%",
-    borderRadius: radius.lg,
-    padding: spacing.sm + 2,
-    backgroundColor: colors.surfaceContainerHigh,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    gap: spacing.xs,
-  },
-  messageBubbleLeft: {
-    flex: 1,
-  },
-  messageBubbleRight: {
-    alignItems: "flex-end",
-  },
-  messageName: {
-    marginBottom: spacing.xs,
-  },
-  messageTime: {
-    marginTop: spacing.xs,
-    alignSelf: "flex-end",
-  },
-  memberRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  memberLines: {
-    flex: 1,
-  },
-  loadMoreWrap: {
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  clubCard: {
-    marginBottom: spacing.sm,
-  },
-  clubHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  eventCard: {
-    marginBottom: spacing.sm,
-  },
-  eventTopRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  eventFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant,
-  },
-  leaderboardRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  leaderboardValue: {
-    alignItems: "flex-end",
-    minWidth: 52,
-  },
-  profileContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  profileHero: {
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  profileTagRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    justifyContent: "center",
-  },
-  profileMetaGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    width: "100%",
-    justifyContent: "space-between",
-  },
-  statGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  statChip: {
-    width: "31%",
-    flexGrow: 1,
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  screenContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  clubHero: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  eventHero: {
-    marginBottom: spacing.lg,
-  },
-  actionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-  },
-  formField: {
-    marginBottom: spacing.md,
-  },
-  tabRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  scoreGrid: {
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  gridRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-  },
-  locationResults: {
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: radius.xl,
-    overflow: "hidden",
-  },
-  locationResultRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant,
-  },
-  homeHero: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  bootstrap: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.xl,
-  },
-  bootstrapLogo: {
-    width: 140,
-    height: 140,
-  },
-  bootstrapTitle: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  bootstrapCards: {
-    width: "100%",
-    maxWidth: 360,
-    gap: spacing.sm,
-    marginTop: spacing.xl,
-  },
+    block: {
+      backgroundColor: colors.surfaceContainerHighest,
+    },
+    flex: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    listGap: {
+      gap: spacing.sm,
+    },
+    lineGap: {
+      marginTop: spacing.sm,
+    },
+    sectionGap: {
+      marginTop: spacing.lg,
+    },
+    cardShell: {
+      backgroundColor: colors.surfaceContainer,
+      borderRadius: radius.xl,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant,
+    },
+    chatItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    chatContent: {
+      flex: 1,
+      minWidth: 0,
+    },
+    chatTopRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    thread: {
+      flex: 1,
+      padding: spacing.lg,
+      gap: spacing.sm,
+    },
+    messageRow: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    messageRowLeft: {
+      justifyContent: "flex-start",
+    },
+    messageRowRight: {
+      justifyContent: "flex-end",
+    },
+    messageBubble: {
+      maxWidth: "78%",
+      borderRadius: radius.lg,
+      padding: spacing.sm + 2,
+      backgroundColor: colors.surfaceContainerHigh,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant,
+      gap: spacing.xs,
+    },
+    messageBubbleLeft: {
+      flex: 1,
+    },
+    messageBubbleRight: {
+      alignItems: "flex-end",
+    },
+    messageName: {
+      marginBottom: spacing.xs,
+    },
+    messageTime: {
+      marginTop: spacing.xs,
+      alignSelf: "flex-end",
+    },
+    memberRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    memberLines: {
+      flex: 1,
+    },
+    loadMoreWrap: {
+      gap: spacing.sm,
+      paddingVertical: spacing.md,
+    },
+    clubCard: {
+      marginBottom: spacing.sm,
+    },
+    clubHeader: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    eventCard: {
+      marginBottom: spacing.sm,
+    },
+    eventTopRow: {
+      flexDirection: "row",
+      gap: spacing.md,
+      marginBottom: spacing.md,
+    },
+    eventFooter: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: colors.outlineVariant,
+    },
+    leaderboardRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    leaderboardValue: {
+      alignItems: "flex-end",
+      minWidth: 52,
+    },
+    profileContent: {
+      padding: spacing.lg,
+      paddingBottom: spacing.xxl,
+    },
+    profileHero: {
+      alignItems: "center",
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    profileTagRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      justifyContent: "center",
+    },
+    profileMetaGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      width: "100%",
+      justifyContent: "space-between",
+    },
+    statGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    statChip: {
+      width: "31%",
+      flexGrow: 1,
+      backgroundColor: colors.surfaceContainerHigh,
+      borderRadius: radius.md,
+      padding: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant,
+    },
+    screenContent: {
+      padding: spacing.lg,
+      paddingBottom: spacing.xxl,
+    },
+    clubHero: {
+      flexDirection: "row",
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    eventHero: {
+      marginBottom: spacing.lg,
+    },
+    actionRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+    },
+    formField: {
+      marginBottom: spacing.md,
+    },
+    tabRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    scoreGrid: {
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    gridRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+    },
+    locationResults: {
+      backgroundColor: colors.surfaceContainer,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant,
+      borderRadius: radius.xl,
+      overflow: "hidden",
+    },
+    locationResultRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.outlineVariant,
+    },
+    homeHero: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    bootstrap: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing.xl,
+    },
+    bootstrapLogo: {
+      width: 140,
+      height: 140,
+    },
+    bootstrapTitle: {
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    bootstrapCards: {
+      width: "100%",
+      maxWidth: 360,
+      gap: spacing.sm,
+      marginTop: spacing.xl,
+    },
   });
 }

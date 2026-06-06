@@ -1,6 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ViewStyle,
+} from "react-native";
 
 import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
 import {
@@ -96,7 +102,10 @@ export function EventActionRow({
   );
 }
 
-function getTonePalette(colors: ThemeColors, tone: EventActionTone): TonePalette {
+function getTonePalette(
+  colors: ThemeColors,
+  tone: EventActionTone,
+): TonePalette {
   const palettes: Record<EventActionTone, TonePalette> = {
     primary: {
       row: {

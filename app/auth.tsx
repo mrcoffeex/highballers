@@ -172,10 +172,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={getAuthGradient(colors)}
-      style={styles.container}
-    >
+    <LinearGradient colors={getAuthGradient(colors)} style={styles.container}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -234,7 +231,11 @@ export default function AuthScreen() {
                   variant="outline"
                   size="lg"
                   icon={
-                    <Ionicons name="mail-outline" size={20} color={colors.text} />
+                    <Ionicons
+                      name="mail-outline"
+                      size={20}
+                      color={colors.text}
+                    />
                   }
                   style={styles.authBtn}
                 />
@@ -269,9 +270,7 @@ export default function AuthScreen() {
                   ) : null}
 
                   <Button
-                    title={
-                      emailOtpStep === "otp" ? "Verify code" : "Send code"
-                    }
+                    title={emailOtpStep === "otp" ? "Verify code" : "Send code"}
                     onPress={
                       emailOtpStep === "otp" ? handleVerifyOtp : handleSendOtp
                     }

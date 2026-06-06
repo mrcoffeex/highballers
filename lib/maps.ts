@@ -1,10 +1,7 @@
 import { Linking, Platform } from "react-native";
 
 import { GeoPoint } from "./location";
-import {
-  getGoogleMapsDirectionsUrl,
-  getGoogleMapsSearchUrl,
-} from "./mapsUrls";
+import { getGoogleMapsDirectionsUrl, getGoogleMapsSearchUrl } from "./mapsUrls";
 
 export {
   getGoogleMapsDirectionsUrl,

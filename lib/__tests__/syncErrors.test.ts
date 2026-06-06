@@ -8,9 +8,9 @@ describe("syncErrors", () => {
       formatSyncError({ message: "row-level security policy for events" }),
     ).toContain("Could not create this game");
 
-    expect(formatSyncError({ message: "relation club_sub_captains" })).toContain(
-      "club-sub-captains",
-    );
+    expect(
+      formatSyncError({ message: "relation club_sub_captains" }),
+    ).toContain("club-sub-captains");
 
     expect(formatSyncError(new Error("Cloud sync timed out"))).toBe(
       "Save timed out. Check your connection and try again.",

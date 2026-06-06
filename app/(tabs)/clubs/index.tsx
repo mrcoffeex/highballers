@@ -6,7 +6,14 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ClubCard } from "../../../components/ClubCard";
 import { Screen } from "../../../components/Screen";
 import { Button, EmptyState } from "../../../components/ui";
-import { colors, radius, spacing, typography } from "../../../lib/theme";
+import { useTheme, useThemedStyles } from "../../../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../../../lib/theme";
 import { useUpgradePrompt } from "../../../lib/useUpgradePrompt";
 import { useClubMembershipLimits, useIsAllStar } from "../../../store/hooks";
 import { useAppStore } from "../../../store/useAppStore";
@@ -14,6 +21,8 @@ import { useAppStore } from "../../../store/useAppStore";
 type Filter = "all" | "joined" | "discover";
 
 export default function ClubsScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
   const isPro = useIsAllStar();
@@ -125,45 +134,47 @@ export default function ClubsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: spacing.lg,
-  },
-  title: {
-    ...typography.title,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-  filters: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  filterChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  filterChipActive: {
-    backgroundColor: `${colors.primary}20`,
-    borderColor: colors.primary,
-  },
-  filterText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: "600",
-  },
-  filterTextActive: {
-    color: colors.primary,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    headerRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: spacing.lg,
+    },
+    title: {
+      ...typography.title,
+      color: colors.text,
+    },
+    subtitle: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginTop: spacing.xs,
+    },
+    filters: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    filterChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.full,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    filterChipActive: {
+      backgroundColor: withAlpha(colors.primary, 0.12),
+      borderColor: colors.primary,
+    },
+    filterText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "600",
+    },
+    filterTextActive: {
+      color: colors.primary,
+    },
+  });
+}

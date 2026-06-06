@@ -10,7 +10,14 @@ import {
 } from "../lib/geocoding";
 import { DEFAULT_MAP_CENTER, EventLocation, GeoPoint } from "../lib/location";
 import { OSM_ATTRIBUTION } from "../lib/leafletMap";
-import { colors, radius, spacing, typography } from "../lib/theme";
+import { useTheme, useThemedStyles } from "../lib/ThemeProvider";
+import {
+  radius,
+  spacing,
+  typography,
+  withAlpha,
+  type ThemeColors,
+} from "../lib/theme";
 import { LeafletMapView } from "./LeafletMapView";
 import {
   Button,
@@ -33,6 +40,8 @@ export function LocationPicker({
   placeholder = "Search courts, gyms, parks...",
   initialCenter = DEFAULT_MAP_CENTER,
 }: LocationPickerProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [query, setQuery] = useState(value?.label ?? "");
   const [results, setResults] = useState<GeocodingResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -226,114 +235,116 @@ export function LocationPicker({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  searchWrap: {
-    position: "relative",
-    justifyContent: "center",
-  },
-  searchIcon: {
-    position: "absolute",
-    left: spacing.md,
-    zIndex: 1,
-  },
-  searchInput: {
-    paddingLeft: spacing.xl + spacing.sm,
-    paddingRight: spacing.xl,
-  },
-  searchSpinner: {
-    position: "absolute",
-    right: spacing.md,
-  },
-  error: {
-    ...typography.caption,
-    color: colors.error,
-  },
-  results: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.lg,
-    overflow: "hidden",
-  },
-  resultRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
-  },
-  resultText: {
-    ...typography.caption,
-    color: colors.text,
-    flex: 1,
-  },
-  mapShell: {
-    borderRadius: radius.lg,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
-    position: "relative",
-  },
-  mapOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: `${colors.background}CC`,
-    zIndex: 2,
-    padding: spacing.md,
-    justifyContent: "center",
-  },
-  mapHint: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  mapHintText: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  selectedRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    backgroundColor: `${colors.success}12`,
-    borderWidth: 1,
-    borderColor: `${colors.success}40`,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-  },
-  selectedCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  selectedLabel: {
-    ...typography.label,
-    color: colors.success,
-    fontSize: 10,
-  },
-  selectedValue: {
-    ...typography.body,
-    color: colors.text,
-    fontSize: 14,
-  },
-  coords: {
-    ...typography.caption,
-    color: colors.textDim,
-  },
-  helper: {
-    ...typography.caption,
-    color: colors.textDim,
-  },
-  attribution: {
-    ...typography.caption,
-    color: colors.textDim,
-    fontSize: 10,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    searchWrap: {
+      position: "relative",
+      justifyContent: "center",
+    },
+    searchIcon: {
+      position: "absolute",
+      left: spacing.md,
+      zIndex: 1,
+    },
+    searchInput: {
+      paddingLeft: spacing.xl + spacing.sm,
+      paddingRight: spacing.xl,
+    },
+    searchSpinner: {
+      position: "absolute",
+      right: spacing.md,
+    },
+    error: {
+      ...typography.caption,
+      color: colors.error,
+    },
+    results: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: radius.lg,
+      overflow: "hidden",
+    },
+    resultRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+    },
+    resultText: {
+      ...typography.caption,
+      color: colors.text,
+      flex: 1,
+    },
+    mapShell: {
+      borderRadius: radius.lg,
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.card,
+      position: "relative",
+    },
+    mapOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: withAlpha(colors.background, 0.8),
+      zIndex: 2,
+      padding: spacing.md,
+      justifyContent: "center",
+    },
+    mapHint: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      backgroundColor: colors.surface,
+    },
+    mapHintText: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    selectedRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      backgroundColor: withAlpha(colors.success, 0.07),
+      borderWidth: 1,
+      borderColor: withAlpha(colors.success, 0.25),
+      borderRadius: radius.lg,
+      padding: spacing.md,
+    },
+    selectedCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    selectedLabel: {
+      ...typography.label,
+      color: colors.success,
+      fontSize: 10,
+    },
+    selectedValue: {
+      ...typography.body,
+      color: colors.text,
+      fontSize: 14,
+    },
+    coords: {
+      ...typography.caption,
+      color: colors.textDim,
+    },
+    helper: {
+      ...typography.caption,
+      color: colors.textDim,
+    },
+    attribution: {
+      ...typography.caption,
+      color: colors.textDim,
+      fontSize: 10,
+    },
+  });
+}
