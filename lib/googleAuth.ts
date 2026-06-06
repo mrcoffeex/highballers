@@ -8,12 +8,17 @@ import { Platform } from "react-native";
 import { getSupabase } from "./supabase";
 import {
   NATIVE_OAUTH_REDIRECT_URI,
-  pickOAuthRedirectUri,
+  buildRedirectRejectedMessage,
+  getRedirectToFromAuthorizeUrl,
+  resolveOAuthRedirectUri,
 } from "./oauthRedirect";
 
 export {
   NATIVE_OAUTH_REDIRECT_URI,
+  buildRedirectRejectedMessage,
+  getRedirectToFromAuthorizeUrl,
   pickOAuthRedirectUri,
+  resolveOAuthRedirectUri,
 } from "./oauthRedirect";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -55,6 +60,10 @@ function isNativeAppBuild(): boolean {
   );
 }
 
+function isExpoGoClient(): boolean {
+  return Constants.appOwnership === "expo";
+}
+
 /** When true, OAuth uses exp://127.0.0.1:8081 (must match Metro --localhost + adb reverse). */
 export function oauthPreferLocalhost(): boolean {
   const value = process.env.EXPO_PUBLIC_OAUTH_PREFER_LOCALHOST;
@@ -70,32 +79,17 @@ function expoGoOAuthRedirectUri() {
 }
 
 export function getOAuthRedirectUri() {
-  if (Platform.OS === "web") {
-    if (typeof window !== "undefined" && window.location?.origin) {
-      return `${window.location.origin}/oauth-callback`;
-    }
-
-    const appUrl = process.env.EXPO_PUBLIC_APP_URL?.replace(/\/$/, "");
-    if (appUrl) {
-      return `${appUrl}/oauth-callback`;
-    }
-  }
-
-  // Preview / production native builds must use the app scheme, not exp://.
-  if (isNativeAppBuild()) {
-    return nativeOAuthRedirectUri();
-  }
-
-  const useDevRedirect = __DEV__ || Constants.appOwnership === "expo";
-
-  if (!useDevRedirect) {
-    return nativeOAuthRedirectUri();
-  }
-
-  return pickOAuthRedirectUri(
-    process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI,
-    expoGoOAuthRedirectUri(),
-  );
+  return resolveOAuthRedirectUri({
+    platformOs: Platform.OS,
+    appOwnership: Constants.appOwnership,
+    windowOrigin:
+      Platform.OS === "web" && typeof window !== "undefined"
+        ? window.location.origin
+        : undefined,
+    appUrl: process.env.EXPO_PUBLIC_APP_URL,
+    envRedirectUri: process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI,
+    expoGoRedirectUri: expoGoOAuthRedirectUri(),
+  });
 }
 
 /** Redirect URLs to whitelist in Supabase Auth → URL Configuration. */
@@ -140,10 +134,14 @@ export function buildOAuthTimeoutMessage(): string {
     lines.push(
       "On a preview or store build, use the native URL above (not exp://). Reinstall the latest preview APK after changing app.json intent filters.",
     );
-  } else {
+  } else if (isExpoGoClient()) {
     lines.push(
       "The redirect URL must match Metro (see OAuth redirect on the sign-in screen).",
       "Reload the app in Expo Go after changing Metro host (LAN vs localhost), then try again.",
+    );
+  } else {
+    lines.push(
+      "If the browser opened your Site URL instead of the app, add the redirect URL above to Supabase.",
     );
   }
 
@@ -320,6 +318,10 @@ export async function createSessionFromUrl(
   const supabase = getSupabase();
   if (!supabase) return "Cloud sync is not configured.";
 
+  if (Platform.OS !== "web" && /^https?:\/\//i.test(url)) {
+    return buildRedirectRejectedMessage(getOAuthRedirectUri());
+  }
+
   const { params, errorCode } = parseAuthParams(url);
 
   if (errorCode) return errorCode;
@@ -391,6 +393,11 @@ async function signInWithOAuthProvider(
   if (error) return error.message;
   if (!data.url) return `Unable to start ${label} sign in.`;
 
+  const authorizeRedirect = getRedirectToFromAuthorizeUrl(data.url);
+  if (authorizeRedirect && authorizeRedirect !== redirectTo) {
+    return buildRedirectRejectedMessage(redirectTo);
+  }
+
   if (Platform.OS === "web") {
     // Supabase stores the PKCE verifier then redirects the browser.
     window.location.assign(data.url);
@@ -452,6 +459,16 @@ async function signInWithOAuthProvider(
 }
 
 export async function signInWithGoogle(): Promise<string | null> {
+  const { usesNativeGoogleSignIn, signInWithGoogleNative } = await import(
+    "./googleNativeSignIn"
+  );
+
+  // Installed apps (com.highballers.app) must never use browser OAuth — that
+  // falls back to Supabase Site URL when redirects fail.
+  if (usesNativeGoogleSignIn()) {
+    return signInWithGoogleNative();
+  }
+
   return signInWithOAuthProvider("google", {
     access_type: "offline",
     prompt: "consent",

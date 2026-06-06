@@ -12,5 +12,5 @@ export function shouldEnableGoogleSignIn(options: {
     );
   }
 
-  return false;
+  return true;
 }

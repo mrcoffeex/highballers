@@ -17,10 +17,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthLegalFooter } from "../components/AuthLegalFooter";
 import { Button, Input } from "../components/ui";
 import { getAppDisplayName } from "../lib/clubInvite";
-import { isGoogleSignInEnabled } from "../lib/appEnvironment";
+import { isExpoGo, isGoogleSignInEnabled } from "../lib/appEnvironment";
+import {
+  getNativeGoogleSignInConfigError,
+  usesNativeGoogleSignIn,
+} from "../lib/googleNativeSignIn";
 import {
   getOAuthRedirectUri,
-  getOAuthRedirectUriHints,
 } from "../lib/googleAuth";
 import { isSupabaseEnabled } from "../lib/config";
 import { normalizeEmailOtpCode, EMAIL_OTP_LENGTH } from "../lib/emailOtpCode";
@@ -63,12 +66,16 @@ export default function AuthScreen() {
   const [otpLoading, setOtpLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
   const showGoogleSignIn = isGoogleSignInEnabled();
+  const usesOAuthBrowserFlow = Platform.OS !== "web" && !usesNativeGoogleSignIn();
+  const oauthRedirectUri = getOAuthRedirectUri();
+  const showOAuthDevHint = __DEV__ && usesOAuthBrowserFlow && showGoogleSignIn;
 
   useEffect(() => {
     if (!isSupabaseEnabled) return;
 
     validateSupabaseConnection().then((message) => {
-      if (message) setConfigError(message);
+      const nativeError = getNativeGoogleSignInConfigError();
+      setConfigError(message ?? nativeError);
     });
   }, []);
 
@@ -89,14 +96,14 @@ export default function AuthScreen() {
     setEmailOtpStep("closed");
     setGoogleLoading(true);
 
-    if (Platform.OS !== "web") {
+    if (usesOAuthBrowserFlow) {
       router.push("/oauth-callback");
     }
 
     const message = await signInWithGoogle();
     if (message) {
       setGoogleLoading(false);
-      if (Platform.OS !== "web") {
+      if (usesOAuthBrowserFlow) {
         router.replace("/auth");
       }
       setError(message);
@@ -104,6 +111,12 @@ export default function AuthScreen() {
     }
 
     if (Platform.OS === "web") {
+      return;
+    }
+
+    if (usesNativeGoogleSignIn()) {
+      setGoogleLoading(false);
+      await completeSignIn();
       return;
     }
 
@@ -205,22 +218,25 @@ export default function AuthScreen() {
           {isSupabaseEnabled ? (
             <>
               {showGoogleSignIn ? (
-                <Button
-                  title="Continue with Google"
-                  onPress={handleGoogleSignIn}
-                  loading={googleLoading}
-                  disabled={googleLoading || otpLoading || !!configError}
-                  variant="outline"
-                  size="lg"
-                  icon={
-                    <Ionicons
-                      name="logo-google"
-                      size={20}
-                      color={colors.text}
-                    />
-                  }
-                  style={styles.authBtn}
-                />
+                <>
+                  <Button
+                    title="Continue with Google"
+                    onPress={handleGoogleSignIn}
+                    loading={googleLoading}
+                    disabled={googleLoading || otpLoading || !!configError}
+                    variant="outline"
+                    size="lg"
+                    icon={
+                      <Ionicons
+                        name="logo-google"
+                        size={20}
+                        color={colors.text}
+                      />
+                    }
+                    style={styles.authBtn}
+                  />
+                  {showOAuthDevHint ? null : null}
+                </>
               ) : null}
 
               {emailOtpStep === "closed" ? (
@@ -367,6 +383,30 @@ function createStyles(colors: ThemeColors) {
     },
     authBtn: {
       marginBottom: spacing.md,
+    },
+    oauthDevHint: {
+      marginBottom: spacing.md,
+      padding: spacing.md,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant,
+      backgroundColor: withAlpha(colors.surface, 0.72),
+      gap: spacing.xs,
+    },
+    oauthDevHintTitle: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontWeight: "700",
+    },
+    oauthDevHintText: {
+      ...typography.caption,
+      color: colors.text,
+      lineHeight: 18,
+    },
+    oauthDevHintNote: {
+      ...typography.caption,
+      color: colors.textDim,
+      lineHeight: 18,
     },
     emailOtpPanel: {
       marginBottom: spacing.md,

@@ -21,14 +21,14 @@ describe("shouldEnableGoogleSignIn", () => {
     ).toBe(true);
   });
 
-  it("disables Google sign-in in preview/production native builds", () => {
+  it("enables Google sign-in in preview/production native builds", () => {
     expect(
       shouldEnableGoogleSignIn({
         isDev: false,
         isExpoGo: false,
         platformOs: "android",
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("enables Google sign-in on local web only", () => {
